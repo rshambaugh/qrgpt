@@ -5,6 +5,7 @@ import { capitalizeWords } from './services/utils';
 import './styles.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
+
 function App() {
     const [newItem, setNewItem] = useState({
         name: '',
@@ -21,6 +22,19 @@ function App() {
     const [editingItem, setEditingItem] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showQRCode, setShowQRCode] = useState({}); // Track QR code visibility for each card
+    const [searchQuery, setSearchQuery] = useState(''); // For the search input
+
+    const filteredItems = items.filter((item) => {
+        const query = searchQuery.toLowerCase();
+        return (
+            item.name.toLowerCase().includes(query) ||
+            item.category.toLowerCase().includes(query) ||
+            item.tags.some((tag) => tag.toLowerCase().includes(query)) || // Check tags
+            item.location.toLowerCase().includes(query) ||
+            item.storage_container.toLowerCase().includes(query)
+        );
+    });
+    
 
     // Fetch items from backend
     useEffect(() => {
@@ -381,9 +395,20 @@ function App() {
     
             {/* Inventory List */}
             <h2>Inventory</h2>
+            {/* Search Bar */}
+            <div className="search-bar-container">
+                <input
+                    type="text"
+                    placeholder="Search items by name, category, tags, location..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="search-bar"
+                />
+            </div>
+
             {items.length > 0 ? (
                 <div className="inventory-list">
-                    {items.map((item) => (
+                    {filteredItems.map((item) => (
                         item && item.id ? (
                             <div
                                 className="card"
@@ -394,35 +419,43 @@ function App() {
                                 {console.log("Rendering item:", item.name, item.qr_code)} {/* Debugging log */}
                                 {showQRCode[item.id] ? (
                                     <div className="qr-code-container">
-                                    {item.qr_code ? (
-                                        <>
-                                            <img
-                                                src={item.qr_code}
-                                                alt={`${item.name || "Item"} QR Code`}
-                                                className="qr-code"
-                                            />
-                                            <div className="print-button-container">
+                                        {item.qr_code ? (
+                                            <>
+                                                <img
+                                                    src={item.qr_code}
+                                                    alt={`${item.name || "Item"} QR Code`}
+                                                    className="qr-code"
+                                                />
+                                                <div className="print-button-container">
+                                                    <button
+                                                        className="print-button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation(); // Prevent card toggle
+                                                            console.log(`Printing QR Code for item: ${item.name}`);
+                                                            // Future: Add logic to send QR code to the printer
+                                                        }}
+                                                    >
+                                                        <i className="fa fa-print" aria-hidden="true"></i> Print QR Code
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="create-button-container">
                                                 <button
-                                                    className="print-button"
+                                                    className="create-button"
                                                     onClick={(e) => {
                                                         e.stopPropagation(); // Prevent card toggle
-                                                        console.log(`Printing QR Code for item: ${item.name}`);
-                                                        // Future: Add logic to send QR code to the printer
+                                                        console.log(`Creating QR Code for item: ${item.name}`);
+                                                        handleUpdate(item); // Trigger the update function to generate QR code
                                                     }}
                                                 >
-                                                    <i className="fa fa-print" aria-hidden="true"></i> Print QR Code
+                                                    <i className="fa fa-qrcode" aria-hidden="true"></i> Create QR Code
                                                 </button>
                                             </div>
-                                        </>
-                                    ) : (
-                                        <p>No QR Code available</p>
-                                    )}
-                                </div>
-                                
-                                
-                                
+                                        )}
+                                    </div>
                                 ) : (
-                                     <>
+                                    <>
                                         <div className="card-actions">
                                             <i
                                                 className="fa fa-pen"
@@ -457,6 +490,7 @@ function App() {
                         ) : null
                     ))}
                 </div>
+
             ) : (
                 <div>No items found</div>
             )}

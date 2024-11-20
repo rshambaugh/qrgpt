@@ -136,16 +136,17 @@ def update_item(item_id: int, item: Item):
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_Q,
-            box_size=8,  # Ensure the box size is appropriate for the image size
-            border=4,    # Minimal border to save space
+            box_size=10,  # Appropriate size for clarity
+            border=4,     # Ensure sufficient border
         )
         qr.add_data(qr_data)
         qr.make(fit=True)
 
-        # Resize the QR Code to fit within the container
-        img = qr.make_image(fill="black", back_color="white").resize((180, 180))  # Match container size
-
-
+        # Convert QR Code to base64
+        img = qr.make_image(fill="black", back_color="white")
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
 
         # Update the database with the new data and QR code
         cursor.execute(
