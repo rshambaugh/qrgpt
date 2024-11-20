@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import api from './services/api';
-import pluralize from 'pluralize';
 import QRCode from 'qrcode';
 import { capitalizeWords } from './services/utils';
 import './styles.css';
@@ -21,6 +20,7 @@ function App() {
     const [items, setItems] = useState([]);
     const [editingItem, setEditingItem] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showQRCode, setShowQRCode] = useState({}); // Track QR code visibility for each card
 
     // Fetch items from backend
     useEffect(() => {
@@ -38,12 +38,98 @@ function App() {
         fetchItems();
     }, []);
 
-    // Handle input change
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setNewItem({ ...newItem, [name]: value });
+    // Handle Voice Input
+    const handleVoiceInput = async () => {
+        try {
+            const recognition = new (window.SpeechRecognition ||
+                window.webkitSpeechRecognition)();
+            recognition.lang = 'en-US';
+    
+            recognition.onstart = () => {
+                console.log('Voice recognition started. Speak into the microphone.');
+            };
+    
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                console.log('Voice input received:', transcript);
+    
+                // Default parsed data structure
+                const parsedData = {
+                    name: '',
+                    category: '',
+                    description: '',
+                    quantity: 1, // Default quantity
+                    location: '',
+                    storage_container: '',
+                    tags: '',
+                };
+    
+                // Extract "quantity" and "name"
+                const nameMatch = transcript.match(/add (.+?) to/);
+                if (nameMatch) {
+                    let nameWithQuantity = nameMatch[1].trim();
+                    const quantityWords = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+                    const quantityMatch = nameWithQuantity.split(' ')[0];
+                    if (quantityWords.includes(quantityMatch)) {
+                        parsedData.quantity = quantityWords.indexOf(quantityMatch) + 1;
+                        nameWithQuantity = nameWithQuantity.replace(quantityMatch, '').trim();
+                    }
+                    parsedData.name = capitalizeWords(nameWithQuantity); // Capitalize properly
+                }
+    
+                // Extract "category" using "to the ... category" pattern
+                const categoryMatch = transcript.match(/to the (.+?) category/);
+                if (categoryMatch) {
+                    parsedData.category = capitalizeWords(categoryMatch[1].trim());
+                }
+    
+                // Extract "storage_container" using "on the ..." or "in the ..." patterns
+                const containerMatch = transcript.match(/(?:on|in) (.+?)(?= in the| tagged with|$)/);
+                if (containerMatch) {
+                    parsedData.storage_container = capitalizeWords(containerMatch[1].trim());
+                }
+    
+                // Extract "location" by isolating the broader location
+                const locationMatch = transcript.match(/in the (.+?)(?= tagged with|$)/);
+                if (locationMatch) {
+                    parsedData.location = capitalizeWords(locationMatch[1].trim());
+                }
+    
+                // Extract "tags" using "tagged with ..." or "tag with ..." patterns
+                const tagsMatch = transcript.match(/tag(?:ged)? with (.+)/);
+                if (tagsMatch) {
+                    parsedData.tags = tagsMatch[1]
+                        .split(/ and |,/)
+                        .map((tag) => tag.trim().toLowerCase()); // Tags remain lowercase
+                }
+    
+                console.log('Parsed voice input:', parsedData);
+    
+                // form fields with parsed data
+                setNewItem((prevItem) => ({
+                    ...prevItem,
+                    name: parsedData.name || prevItem.name,
+                    category: parsedData.category || prevItem.category,
+                    description: prevItem.description, // Leave as is
+                    quantity: parsedData.quantity || prevItem.quantity,
+                    location: parsedData.location || prevItem.location,
+                    storage_container: parsedData.storage_container || prevItem.storage_container,
+                    tags: parsedData.tags.length ? parsedData.tags.join(', ') : prevItem.tags, // Join tags into a comma-separated string
+                }));
+            };
+    
+            recognition.onerror = (event) => {
+                console.error('Voice recognition error:', event.error);
+            };
+    
+            recognition.start();
+        } catch (error) {
+            console.error('Error initializing voice recognition:', error);
+        }
     };
-
+    
+    
+    
     // Reset form
     const resetForm = () => {
         setNewItem({
@@ -62,19 +148,22 @@ function App() {
     // Generate QR code
     const generateQRCode = async (text) => {
         try {
-            return await QRCode.toDataURL(text);
+            return await QRCode.toDataURL(text || 'No Data'); // Fixed the typo here
         } catch (error) {
             console.error('Error generating QR code:', error);
             return null;
         }
     };
+    
 
     // Add a new item
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const qrCodeData = await generateQRCode(newItem.name || 'Unnamed Item');
-    
+            const qrCodeData = await generateQRCode(
+                `${newItem.name}, Location: ${newItem.location}, Container: ${newItem.storage_container}`
+            );
+
             const formattedItem = {
                 ...newItem,
                 name: capitalizeWords(newItem.name || 'Unnamed Item'),
@@ -85,85 +174,76 @@ function App() {
                 tags: newItem.tags
                     ? newItem.tags.split(',').map((tag) => capitalizeWords(tag.trim()))
                     : [],
-                image_url: newItem.image_url || '', // Provide a default value
-                qrCode: qrCodeData, // Attach QR code data
+                image_url: newItem.image_url || '',
+                qrCode: qrCodeData,
             };
-    
+
             const response = await api.post('/items/', formattedItem);
-    
+
             if (response.data && response.data.item) {
                 setItems((prevItems) => [...prevItems, response.data.item]);
             } else {
                 console.error('Invalid response from server:', response.data);
             }
-    
+
             resetForm();
         } catch (error) {
             console.error('Error creating item:', error);
         }
     };
-    
-    
 
     // Edit an item
     const handleEdit = (item) => {
         setEditingItem({
             ...item,
-            tags: item.tags.join(', '), // Convert tags array to a string for editing
-            image_url: item.image_url || '', // Ensure image_url has a default value
+            tags: item.tags.join(', '),
+            image_url: item.image_url || '',
         });
     };
 
     // Update an existing item
     const handleUpdate = async (e) => {
         e.preventDefault();
-    
         try {
-            // Validate that editingItem is correctly set
             if (!editingItem || !editingItem.id) {
                 console.error('Editing item is invalid or does not have an ID');
                 return;
             }
-    
-            // Construct the updated item object from editingItem
+
+            const qrCodeData = await generateQRCode(
+                `${editingItem.name}, Location: ${editingItem.location}, Container: ${editingItem.storage_container}`
+            );
+
             const updatedItem = {
                 ...editingItem,
-                name: capitalizeWords(editingItem.name || 'Unnamed Item'),
-                category: capitalizeWords(editingItem.category || 'No Category'),
-                location: capitalizeWords(editingItem.location || 'No Location'),
+                name: capitalizeWords(editingItem.name || ''),
+                category: capitalizeWords(editingItem.category || ''),
+                location: capitalizeWords(editingItem.location || ''),
                 storage_container: capitalizeWords(editingItem.storage_container || ''),
-                quantity: parseInt(editingItem.quantity, 10) || 1,
                 tags: editingItem.tags
                     ? editingItem.tags.split(',').map((tag) => capitalizeWords(tag.trim()))
                     : [],
-                image_url: editingItem.image_url || '', // Ensure image_url has a default value
+                image_url: editingItem.image_url || '',
+                qrCode: qrCodeData,
             };
-    
-            // Send a PUT request to update the item
+
             const response = await api.put(`/items/${editingItem.id}`, updatedItem);
-    
-            if (!response.data || !response.data.item || !response.data.item.id) {
-                console.error('Invalid response from server:', response);
-                return;
+
+            if (response.data && response.data.item) {
+                setItems((prevItems) =>
+                    prevItems.map((item) =>
+                        item.id === editingItem.id ? response.data.item : item
+                    )
+                );
+            } else {
+                console.error('Invalid response from server:', response.data);
             }
-    
-            // Update the items array with the updated item
-            setItems((prevItems) =>
-                prevItems.map((item) =>
-                    item.id === editingItem.id ? response.data.item : item
-                )
-            );
-    
-            // Reset form and clear editing state
-            setEditingItem(null);
+
             resetForm();
-            console.log('Item updated successfully:', response.data.item);
         } catch (error) {
             console.error('Error updating item:', error);
         }
     };
-    
-    
 
     // Delete an item
     const handleDelete = async (id) => {
@@ -175,6 +255,14 @@ function App() {
         } catch (error) {
             console.error('Error deleting item:', error);
         }
+    };
+
+    // Toggle QR Code display
+    const handleToggleQRCode = (id) => {
+        setShowQRCode((prevState) => ({
+            ...prevState,
+            [id]: !prevState[id],
+        }));
     };
 
     if (loading) return <div>Loading...</div>;
@@ -189,6 +277,15 @@ function App() {
                     className="form"
                     onSubmit={editingItem ? handleUpdate : handleSubmit}
                 >
+                    {/* Voice Input Button at the Top */}
+                    <button
+                        type="button"
+                        onClick={handleVoiceInput}
+                        className="voice-input-button"
+                    >
+                        <i className="fa fa-microphone" aria-hidden="true"></i> Voice Input
+                    </button>
+    
                     <input
                         type="text"
                         name="name"
@@ -280,66 +377,92 @@ function App() {
                         </button>
                     )}
                 </form>
-    
-                <div className="placeholder">
-                    <img
-                        src="https://via.placeholder.com/300x300?text=QR+Scanner+Placeholder"
-                        alt="QR Scanner Placeholder"
-                    />
-                </div>
             </div>
     
             {/* Inventory List */}
             <h2>Inventory</h2>
             {items.length > 0 ? (
                 <div className="inventory-list">
-                    {items.map(
-                        (item) =>
-                            item && item.id && (
-                                <div className="card" key={item.id}>
-                                    {/* Actions */}
-                                    <div className="card-actions">
-                                        <i
-                                            className="fa fa-pen"
-                                            onClick={() => handleEdit(item)}
-                                            title="Edit"
-                                        ></i>
-                                        <i
-                                            className="fa fa-trash"
-                                            onClick={() => handleDelete(item.id)}
-                                            title="Delete"
-                                        ></i>
-                                    </div>
-    
-                                    {/* Item Image */}
-                                    <img
-                                        src={item.image_url || 'https://via.placeholder.com/300x150'}
-                                        alt={item.name || 'Unnamed Item'}
-                                    />
-    
-                                    {/* Card Content */}
-                                    <div className="card-content">
-                                        <h3>{item.name || 'Unnamed Item'}</h3>
-                                        <p>Category: {item.category || 'No Category'}</p>
-                                        <p>Quantity: {item.quantity || 0}</p>
-                                        <p>Location: {item.location || 'No Location'}</p>
-                                        {item.qrCode && (
+                    {items.map((item) => (
+                        item && item.id ? (
+                            <div
+                                className="card"
+                                key={item.id}
+                                onClick={() => handleToggleQRCode(item.id)}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                {console.log("Rendering item:", item.name, item.qr_code)} {/* Debugging log */}
+                                {showQRCode[item.id] ? (
+                                    <div className="qr-code-container">
+                                    {item.qr_code ? (
+                                        <>
                                             <img
-                                                src={item.qrCode}
-                                                alt={`${item.name || 'Item'} QR Code`}
+                                                src={item.qr_code}
+                                                alt={`${item.name || "Item"} QR Code`}
                                                 className="qr-code"
                                             />
-                                        )}
-                                    </div>
+                                            <div className="print-button-container">
+                                                <button
+                                                    className="print-button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Prevent card toggle
+                                                        console.log(`Printing QR Code for item: ${item.name}`);
+                                                        // Future: Add logic to send QR code to the printer
+                                                    }}
+                                                >
+                                                    <i className="fa fa-print" aria-hidden="true"></i> Print QR Code
+                                                </button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <p>No QR Code available</p>
+                                    )}
                                 </div>
-                            )
-                    )}
+                                
+                                
+                                
+                                ) : (
+                                     <>
+                                        <div className="card-actions">
+                                            <i
+                                                className="fa fa-pen"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleEdit(item);
+                                                }}
+                                                title="Edit"
+                                            ></i>
+                                            <i
+                                                className="fa fa-trash"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDelete(item.id);
+                                                }}
+                                                title="Delete"
+                                            ></i>
+                                        </div>
+                                        <img
+                                            src={item.image_url || 'https://via.placeholder.com/300x150'}
+                                            alt={item.name || 'Unnamed Item'}
+                                        />
+                                        <div className="card-content">
+                                            <h3>{item.name || 'Unnamed Item'}</h3>
+                                            <p>Category: {item.category || 'No Category'}</p>
+                                            <p>Quantity: {item.quantity || 0}</p>
+                                            <p>Location: {item.location || 'No Location'}</p>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ) : null
+                    ))}
                 </div>
             ) : (
                 <div>No items found</div>
             )}
         </div>
     );
-}
     
+}
+
 export default App;

@@ -167,3 +167,50 @@ h1, h2 {
     width: 100px;
     height: 100px;
 }
+
+.qr-code {
+    width: 100%; /* Ensure QR code fits container */
+    height: auto; /* Maintain aspect ratio */
+    object-fit: contain; /* Prevent distortion */
+    display: block; /* Proper block display for alignment */
+}
+
+.qr-code-container {
+    width: 180px; /* Fixed width for uniform size */
+    height: 180px; /* Fixed height to match width */
+    display: flex; /* Flexbox for alignment */
+    flex-direction: column; /* Stack QR code and button vertically */
+    padding: 10px; /* Add some spacing */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+    overflow: hidden; /* Prevent overflow */
+    background: white; /* Clean background for QR code */
+    border-radius: 10px; /* Optional: Aesthetic rounded corners */
+    margin: auto; /* Center within the card */
+}
+
+.print-button-container {
+    margin-top: 10px; /* Add spacing between QR code and button */
+}
+
+.print-button {
+    font-size: 1rem; /* Adjust font size */
+    padding: 8px 12px; /* Add padding for the button */
+    background-color: #007bff; /* Blue background */
+    color: white; /* White text */
+    border: none; /* Remove default border */
+    border-radius: 5px; /* Slightly rounded corners */
+    cursor: pointer; /* Indicate clickable */
+    display: flex; /* Align icon and text */
+    align-items: center; /* Vertically center icon and text */
+    justify-content: center; /* Center icon and text */
+    transition: background-color 0.3s ease; /* Smooth hover effect */
+}
+
+.print-button i {
+    margin-right: 5px; /* Spacing between icon and text */
+}
+
+.print-button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+}
