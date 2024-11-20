@@ -18,13 +18,17 @@ h1, h2 {
     color: #007bff;
 }
 
-/* Form and placeholder container */
+/* Form and Placeholder Container */
+/* Adjust the form-container layout */
 .form-container {
     display: flex;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
     justify-content: space-between;
-    margin-bottom: 20px;
+    align-items: flex-start; /* Align items at the top */
     gap: 20px;
+    margin-bottom: 20px;
 }
+
 
 .form-container .form {
     flex: 1;
@@ -65,6 +69,21 @@ h1, h2 {
     height: 300px;
 }
 
+/* Styling for the video placeholder */
+.video-placeholder {
+    flex: 1; /* Occupy equal space as the form */
+    background-color: #e9ecef; /* Light gray background */
+    border: 1px dashed #ccc; /* Dashed border to indicate placeholder */
+    border-radius: 8px;
+    height: 300px;
+    display: flex; /* Center text inside the placeholder */
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem; /* Slightly larger font */
+    color: #666;
+    text-align: center;
+}
+
 .placeholder img {
     width: 100%;
     max-width: 300px;
@@ -75,8 +94,8 @@ h1, h2 {
 .inventory-list {
     display: grid;
     grid-template-columns: repeat(4, 1fr); /* Four cards per row */
-    gap: 20px; /* Spacing between cards */
-    justify-items: center; /* Center align cards horizontally */
+    gap: 20px;
+    justify-items: center;
 }
 
 /* Card Styling */
@@ -87,10 +106,9 @@ h1, h2 {
     background-color: #fff;
     overflow: hidden;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    position: relative; /* Add this to position child elements absolutely */
+    position: relative;
     padding: 15px;
     transition: transform 0.2s, box-shadow 0.2s;
-    overflow: visible; /* Ensure nothing is cut off */
 }
 
 .card:hover {
@@ -129,35 +147,34 @@ h1, h2 {
     justify-content: space-between;
     align-items: center;
     height: auto;
-    pointer-events: none; /* Disable interaction for the container itself */
+    pointer-events: none;
 }
 
 .card-actions .fa-pen,
 .card-actions .fa-trash {
-    pointer-events: all; /* Re-enable interaction for the icons */
+    pointer-events: all;
     font-size: 1.5rem;
     line-height: 1;
     cursor: pointer;
-    transition: color 0.2s, transform 0.2s; /* Smooth hover effects */
+    transition: color 0.2s, transform 0.2s;
 }
 
 .card-actions .fa-pen {
-    color: #28a745; /* Green for edit */
+    color: #28a745;
 }
 
 .card-actions .fa-trash {
-    color: #dc3545; /* Red for delete */
+    color: #dc3545;
 }
 
-
 .card-actions .fa-pen:hover {
-    color: #218838; /* Darker green on hover */
-    transform: scale(1.2); /* Slight zoom */
+    color: #218838;
+    transform: scale(1.2);
 }
 
 .card-actions .fa-trash:hover {
-    color: #c82333; /* Darker red on hover */
-    transform: scale(1.2); /* Slight zoom */
+    color: #c82333;
+    transform: scale(1.2);
 }
 
 /* QR Code */
@@ -169,50 +186,49 @@ h1, h2 {
 }
 
 .qr-code {
-    width: 100%; /* Ensure QR code fits container */
-    height: auto; /* Maintain aspect ratio */
-    object-fit: contain; /* Prevent distortion */
-    display: block; /* Proper block display for alignment */
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
 }
 
 .qr-code-container {
-    width: 180px; /* Fixed width for uniform size */
-    height: 180px; /* Fixed height to match width */
-    display: flex; /* Flexbox for alignment */
-    flex-direction: column; /* Stack QR code and button vertically */
-    padding: 10px; /* Add some spacing */
-    justify-content: center; /* Center horizontally */
-    align-items: center; /* Center vertically */
-    overflow: hidden; /* Prevent overflow */
-    background: white; /* Clean background for QR code */
-    border-radius: 10px; /* Optional: Aesthetic rounded corners */
-    margin: auto; /* Center within the card */
+    width: 180px;
+    height: 180px;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    border-radius: 10px;
+    margin: auto;
 }
 
 .print-button-container {
-    margin-top: 10px; /* Add spacing between QR code and button */
+    margin-top: 10px;
 }
 
 .print-button {
-    font-size: 1rem; /* Adjust font size */
-    padding: 8px 12px; /* Add padding for the button */
-    background-color: #007bff; /* Blue background */
-    color: white; /* White text */
-    border: none; /* Remove default border */
-    border-radius: 5px; /* Slightly rounded corners */
-    cursor: pointer; /* Indicate clickable */
-    display: flex; /* Align icon and text */
-    align-items: center; /* Vertically center icon and text */
-    justify-content: center; /* Center icon and text */
-    transition: background-color 0.3s ease; /* Smooth hover effect */
+    font-size: 1rem;
+    padding: 8px 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
 }
 
 .print-button i {
-    margin-right: 5px; /* Spacing between icon and text */
+    margin-right: 5px;
 }
 
 .print-button:hover {
-    background-color: #0056b3; /* Darker blue on hover */
+    background-color: #0056b3;
 }
 
 .search-bar-container {
@@ -226,4 +242,94 @@ h1, h2 {
     font-size: 16px;
     border: 1px solid #ccc;
     border-radius: 5px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .app-container {
+        padding: 10px;
+    }
+
+    h1, h2 {
+        font-size: 1.5rem;
+    }
+
+    .form-container {
+        flex-direction: column; /* Stack form and video placeholder vertically */
+    }
+
+    .form, .video-placeholder {
+        width: 100%; /* Full width for both form and placeholder */
+    }
+
+    /* Grid layout for inventory list */
+    .inventory-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive card sizing */
+    gap: 20px; /* Maintain spacing between cards */
+    justify-items: center;
+    }
+
+    /* Ensure cards scale correctly on smaller screens */
+    .card {
+        width: 100%; /* Allow cards to scale with the grid column size */
+        max-width: 280px; /* Prevent cards from becoming too large */
+    }
+    
+    .qr-code-container {
+        width: 140px;
+        height: 140px;
+    }
+
+    .search-bar {
+        width: 90%;
+    }
+}
+
+@media (max-width: 480px) {
+    .inventory-list {
+        grid-template-columns: 1fr;
+    }
+
+    .card {
+        padding: 10px;
+    }
+
+    .qr-code-container {
+        width: 120px;
+        height: 120px;
+    }
+
+    .print-button {
+        font-size: 0.8rem;
+        padding: 5px 8px;
+    }
+
+    .search-bar {
+        font-size: 14px;
+        padding: 8px;
+    }
+}
+
+.voice-input-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    font-size: 1rem;
+    background-color: #28a745; /* Green background */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-bottom: 10px; /* Spacing from the form */
+}
+
+.voice-input-button:hover {
+    background-color: #218838; /* Darker green on hover */
+}
+
+.voice-input-button i {
+    margin-right: 8px; /* Spacing between icon and text */
 }
