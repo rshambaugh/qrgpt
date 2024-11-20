@@ -161,7 +161,7 @@ const handleVoiceInput = async () => {
             }
 
             // Extract "category"
-            const categoryMatch = transcript.match(/to (.+?)(?: in| on| tagged|)/);
+            const categoryMatch = transcript.match(/to ([a-zA-Z\s]+?)(?: in| on| tagged|$)/);
             if (categoryMatch) {
                 parsedData.category = capitalizeWords(categoryMatch[1].trim());
             }
