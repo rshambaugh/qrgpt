@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from './services/api';
-import pluralize from 'pluralize'; 
+import pluralize from 'pluralize';
+import QRCode from 'qrcode';
 import { capitalizeWords } from './services/utils';
-
+import './styles.css';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function App() {
     const [newItem, setNewItem] = useState({
@@ -13,401 +15,331 @@ function App() {
         location: '',
         storage_container: '',
         tags: '',
+        image_url: '',
     });
 
+    const [items, setItems] = useState([]);
+    const [editingItem, setEditingItem] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch items from backend
+    useEffect(() => {
+        const fetchItems = async () => {
+            try {
+                const response = await api.get('/items/');
+                const validItems = response.data.filter((item) => item && item.id);
+                setItems(validItems);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching items:', error);
+                setLoading(false);
+            }
+        };
+        fetchItems();
+    }, []);
+
+    // Handle input change
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setNewItem({ ...newItem, [name]: value });
     };
-    
-    const handleSubmit = (e) => {
+
+    // Reset form
+    const resetForm = () => {
+        setNewItem({
+            name: '',
+            category: '',
+            description: '',
+            quantity: 1,
+            location: '',
+            storage_container: '',
+            tags: '',
+            image_url: '',
+        });
+        setEditingItem(null);
+    };
+
+    // Generate QR code
+    const generateQRCode = async (text) => {
+        try {
+            return await QRCode.toDataURL(text);
+        } catch (error) {
+            console.error('Error generating QR code:', error);
+            return null;
+        }
+    };
+
+    // Add a new item
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const formattedItem = {
-            ...newItem,
-            name: capitalizeWords(newItem.name),
-            category: capitalizeWords(newItem.category),
-            location: capitalizeWords(newItem.location),
-            storage_container: capitalizeWords(newItem.storage_container),
-            quantity: parseInt(newItem.quantity, 10),
-            tags: newItem.tags.split(',').map((tag) => capitalizeWords(tag.trim())),
-        };
-        
+        try {
+            const qrCodeData = await generateQRCode(newItem.name || 'Unnamed Item');
     
-        api.post('/items/', formattedItem)
-            .then((response) => {
-                console.log('Item created:', response.data);
-                setItems([...items, response.data.item]); // Update the list with the new item
-                setNewItem({
-                    name: '',
-                    category: '',
-                    description: '',
-                    quantity: 1,
-                    location: '',
-                    storage_container: '',
-                    tags: '',
-                });
-            })
-            .catch((error) => {
-                console.error('Error creating item:', error);
-            });
-    };
-
-    
-    const handleUpdate = (id, updatedItem) => {
-        console.log('Updating item:', { id, updatedItem });
-        api.put(`/items/${id}`, updatedItem)
-            .then((response) => {
-                console.log('Item updated:', response.data);
-                setItems(
-                    items.map((item) =>
-                        item.id === id ? { ...item, ...updatedItem } : item
-                    )
-                );
-                setEditingItem(null); // Close the edit form
-            })
-            .catch((error) => {
-                console.error('Error updating item:', error);
-            });
-    };
-    
-
-    const startVoiceCommand = () => {
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'en-US';
-        recognition.interimResults = false;
-    
-        recognition.start();
-    
-        recognition.onresult = (event) => {
-            const command = event.results[0][0].transcript;
-            console.log('Voice Command:', command);
-            processVoiceCommand(command);
-        };
-    
-        recognition.onerror = (event) => {
-            console.error('Voice recognition error:', event.error);
-        };
-    };
-    
-    const processVoiceCommand = (command) => {
-        const addRegex = /add (\d+|one|two|three|four|five|six|seven|eight|nine|ten)?\s?(.*?) to (.*?) in(?: the)? (.*?)(?: with tags (.*))?$/i;
-        const match = command.match(addRegex);
-    
-        if (match) {
-            // Normalize quantity (convert words like "one" to numbers)
-            let quantity = match[1] ? match[1].toLowerCase() : "1";
-            const wordToNumber = {
-                one: 1,
-                two: 2,
-                three: 3,
-                four: 4,
-                five: 5,
-                six: 6,
-                seven: 7,
-                eight: 8,
-                nine: 9,
-                ten: 10,
-            };
-            quantity = isNaN(quantity) ? wordToNumber[quantity] || 1 : parseInt(quantity, 10);
-    
-            // Extract fields
-            let name = match[2].trim().toLowerCase();
-            let storageContainer = match[3].trim().toLowerCase();
-            const location = match[4].trim().toLowerCase();
-            const tags = match[5] ? match[5].split(' and ').map((tag) => tag.trim().toLowerCase()) : [];
-    
-            // Preserve numbers in item names
-            const numberPattern = /\d+/g;
-            const numbersInName = name.match(numberPattern);
-            if (numbersInName) {
-                // Avoid stripping numbers like "2000 watt"
-                name = name.replace(numberPattern, (number) => `${number} `).trim();
-            }
-    
-            // Singularize item name only if quantity is 1
-            if (quantity === 1) {
-                name = capitalizeWords(pluralize.singular(name)); // Capitalize and singularize
-            }
-    
-            // Normalize "number X" to "X" in storage container
-            storageContainer = storageContainer.replace(/number (\w+)/g, (match, word) => {
-                return wordToNumber[word.toLowerCase()] || match;
-            });
-    
-            // Capitalize storage container and location
-            storageContainer = capitalizeWords(storageContainer);
-            const formattedLocation = capitalizeWords(location);
-    
-            // Build the item object
-            const newItem = {
-                name,
-                category: 'Uncategorized', // Default category
-                description: '',
-                quantity,
-                location: formattedLocation,
-                storage_container: storageContainer,
-                tags,
+            const formattedItem = {
+                ...newItem,
+                name: capitalizeWords(newItem.name || 'Unnamed Item'),
+                category: capitalizeWords(newItem.category || 'No Category'),
+                location: capitalizeWords(newItem.location || 'No Location'),
+                storage_container: capitalizeWords(newItem.storage_container || ''),
+                quantity: parseInt(newItem.quantity, 10) || 1,
+                tags: newItem.tags
+                    ? newItem.tags.split(',').map((tag) => capitalizeWords(tag.trim()))
+                    : [],
+                image_url: newItem.image_url || '', // Provide a default value
+                qrCode: qrCodeData, // Attach QR code data
             };
     
-            // Refine the confirmation message
-            const itemPlural = quantity > 1 ? pluralize.plural(name) : name; // Handle pluralization
-            const confirmationMessage = `Add ${quantity} ${itemPlural} to ${storageContainer} in ${formattedLocation}${
-                tags.length ? ` with tags ${tags.join(', ')}` : ''
-            }?`;
+            const response = await api.post('/items/', formattedItem);
     
-            // Confirm and add the item
-            if (window.confirm(confirmationMessage)) {
-                handleSubmitFromVoice(newItem);
+            if (response.data && response.data.item) {
+                setItems((prevItems) => [...prevItems, response.data.item]);
+            } else {
+                console.error('Invalid response from server:', response.data);
             }
-        } else {
-            alert(
-                "I didn't understand that command. Try saying, 'Add 3 cordless drills to Storage Bin #5 in the Garage with tags tools and power equipment.'"
-            );
+    
+            resetForm();
+        } catch (error) {
+            console.error('Error creating item:', error);
         }
     };
     
     
-    
-    
-    const handleSubmitFromVoice = (item) => {
-        const formattedItem = {
+
+    // Edit an item
+    const handleEdit = (item) => {
+        setEditingItem({
             ...item,
-            name: capitalizeWords(item.name),
-            category: capitalizeWords(item.category),
-            location: capitalizeWords(item.location),
-            storage_container: capitalizeWords(item.storage_container),
-            tags: item.tags.map((tag) => capitalizeWords(tag.trim())),
-        };
-        
-        api.post('/items/', formattedItem)
-        
-            .then((response) => {
-                console.log('Item created:', response.data);
-                setItems([...items, response.data.item]); // Update the list with the new item
-            })
-            .catch((error) => {
-                console.error('Error creating item:', error);
-            });
+            tags: item.tags.join(', '), // Convert tags array to a string for editing
+            image_url: item.image_url || '', // Ensure image_url has a default value
+        });
     };
-    
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this item?')) {
-            api.delete(`/items/${id}`)
-                .then((response) => {
-                    console.log('Item deleted:', response.data);
-                    setItems(items.filter((item) => item.id !== id)); // Remove item from state
-                })
-                .catch((error) => {
-                    console.error('Error deleting item:', error);
-                });
+    // Update an existing item
+    const handleUpdate = async (e) => {
+        e.preventDefault();
+    
+        try {
+            // Validate that editingItem is correctly set
+            if (!editingItem || !editingItem.id) {
+                console.error('Editing item is invalid or does not have an ID');
+                return;
+            }
+    
+            // Construct the updated item object from editingItem
+            const updatedItem = {
+                ...editingItem,
+                name: capitalizeWords(editingItem.name || 'Unnamed Item'),
+                category: capitalizeWords(editingItem.category || 'No Category'),
+                location: capitalizeWords(editingItem.location || 'No Location'),
+                storage_container: capitalizeWords(editingItem.storage_container || ''),
+                quantity: parseInt(editingItem.quantity, 10) || 1,
+                tags: editingItem.tags
+                    ? editingItem.tags.split(',').map((tag) => capitalizeWords(tag.trim()))
+                    : [],
+                image_url: editingItem.image_url || '', // Ensure image_url has a default value
+            };
+    
+            // Send a PUT request to update the item
+            const response = await api.put(`/items/${editingItem.id}`, updatedItem);
+    
+            if (!response.data || !response.data.item || !response.data.item.id) {
+                console.error('Invalid response from server:', response);
+                return;
+            }
+    
+            // Update the items array with the updated item
+            setItems((prevItems) =>
+                prevItems.map((item) =>
+                    item.id === editingItem.id ? response.data.item : item
+                )
+            );
+    
+            // Reset form and clear editing state
+            setEditingItem(null);
+            resetForm();
+            console.log('Item updated successfully:', response.data.item);
+        } catch (error) {
+            console.error('Error updating item:', error);
         }
     };
     
     
-    
-    
-    const [items, setItems] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [editingItem, setEditingItem] = useState(null);
 
-
-    useEffect(() => {
-        // Fetch items from the backend
-        api.get('/items/')
-            .then((response) => {
-                console.log('Fetched items:', response.data);
-                setItems(response.data);
-                setLoading(false);
-            })
-            .catch((error) => {
-                console.error('Error fetching items:', error);
-                setLoading(false);
-            });
-    }, []);
+    // Delete an item
+    const handleDelete = async (id) => {
+        try {
+            if (window.confirm('Are you sure you want to delete this item?')) {
+                await api.delete(`/items/${id}`);
+                setItems(items.filter((item) => item.id !== id));
+            }
+        } catch (error) {
+            console.error('Error deleting item:', error);
+        }
+    };
 
     if (loading) return <div>Loading...</div>;
 
     return (
-        <div>
+        <div className="app-container">
             <h1>QRganizer Inventory</h1>
-            <button onClick={startVoiceCommand}>Add Item with Voice</button>
-        
-            <form onSubmit={handleSubmit}>
-                <input
-                    type="text"
-                    name="name"
-                    placeholder="Name"
-                    value={newItem.name}
-                    onChange={handleInputChange}
-                    required
-                />
-                <input
-                    type="text"
-                    name="category"
-                    placeholder="Category"
-                    value={newItem.category}
-                    onChange={handleInputChange}
-                    required
-                />
-                <textarea
-                    name="description"
-                    placeholder="Description"
-                    value={newItem.description}
-                    onChange={handleInputChange}
-                />
-                <input
-                    type="number"
-                    name="quantity"
-                    placeholder="Quantity"
-                    value={newItem.quantity}
-                    onChange={handleInputChange}
-                    required
-                />
-                <input
-                    type="text"
-                    name="location"
-                    placeholder="Location"
-                    value={newItem.location}
-                    onChange={handleInputChange}
-                    required
-                />
-                <input
-                    type="text"
-                    name="storage_container"
-                    placeholder="Storage Container"
-                    value={newItem.storage_container}
-                    onChange={handleInputChange}
-                />
-                <input
-                    type="text"
-                    name="tags"
-                    placeholder="Tags (comma-separated)"
-                    value={newItem.tags}
-                    onChange={handleInputChange}
-                />
-                <button type="submit">Add Item</button>
-            </form>
-
-            {editingItem && (
+    
+            {/* Form and QR Scanner Placeholder */}
+            <div className="form-container">
                 <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        if (editingItem && editingItem.id) {
-                            const updatedItem = {
-                                ...editingItem,
-                                name: capitalizeWords(editingItem.name),
-                                category: capitalizeWords(editingItem.category),
-                                location: capitalizeWords(editingItem.location),
-                                storage_container: capitalizeWords(editingItem.storage_container),
-                                tags: editingItem.tags.map((tag) => capitalizeWords(tag.trim())),
-                            };
-
-                            handleUpdate(editingItem.id, updatedItem);
-                        } else {
-                            console.error('Error: Editing item does not have a valid ID.');
-                        }
-                    }}
+                    className="form"
+                    onSubmit={editingItem ? handleUpdate : handleSubmit}
                 >
-                    <h2>Edit Item</h2>
                     <input
                         type="text"
                         name="name"
                         placeholder="Name"
-                        value={editingItem.name || ''}
+                        value={editingItem ? editingItem.name : newItem.name}
                         onChange={(e) =>
-                            setEditingItem({ ...editingItem, name: e.target.value })
+                            editingItem
+                                ? setEditingItem({ ...editingItem, name: e.target.value })
+                                : setNewItem({ ...newItem, name: e.target.value })
                         }
+                        required
                     />
                     <input
                         type="text"
                         name="category"
                         placeholder="Category"
-                        value={editingItem.category || ''}
+                        value={editingItem ? editingItem.category : newItem.category}
                         onChange={(e) =>
-                            setEditingItem({ ...editingItem, category: e.target.value })
+                            editingItem
+                                ? setEditingItem({ ...editingItem, category: e.target.value })
+                                : setNewItem({ ...newItem, category: e.target.value })
                         }
                     />
                     <textarea
                         name="description"
                         placeholder="Description"
-                        value={editingItem.description || ''}
+                        value={editingItem ? editingItem.description : newItem.description}
                         onChange={(e) =>
-                            setEditingItem({
-                                ...editingItem,
-                                description: e.target.value,
-                            })
+                            editingItem
+                                ? setEditingItem({ ...editingItem, description: e.target.value })
+                                : setNewItem({ ...newItem, description: e.target.value })
                         }
                     />
                     <input
                         type="number"
                         name="quantity"
                         placeholder="Quantity"
-                        value={editingItem.quantity || 1}
+                        value={editingItem ? editingItem.quantity : newItem.quantity}
                         onChange={(e) =>
-                            setEditingItem({
-                                ...editingItem,
-                                quantity: parseInt(e.target.value, 10),
-                            })
+                            editingItem
+                                ? setEditingItem({ ...editingItem, quantity: e.target.value })
+                                : setNewItem({ ...newItem, quantity: e.target.value })
                         }
                     />
                     <input
                         type="text"
                         name="location"
                         placeholder="Location"
-                        value={editingItem.location || ''}
+                        value={editingItem ? editingItem.location : newItem.location}
                         onChange={(e) =>
-                            setEditingItem({ ...editingItem, location: e.target.value })
+                            editingItem
+                                ? setEditingItem({ ...editingItem, location: e.target.value })
+                                : setNewItem({ ...newItem, location: e.target.value })
                         }
                     />
                     <input
                         type="text"
                         name="storage_container"
                         placeholder="Storage Container"
-                        value={editingItem.storage_container || ''}
+                        value={
+                            editingItem ? editingItem.storage_container : newItem.storage_container
+                        }
                         onChange={(e) =>
-                            setEditingItem({
-                                ...editingItem,
-                                storage_container: e.target.value,
-                            })
+                            editingItem
+                                ? setEditingItem({
+                                      ...editingItem,
+                                      storage_container: e.target.value,
+                                  })
+                                : setNewItem({ ...newItem, storage_container: e.target.value })
                         }
                     />
                     <input
                         type="text"
                         name="tags"
                         placeholder="Tags (comma-separated)"
-                        value={editingItem.tags ? editingItem.tags.join(', ') : ''}
+                        value={editingItem ? editingItem.tags : newItem.tags}
                         onChange={(e) =>
-                            setEditingItem({
-                                ...editingItem,
-                                tags: e.target.value.split(',').map((tag) => tag.trim()),
-                            })
+                            editingItem
+                                ? setEditingItem({ ...editingItem, tags: e.target.value })
+                                : setNewItem({ ...newItem, tags: e.target.value })
                         }
                     />
-                    <button type="submit">Update Item</button>
-                    <button type="button" onClick={() => setEditingItem(null)}>
-                        Cancel
+                    <button type="submit">
+                        {editingItem ? 'Update Item' : 'Add Item'}
                     </button>
+                    {editingItem && (
+                        <button type="button" onClick={() => setEditingItem(null)}>
+                            Cancel
+                        </button>
+                    )}
                 </form>
-            )}
-
     
+                <div className="placeholder">
+                    <img
+                        src="https://via.placeholder.com/300x300?text=QR+Scanner+Placeholder"
+                        alt="QR Scanner Placeholder"
+                    />
+                </div>
+            </div>
+    
+            {/* Inventory List */}
+            <h2>Inventory</h2>
             {items.length > 0 ? (
-                <ul>
-                    {items.map((item) => (
-                    <li key={item.id}>
-                        <strong>{item.name}</strong>: {item.description}
-                        <button onClick={() => setEditingItem({ ...item })}>Edit</button>
-                        <button onClick={() => handleDelete(item.id)}>Delete</button>
-                    </li>
-                ))}
-                </ul>
+                <div className="inventory-list">
+                    {items.map(
+                        (item) =>
+                            item && item.id && (
+                                <div className="card" key={item.id}>
+                                    {/* Actions */}
+                                    <div className="card-actions">
+                                        <i
+                                            className="fa fa-pen"
+                                            onClick={() => handleEdit(item)}
+                                            title="Edit"
+                                        ></i>
+                                        <i
+                                            className="fa fa-trash"
+                                            onClick={() => handleDelete(item.id)}
+                                            title="Delete"
+                                        ></i>
+                                    </div>
+    
+                                    {/* Item Image */}
+                                    <img
+                                        src={item.image_url || 'https://via.placeholder.com/300x150'}
+                                        alt={item.name || 'Unnamed Item'}
+                                    />
+    
+                                    {/* Card Content */}
+                                    <div className="card-content">
+                                        <h3>{item.name || 'Unnamed Item'}</h3>
+                                        <p>Category: {item.category || 'No Category'}</p>
+                                        <p>Quantity: {item.quantity || 0}</p>
+                                        <p>Location: {item.location || 'No Location'}</p>
+                                        {item.qrCode && (
+                                            <img
+                                                src={item.qrCode}
+                                                alt={`${item.name || 'Item'} QR Code`}
+                                                className="qr-code"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                    )}
+                </div>
             ) : (
                 <div>No items found</div>
             )}
         </div>
     );
-    
 }
-
+    
 export default App;

@@ -59,7 +59,21 @@ def create_item(item: Item):
         item_id = cursor.fetchone()
         print("Created Item ID:", item_id)  # Debugging log
         if item_id:
-            return {"id": item_id[0], "item": item}
+            # Fetch the created item to ensure all fields are returned
+            cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id[0],))
+            row = cursor.fetchone()
+            if row:
+                created_item = {
+                    "id": row[0],
+                    "name": row[1],
+                    "category": row[2],
+                    "description": row[3],
+                    "quantity": row[4],
+                    "location": row[5],
+                    "storage_container": row[6],
+                    "tags": row[7],
+                }
+                return {"item": created_item}
     except Exception as e:
         print("Error during creation:", e)  # Debugging log
         return {"error": "Server error"}, 500
@@ -105,11 +119,26 @@ def update_item(item_id: int, item: Item):
         updated_item_id = cursor.fetchone()
         print("Updated Item ID:", updated_item_id)  # Debugging log
         if updated_item_id:
-            return {"id": updated_item_id[0], "message": "Item updated successfully"}
+            # Fetch the updated item from the database
+            cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+            row = cursor.fetchone()
+            if row:
+                updated_item = {
+                    "id": row[0],
+                    "name": row[1],
+                    "category": row[2],
+                    "description": row[3],
+                    "quantity": row[4],
+                    "location": row[5],
+                    "storage_container": row[6],
+                    "tags": row[7],
+                }
+                return {"item": updated_item, "message": "Item updated successfully"}
         return {"error": "Item not found"}, 404
     except Exception as e:
         print("Error during update:", e)  # Debugging log
         return {"error": "Server error"}, 500
+
 
 
 @app.delete("/items/{item_id}")
