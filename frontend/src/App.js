@@ -42,35 +42,83 @@ function App() {
 useEffect(() => {
     const fetchItems = async () => {
         try {
+            console.log('Fetching items...');
             const response = await api.get('/items/');
-            const validItems = response.data.filter((item) => item && item.id);
-            setItems(validItems);
-            setLoading(false);
+            if (response.data) {
+                const validItems = response.data.filter((item) => item && item.id);
+                setItems(validItems);
+                console.log('Fetched items:', validItems);
+            } else {
+                console.error('No items found or API returned an empty response.');
+            }
         } catch (error) {
             console.error('Error fetching items:', error);
+            setItems([]);
+        } finally {
             setLoading(false);
         }
     };
+
     fetchItems();
-}, []); // No dependencies - runs once on mount
+}, [setItems]); // Force re-fetch when setItems changes
+
 
 // Fetch categories from backend
 useEffect(() => {
     const fetchCategories = async () => {
         try {
+            console.log('Fetching categories...'); // Debugging log
             const response = await api.get('/categories/');
             if (response.data.categories) {
                 setCategories(response.data.categories);
-                console.log("Fetched categories:", response.data.categories); // Log fetched data
+                console.log('Fetched categories:', response.data.categories); // Log fetched categories
             } else {
-                console.error('No categories found');
+                console.error('No categories found or API returned an empty response.');
+                setCategories({});
             }
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
     };
+
     fetchCategories();
-}, []); // No dependencies - runs once on mount
+}, []); // Run only once on mount
+
+useEffect(() => {
+    const fetchItems = async () => {
+        try {
+            console.log('Fetching items...'); // Debugging log
+            const response = await api.get('/items/');
+            if (response.data) {
+                const validItems = response.data.filter((item) => item && item.id);
+                // Ensure QR Code data is correctly formatted
+                const sanitizedItems = validItems.map((item) => {
+                    if (item.qr_code && item.qr_code.startsWith('data:image/png;base64,')) {
+                        return item; // QR Code is already correct
+                    } else if (item.qr_code) {
+                        // Add the prefix only if missing
+                        return {
+                            ...item,
+                            qr_code: `data:image/png;base64,${item.qr_code}`,
+                        };
+                    }
+                    return item;
+                });
+                setItems(sanitizedItems);
+                console.log('Sanitized items:', sanitizedItems); // Log sanitized items
+            } else {
+                console.error('No items found or API returned an empty response.');
+            }
+        } catch (error) {
+            console.error('Error fetching items:', error);
+            setItems([]); // Reset items to avoid rendering stale data
+        } finally {
+            setLoading(false); // Ensure loading state is updated
+        }
+    };
+    fetchItems();
+}, []);
+
 
     
 
@@ -113,7 +161,7 @@ const handleVoiceInput = async () => {
             }
 
             // Extract "category"
-            const categoryMatch = transcript.match(/to (.+?)(?: in| on| tagged|$)/);
+            const categoryMatch = transcript.match(/to (.+?)(?: in| on| tagged|)/);
             if (categoryMatch) {
                 parsedData.category = capitalizeWords(categoryMatch[1].trim());
             }
@@ -450,20 +498,27 @@ const handleVoiceInput = async () => {
                             <div className="qr-code-container">
                                 {item.qr_code ? (
                                     <>
+                                        {console.log('Rendering QR Code for item:', item.name, item.qr_code)} {/* Debugging */}
                                         <img
-                                            src={item.qr_code}
+                                            src={
+                                                item.qr_code?.startsWith('data:image/png;base64,')
+                                                    ? item.qr_code
+                                                    : `data:image/png;base64,${item.qr_code}`
+                                            }
                                             alt={`${item.name || 'Item'} QR Code`}
                                             className="qr-code"
-                                        />
+                                            onError={(e) => {
+                                                console.error('Error loading QR Code for item:', item.name, item.qr_code);
+                                                e.target.src = ''; // Fallback to an empty or placeholder image
+                                            }}
+/>
+
                                         <div className="print-button-container">
                                             <button
                                                 className="print-button"
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); // Prevent card toggle
-                                                    console.log(
-                                                        `Printing QR Code for item: ${item.name}`
-                                                    );
-                                                    // Future: Add logic to send QR code to the printer
+                                                    e.stopPropagation();
+                                                    console.log(`Printing QR Code for item: ${item.name}`);
                                                 }}
                                             >
                                                 <i
@@ -478,6 +533,7 @@ const handleVoiceInput = async () => {
                                     <p>No QR Code available</p>
                                 )}
                             </div>
+                        
                         ) : (
                             <>
                                 <div
@@ -559,7 +615,6 @@ const handleVoiceInput = async () => {
         <div>No items found</div>
     )}
 </div>
-
     );
     
 }
