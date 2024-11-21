@@ -18,20 +18,20 @@ h1, h2 {
     color: #007bff;
 }
 
-/* Form and Placeholder Container */
-/* Adjust the form-container layout */
+/* Form and Video Placeholder Container */
 .form-container {
     display: flex;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
-    justify-content: space-between;
-    align-items: flex-start; /* Align items at the top */
-    gap: 20px;
+    flex-wrap: nowrap; /* Ensure no wrapping happens on large screens */
+    gap: 30px; /* Space between form and video placeholder */
     margin-bottom: 20px;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 20px; /* Optional padding for spacing */
 }
 
-
+/* Form Styles */
 .form-container .form {
-    flex: 1;
+    flex: 1 1 60%; /* Adjust width of the form */
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -46,6 +46,25 @@ h1, h2 {
     border-radius: 5px;
 }
 
+.form-container .form input,
+.form-container .form textarea {
+    width: 70%; /* Ensures that the input field takes up the remaining space */
+}
+
+.form-container .form button {
+    width: 100%; /* Make button the same width as the form fields */
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.form-container .form label {
+    width: 30%; /* Adjust this value to change the label's width */
+    font-weight: bold;
+}
+
 .form-container .form button {
     background-color: #007bff;
     color: #fff;
@@ -58,42 +77,36 @@ h1, h2 {
     background-color: #0056b3;
 }
 
-.form-container .placeholder {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #e9ecef;
-    border: 1px dashed #ccc;
-    border-radius: 8px;
-    height: 300px;
-}
-
-/* Styling for the video placeholder */
+/* Video Placeholder Styles */
 .video-placeholder {
-    flex: 1; /* Occupy equal space as the form */
-    background-color: #e9ecef; /* Light gray background */
-    border: 1px dashed #ccc; /* Dashed border to indicate placeholder */
-    border-radius: 8px;
-    height: 300px;
-    display: flex; /* Center text inside the placeholder */
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem; /* Slightly larger font */
-    color: #666;
+    flex: 1 1 45%; /* 45% width for video placeholder on larger screens */
+    background-color: #f0f0f0;
+    padding: 20px;
     text-align: center;
+    height: 100%;
 }
 
-.placeholder img {
+.video-container {
     width: 100%;
-    max-width: 300px;
-    height: auto;
+    height: 400px;
+    background-color: #e0e0e0;
+    border: 2px dashed #ccc;
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.video-feed {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: cover;
 }
 
 /* Inventory List */
 .inventory-list {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* Four cards per row */
+    grid-template-columns: repeat(4, 1fr);
     gap: 20px;
     justify-items: center;
 }
@@ -146,7 +159,6 @@ h1, h2 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: auto;
     pointer-events: none;
 }
 
@@ -154,7 +166,6 @@ h1, h2 {
 .card-actions .fa-trash {
     pointer-events: all;
     font-size: 1.5rem;
-    line-height: 1;
     cursor: pointer;
     transition: color 0.2s, transform 0.2s;
 }
@@ -178,13 +189,6 @@ h1, h2 {
 }
 
 /* QR Code */
-.card-content .qr-code {
-    display: block;
-    margin: 10px auto;
-    width: 100px;
-    height: 100px;
-}
-
 .qr-code {
     width: 100%;
     height: auto;
@@ -244,38 +248,56 @@ h1, h2 {
     border-radius: 5px;
 }
 
+/* Card Category Section */
+.category-placeholder {
+    background-color: #E0E0E0; /* Default background color */
+    width: 100%;
+    height: 150px; /* Fixed height of 150px */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    padding: 0 10px;
+    border-radius: 8px 8px 0 0; /* Rounded top corners */
+}
+
+.category-placeholder h3 {
+    font-size: 1.5rem;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.category-placeholder i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
-    .app-container {
-        padding: 10px;
-    }
-
-    h1, h2 {
-        font-size: 1.5rem;
-    }
-
     .form-container {
         flex-direction: column; /* Stack form and video placeholder vertically */
+        gap: 10px; /* Reduce the gap between stacked items */
     }
 
-    .form, .video-placeholder {
-        width: 100%; /* Full width for both form and placeholder */
+
+    .form-container .form,
+    .form-container .video-placeholder {
+        width: 100%; /* Full width for both form and video placeholder */
     }
 
-    /* Grid layout for inventory list */
     .inventory-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive card sizing */
-    gap: 20px; /* Maintain spacing between cards */
-    justify-items: center;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive card sizing */
     }
 
-    /* Ensure cards scale correctly on smaller screens */
     .card {
-        width: 100%; /* Allow cards to scale with the grid column size */
-        max-width: 280px; /* Prevent cards from becoming too large */
+        width: 100%;
+        max-width: 280px;
     }
-    
+
     .qr-code-container {
         width: 140px;
         height: 140px;
@@ -317,19 +339,53 @@ h1, h2 {
     justify-content: center;
     padding: 10px;
     font-size: 1rem;
-    background-color: #28a745; /* Green background */
+    background-color: #28a745;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.3s ease;
-    margin-bottom: 10px; /* Spacing from the form */
+    margin-bottom: 10px;
 }
 
 .voice-input-button:hover {
-    background-color: #218838; /* Darker green on hover */
+    background-color: #218838;
 }
 
 .voice-input-button i {
-    margin-right: 8px; /* Spacing between icon and text */
+    margin-right: 8px;
+}
+
+.form-container {
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+}
+
+.form-container .form .form-group {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Add gap between label and input field */
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
 }
