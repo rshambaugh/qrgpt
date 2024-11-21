@@ -1,4 +1,3 @@
-import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -7,33 +6,18 @@ import psycopg2
 import qrcode
 import io
 import base64
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Initialize the FastAPI app instance
 app = FastAPI()
 
-# Fetch database credentials from environment variables
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-
 # Connect to PostgreSQL
-try:
-    conn = psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        host=DB_HOST,
-    )
-    cursor = conn.cursor()
-    print("Database connection successful.")
-except Exception as e:
-    print(f"Error connecting to the database: {e}")
-    raise
+conn = psycopg2.connect(
+    dbname="qrganizer",
+    user="qr_user",
+    password="securepassword",
+    host="localhost"
+)
+cursor = conn.cursor()
 
 # Add middleware after initializing the app
 app.add_middleware(
@@ -90,18 +74,19 @@ def create_item(item: Item):
         # Generate QR code
         qr = qrcode.QRCode(
             version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_Q,
-            box_size=8,
-            border=4,
+            error_correction=qrcode.constants.ERROR_CORRECT_Q,  # High error correction
+            box_size=8,  # Smaller box size to reduce QR code size
+            border=4,  # Smaller border for tighter fitting
         )
-        qr.add_data(f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}")
+        qr.add_data(qr_data)
         qr.make(fit=True)
 
+        # Generate and resize the QR code image
+        # Generate and save QR Code data
         img = qr.make_image(fill="black", back_color="white")
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
-
+        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
 
         # Save to database
         cursor.execute(
