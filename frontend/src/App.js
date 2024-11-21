@@ -20,58 +20,61 @@ function App() {
     const [items, setItems] = useState([]);
     const [editingItem, setEditingItem] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [showQRCode, setShowQRCode] = useState({}); // Track QR code visibility for each card
-    const [searchQuery, setSearchQuery] = useState(''); // For the search input
+    const [showQRCode, setShowQRCode] = useState({});
+    const [searchQuery, setSearchQuery] = useState('');
     const [categories, setCategories] = useState({});
+    const [currentContainerId, setCurrentContainerId] = useState(null); // For nested container navigation
+    const [containerDetails, setContainerDetails] = useState(null); // Details of the current container
 
     // Fetch items and categories from backend
     useEffect(() => {
-        const fetchItems = async () => {
+        const fetchData = async () => {
             try {
-                const response = await api.get('/items/');
-                const validItems = response.data.filter((item) => item && item.id);
+                setLoading(true);
 
-                // Wait until all QR codes are generated
-                const itemsWithQRCode = await Promise.all(
-                    validItems.map(async (item) => {
-                        if (!item.qr_code) {
-                            const qrCodeData = await generateQRCode(
-                                `${item.name}, Location: ${item.location}, Container: ${item.storage_container}`
-                            );
-                            item.qr_code = qrCodeData;
-                        }
-                        return item;
-                    })
-                );
-
-                // Now set items state after QR codes are ready
-                setItems(itemsWithQRCode); // Update state with items containing QR codes
-                setLoading(false); // Set loading to false after data is fetched
-            } catch (error) {
-                console.error('Error fetching items:', error);
-                setLoading(false); // Set loading to false even if there's an error
-            }
-        };
-
-        const fetchCategories = async () => {
-            try {
-                const response = await api.get('/categories/');
-                if (response.data.categories) {
-                    setCategories(response.data.categories); // Set categories
+                if (currentContainerId) {
+                    // Fetch items within a specific container
+                    const response = await api.get(`/containers/${currentContainerId}`);
+                    setContainerDetails(response.data.container); // Set the container details
+                    setItems(response.data.items || []);
                 } else {
-                    console.error('No categories found');
+                    // Fetch all items for the main inventory view
+                    const response = await api.get('/items/');
+                    const validItems = response.data.filter((item) => item && item.id);
+
+                    const itemsWithQRCode = await Promise.all(
+                        validItems.map(async (item) => {
+                            if (!item.qr_code) {
+                                const qrCodeData = await generateQRCode(
+                                    `${item.name}, Location: ${item.location}, Container: ${item.storage_container}`
+                                );
+                                item.qr_code = qrCodeData;
+                            }
+                            return item;
+                        })
+                    );
+
+                    setItems(itemsWithQRCode);
+                    setContainerDetails(null);
                 }
+
+                // Fetch and set categories
+                const categoryResponse = await api.get('/categories/');
+                if (categoryResponse.data.categories) {
+                    setCategories(categoryResponse.data.categories);
+                }
+
+                setLoading(false);
             } catch (error) {
-                console.error('Error fetching categories:', error);
+                console.error('Error fetching items or categories:', error);
+                setLoading(false);
             }
         };
 
-        // Trigger fetching items and categories only once on component mount
-        fetchItems();
-        fetchCategories();
-    }, []); // Empty dependency array to run once when the component mounts
+        fetchData();
+    }, [currentContainerId]);
 
-    // Search items logic
+    // Filter items based on search query
     const filteredItems = items.filter((item) => {
         const query = searchQuery.toLowerCase();
         return (
@@ -83,7 +86,7 @@ function App() {
         );
     });
 
-    // Handle voice input
+    // Handle voice input for item creation
     const handleVoiceInput = async () => {
         try {
             const recognition = new (window.SpeechRecognition ||
@@ -102,7 +105,7 @@ function App() {
                     name: '',
                     category: '',
                     description: '',
-                    quantity: 1, // Default quantity
+                    quantity: 1,
                     location: '',
                     storage_container: '',
                     tags: '',
@@ -117,7 +120,7 @@ function App() {
                         parsedData.quantity = quantityWords.indexOf(quantityMatch) + 1;
                         nameWithQuantity = nameWithQuantity.replace(quantityMatch, '').trim();
                     }
-                    parsedData.name = capitalizeWords(nameWithQuantity); // Capitalize properly
+                    parsedData.name = capitalizeWords(nameWithQuantity);
                 }
 
                 const categoryMatch = transcript.match(/to (.+?)(?: in| on| tagged|$)/);
@@ -146,7 +149,7 @@ function App() {
                     ...prevItem,
                     name: parsedData.name || prevItem.name,
                     category: parsedData.category || prevItem.category,
-                    description: prevItem.description, // Leave as is
+                    description: prevItem.description,
                     quantity: parsedData.quantity || prevItem.quantity,
                     location: parsedData.location || prevItem.location,
                     storage_container: parsedData.storage_container || prevItem.storage_container,
@@ -193,7 +196,6 @@ function App() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            // Generate QR code for the new item
             const qrCodeData = await generateQRCode(
                 `${newItem.name}, Location: ${newItem.location}, Container: ${newItem.storage_container}`
             );
@@ -208,13 +210,11 @@ function App() {
                 tags: newItem.tags
                     ? newItem.tags.split(',').map((tag) => capitalizeWords(tag.trim()))
                     : [],
-                qr_code: qrCodeData, // Ensure QR code is included
+                qr_code: qrCodeData,
             };
 
-            // Send the new item to the backend
             const response = await api.post('/items/', formattedItem);
 
-            // If the response is successful and QR code is returned, update the state
             if (response.data && response.data.qr_code) {
                 setItems((prevItems) => [
                     ...prevItems,
@@ -224,7 +224,6 @@ function App() {
                 console.error('Invalid response from server:', response.data);
             }
 
-            // Reset form after successful submission
             resetForm();
         } catch (error) {
             console.error('Error creating item:', error);
@@ -304,11 +303,29 @@ function App() {
         }));
     };
 
+    const handleNavigateToContainer = (containerId) => {
+        setCurrentContainerId(containerId);
+    };
+
+    const handleNavigateBack = () => {
+        if (containerDetails?.parent_container_id) {
+            setCurrentContainerId(containerDetails.parent_container_id);
+        } else {
+            setCurrentContainerId(null);
+        }
+    };
+
     if (loading) return <div>Loading...</div>;
 
     return (
         <div className="app-container">
             <h1>QRganizer Inventory</h1>
+
+            {currentContainerId && (
+                <button onClick={handleNavigateBack}>
+                    <i className="fa fa-arrow-left"></i> Back
+                </button>
+            )}
 
             {/* Form and QR Scanner Placeholder */}
             <div className="form-container">
@@ -467,7 +484,13 @@ function App() {
                         <div
                             className="card"
                             key={item.id}
-                            onClick={() => handleToggleQRCode(item.id)}
+                            onClick={() => {
+                                if (item.is_container) {
+                                    handleNavigateToContainer(item.id); // Navigate to the nested container
+                                } else {
+                                    handleToggleQRCode(item.id); // Show QR code for items
+                                }
+                            }}
                             style={{ cursor: 'pointer' }}
                         >
                             {/* Category Placeholder */}
@@ -500,8 +523,14 @@ function App() {
                                 <h3>{item.category || 'Uncategorized'}</h3>
                             </div>
 
-                            {/* QR Code Toggle */}
-                            {showQRCode[item.id] ? (
+                            {/* QR Code or Container Content Toggle */}
+                            {item.is_container ? (
+                                <div className="container-card-content">
+                                    <h3>{item.name || 'Unnamed Container'}</h3>
+                                    <p>Tags: {item.tags?.join(', ') || 'No Tags'}</p>
+                                    <p>Location: {item.location || 'No Location'}</p>
+                                </div>
+                            ) : showQRCode[item.id] ? (
                                 <div className="qr-code-container">
                                     {item.qr_code ? (
                                         <>
@@ -536,30 +565,33 @@ function App() {
                             )}
 
                             {/* Card Actions (Edit and Delete Icons) */}
-                            <div className="card-actions">
-                                <i
-                                    className="fa fa-pen"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEdit(item);
-                                    }}
-                                    title="Edit"
-                                ></i>
-                                <i
-                                    className="fa fa-trash"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDelete(item.id);
-                                    }}
-                                    title="Delete"
-                                ></i>
-                            </div>
+                            {!item.is_container && (
+                                <div className="card-actions">
+                                    <i
+                                        className="fa fa-pen"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEdit(item);
+                                        }}
+                                        title="Edit"
+                                    ></i>
+                                    <i
+                                        className="fa fa-trash"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDelete(item.id);
+                                        }}
+                                        title="Delete"
+                                    ></i>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
             ) : (
                 <div>No items found</div>
             )}
+
         </div>
     );
 }
