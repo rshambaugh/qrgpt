@@ -39,7 +39,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define the Item data model
 class Item(BaseModel):
     name: str
     category: str
@@ -49,6 +48,58 @@ class Item(BaseModel):
     storage_container: Optional[int] = None
     tags: Optional[list[str]] = []
     qr_code: Optional[str] = None
+
+def generate_qr_code(data: str) -> str:
+    try:
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(data)
+        qr.make(fit=True)
+
+        # Save the QR code to a BytesIO stream
+        img = qr.make_image(fill="black", back_color="white")
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+
+        # Encode the image in base64
+        return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+    except Exception as e:
+        print(f"Error generating QR code: {e}")
+        return None
+
+# Create Item
+@app.post("/items/")
+def create_item(item: Item):
+    try:
+        # Prepare the QR code data
+        qr_data = f"Item: {item.name}\nLocation: {item.location}\nCategory: {item.category}\nQuantity: {item.quantity}"
+        qr_code_data = generate_qr_code(qr_data)  # Ensure this function works as expected
+
+        # Insert the new item into the database
+        cursor.execute(
+            """
+            INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
+            """,
+            (
+                item.name,
+                item.category,
+                item.description,
+                item.quantity,
+                item.location,
+                item.storage_container,
+                item.tags,
+                qr_code_data,  # Store the generated QR code
+            ),
+        )
+        conn.commit()
+
+        new_item_id = cursor.fetchone()[0]  # Fetch the newly inserted item's ID
+        print(f"Generated QR Code: {qr_code_data}")
+        return {"id": new_item_id, "qr_code": qr_code_data}  # Return the QR code as part of the response
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating item: {e}")
+        return {"error": str(e)}, 500
 
 #Define the Container model
 class Container(BaseModel):
