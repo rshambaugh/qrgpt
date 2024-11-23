@@ -77,6 +77,73 @@ h1, h2 {
     background-color: #0056b3;
 }
 
+.form-input {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+/* Specific styling for the dropdown */
+.form-group select {
+    display: block;
+    width: calc(100% - 20px); /* Adjust width to align with input fields */
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    outline: none;
+    box-shadow: none;
+    appearance: none;
+    margin-top: 5px; /* Add spacing between the label and the dropdown */
+    box-sizing: border-box; /* Maintain consistent box model */
+}
+
+/* Custom dropdown arrow */
+.form-group select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23999999'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    padding-right: 35px; /* Space for the dropdown arrow */
+}
+
+/* Hover and focus effects for better accessibility */
+.form-group select:hover {
+    border-color: #888;
+}
+
+.form-group select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 4px #007bff;
+}
+
+/* General form field styling (input/textarea consistency) */
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    outline: none;
+    box-shadow: none;
+    margin-top: 5px;
+}
+
+/* Ensure spacing and alignment between fields */
+.form-group {
+    margin-bottom: 15px; /* Spacing between fields */
+    width: 100%;
+}
+
+
+
+
 /* Video Placeholder Styles */
 .video-placeholder {
     flex: 1 1 45%; /* 45% width for video placeholder on larger screens */
@@ -388,4 +455,52 @@ button {
 
 button:hover {
     background-color: #0056b3;
+}
+
+.form-buttons {
+    display: flex;
+    gap: 10px; /* Add spacing between buttons */
+    justify-content: center; /* Center align the buttons */
+    margin-top: 20px;
+}
+
+.form-button {
+    background-color: #007bff;
+    color: #fff;
+    padding: 10px 15px;
+    font-size: 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    flex: 1; /* Make buttons equally sized */
+    text-align: center;
+}
+
+.form-button:hover {
+    background-color: #0056b3;
+}
+
+.cancel-button {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.cancel-button:hover {
+    background-color: #5a6268;
+}
+
+.container-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.container-list .card {
+    border: 1px solid #ccc;
+    padding: 1rem;
+    border-radius: 8px;
+    background: #f9f9f9;
+    width: calc(25% - 1rem);
+    text-align: center;
 }

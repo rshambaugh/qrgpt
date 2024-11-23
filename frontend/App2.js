@@ -182,13 +182,15 @@ function App() {
     };
 
     const generateQRCode = async (text) => {
-        try {
-            return await QRCode.toDataURL(text || 'No Data');
-        } catch (error) {
-            console.error('Error generating QR code:', error);
-            return null;
-        }
-    };
+      try {
+          const qrCode = await QRCode.toDataURL(text || 'No Data');
+          return qrCode; // Ensure the prefix remains intact
+      } catch (error) {
+          console.error('Error generating QR code:', error);
+          return null;
+      }
+  };
+  
 
     const handleSubmit = async (e) => {
         e.preventDefault();
