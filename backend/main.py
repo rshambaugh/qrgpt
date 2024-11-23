@@ -166,6 +166,28 @@ def get_container(container_id: int):
     except Exception as e:
         print(f"Error fetching container: {e}")
         return {"error": "Server error"}, 500
+    
+@app.get("/containers/")
+def get_all_containers():
+    try:
+        cursor.execute("SELECT * FROM containers;")
+        containers = [
+            {
+                "id": row[0],
+                "name": row[1],
+                "parent_container_id": row[2],
+                "location": row[3],
+                "tags": row[4],
+                "qr_code": row[5],
+                "created_at": row[6],
+                "updated_at": row[7],
+            }
+            for row in cursor.fetchall()
+        ]
+        return containers
+    except Exception as e:
+        print(f"Error fetching containers: {e}")
+        return {"error": "Server error"}, 500
 
 
 @app.put("/containers/{container_id}")
