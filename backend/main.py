@@ -8,6 +8,8 @@ import qrcode
 import io
 import base64
 from dotenv import load_dotenv
+from io import BytesIO
+
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -55,13 +57,18 @@ def generate_qr_code(data: str) -> str:
         qr.add_data(data)
         qr.make(fit=True)
 
-        # Save the QR code to a BytesIO stream
-        img = qr.make_image(fill="black", back_color="white")
+        # Create an image from the QR Code instance
+        img = qr.make_image(fill='black', back_color='white')
+
+        # Save the image to a bytes buffer
         buffered = BytesIO()
         img.save(buffered, format="PNG")
 
-        # Encode the image in base64
-        return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+        # Encode the image to base64
+        img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+        # Return as a data URL
+        return f"data:image/png;base64,{img_str}"
     except Exception as e:
         print(f"Error generating QR code: {e}")
         return None
