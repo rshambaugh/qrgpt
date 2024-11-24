@@ -224,6 +224,7 @@ function App() {
     
 
 // Add a new item
+// Updated handleSubmit Function
 const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent form reload
 
@@ -244,7 +245,7 @@ const handleSubmit = async (e) => {
                 location: newContainer.location,
                 tags: newContainer.tags
                     ? newContainer.tags.split(",").map((tag) => tag.trim())
-                    : [],
+                    : [], // Process tags as an array
             });
 
             if (response.data && response.data.id) {
@@ -258,10 +259,10 @@ const handleSubmit = async (e) => {
         // Prepare item data
         const itemData = {
             ...newItem,
-            storage_container: containerId || null, // Use the container ID or null
+            storage_container: containerId, // Use the container ID
             tags: newItem.tags
                 ? newItem.tags.split(",").map((tag) => tag.trim())
-                : [],
+                : [], // Process tags as an array
         };
 
         // Create the new item in the backend
@@ -269,21 +270,17 @@ const handleSubmit = async (e) => {
 
         if (itemResponse.data && itemResponse.data.id) {
             // Update the items state with the newly added item
-            setItems((prevItems) => [
-                ...prevItems,
-                { ...itemData, id: itemResponse.data.id },
-            ]);
+            setItems([...items, { ...itemData, id: itemResponse.data.id, qr_code: itemResponse.data.qr_code }]);
             resetForm(); // Clear the form
         } else {
             alert("Failed to create item.");
         }
     } catch (error) {
-        console.error("Error creating item:", error);
-        alert("An error occurred while adding the item.");
+        console.error("Error during item creation:", error);
+        alert("An error occurred while creating the item.");
     }
 };
 
-    
 
     // Edit an item
     const handleEdit = (item) => {
