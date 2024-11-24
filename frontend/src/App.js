@@ -223,52 +223,66 @@ function App() {
     };
     
 
-    // Add a new item
-    const handleSubmit = async (e) => {
-        e.preventDefault(); // Prevent form reload
-        try {
-            let containerId = newItem.storage_container;
-    
-            // Check if a new container needs to be created
-            if (showNewContainerFields) {
-                // Validate new container fields
-                if (!newContainer.name || !newContainer.location) {
-                    alert("Please fill out the new container fields.");
-                    return;
-                }
-    
-                // Create the new container in the backend
-                const response = await api.post("/containers/", {
-                    name: newContainer.name,
-                    location: newContainer.location,
-                    tags: newContainer.tags ? newContainer.tags.split(",").map((tag) => tag.trim()) : [],
-                });
-    
-                if (response.data && response.data.id) {
-                    containerId = response.data.id; // Get the new container ID
-                } else {
-                    alert("Failed to create new container.");
-                    return;
-                }
+// Add a new item
+const handleSubmit = async (e) => {
+    e.preventDefault(); // Prevent form reload
+
+    try {
+        let containerId = newItem.storage_container;
+
+        // Check if a new container needs to be created
+        if (showNewContainerFields) {
+            // Validate new container fields
+            if (!newContainer.name || !newContainer.location) {
+                alert("Please fill out the new container fields.");
+                return;
             }
-    
-            // Prepare item data
-            const itemData = {
-                ...newItem,
-                storage_container: containerId, // Use the container ID
-                tags: newItem.tags ? newItem.tags.split(",").map((tag) => tag.trim()) : [],
-            };
-    
-            // Create the new item in the backend
-            const itemResponse = await api.post("/items/", itemData);
-    
-            if (itemResponse.data && itemResponse.data.id) {
-                // Update the items state with the newly added item
-                setItems([...items, { ...itemData, id: itemResponse.data.id }]);
-                resetForm(); // Clear the form
+
+            // Create the new container in the backend
+            const response = await api.post("/containers/", {
+                name: newContainer.name,
+                location: newContainer.location,
+                tags: newContainer.tags
+                    ? newContainer.tags.split(",").map((tag) => tag.trim())
+                    : [],
+            });
+
+            if (response.data && response.data.id) {
+                containerId = response.data.id; // Get the new container ID
             } else {
-                alert("Failed to create item.");
+                alert("Failed to create new container.");
+                return;
             }
+        }
+
+        // Prepare item data
+        const itemData = {
+            ...newItem,
+            storage_container: containerId || null, // Use the container ID or null
+            tags: newItem.tags
+                ? newItem.tags.split(",").map((tag) => tag.trim())
+                : [],
+        };
+
+        // Create the new item in the backend
+        const itemResponse = await api.post("/items/", itemData);
+
+        if (itemResponse.data && itemResponse.data.id) {
+            // Update the items state with the newly added item
+            setItems((prevItems) => [
+                ...prevItems,
+                { ...itemData, id: itemResponse.data.id },
+            ]);
+            resetForm(); // Clear the form
+        } else {
+            alert("Failed to create item.");
+        }
+    } catch (error) {
+        console.error("Error creating item:", error);
+        alert("An error occurred while adding the item.");
+    }
+};
+
     
 
     // Edit an item
