@@ -58,16 +58,18 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Generate QR Code with base64 prefix. Ensure double prefix does not exist
-def generate_qr_code(data: str) -> str:
-    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=8, border=4)
+def generate_qr_code(data: str, version: int = 1, box_size: int = 8, border: int = 4) -> str:
+    qr = qrcode.QRCode(version=version, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=box_size, border=border)
     qr.add_data(data)
     qr.make(fit=True)
 
-    # Convert QR code to base64
     img = qr.make_image(fill="black", back_color="white")
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
+    import logging
+    logging.info("Generating QR code for data: %s", data)
     return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
+
 
 # Create Item
 @app.post("/items/")
@@ -75,6 +77,8 @@ def create_item(item: Item):
     try:
         # Generate QR code data
         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+        
+        # Ensure no duplication in QR code prefix
         qr_code_data = generate_qr_code(qr_data)
 
         # Insert into database
@@ -95,18 +99,29 @@ def create_item(item: Item):
                 qr_code_data,  # Ensure no duplication
             ),
         )
+
+        # Commit the transaction
         conn.commit()
-        conn.close()
 
-
+        # Fetch the newly created item ID
         new_item_id = cursor.fetchone()[0]
+
         return {"id": new_item_id, "qr_code": qr_code_data}
+
     except Exception as e:
+        # Rollback the transaction on error
         conn.rollback()
+
+        # Improved error logging for debugging
         print(f"Error creating item: {e}")
         return {"error": f"Server error: {str(e)}"}, 500
 
-
+    finally:
+        # Ensure the connection is properly closed
+        if not cursor.closed:
+            cursor.close()
+        if not conn.closed:
+            conn.close()
 
 
 #Define the Container model
@@ -129,31 +144,6 @@ def check_is_container(item_id: int) -> bool:
     cursor.execute("SELECT COUNT(*) FROM items WHERE storage_container = %s;", (item_id,))
     return cursor.fetchone()[0] > 0
 
-# Create Container
-@app.post("/containers/")
-def create_container(container: Container):
-    try:
-        # Generate QR code content
-        qr_data = f"Container: {container.name}\nLocation: {container.location or 'N/A'}"
-        qr_code_data = generate_qr_code(qr_data)
-
-        # Insert the container into the database
-        cursor.execute(
-            """
-            INSERT INTO containers (name, parent_container_id, location, tags, qr_code)
-            VALUES (%s, %s, %s, %s, %s) RETURNING id;
-            """,
-            (container.name, container.parent_container_id, container.location, container.tags, qr_code_data),
-        )
-        conn.commit()
-        conn.close()
-
-        container_id = cursor.fetchone()[0]
-        return {"id": container_id, "qr_code": qr_code_data}
-    except Exception as e:
-        conn.rollback()
-        print(f"Error creating container: {e}")
-        return {"error": "Server error"}, 500
 
 
 def fetch_nested_containers(container_id: int):
@@ -269,6 +259,7 @@ def create_container(container: Container):
         conn.rollback()
         print(f"Error creating container: {e}")
         return {"error": "Server error"}, 500
+
 
 
 @app.put("/containers/{container_id}")
