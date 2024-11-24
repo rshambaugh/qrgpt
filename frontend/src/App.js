@@ -85,7 +85,17 @@ function App() {
             }
         };
         
-    
+        const fetchContainers = async () => {
+            try {
+                const response = await api.get('/containers/');
+                const containers = Array.isArray(response.data) ? response.data : [];
+                setContainers(containers);
+                console.log('Fetched Containers:', containers);
+            } catch (error) {
+                console.error('Error fetching containers:', error);
+            }
+        };
+        
         const filteredItems = items.filter((item) => {
             const query = searchQuery.toLowerCase();
             const tags = Array.isArray(item.tags) ? item.tags : []; // Ensure tags is an array
@@ -96,7 +106,6 @@ function App() {
                 item.location.toLowerCase().includes(query)
             );
         });
-        
     
         fetchData();
         fetchContainers();
@@ -694,7 +703,11 @@ const handleEdit = (item) => {
                             </div>
 
                             {/* QR Code or Item Details */}
-                            <div className={`item-card-content ${showQRCode[item.id] ? 'qr-code-visible' : ''}`}>
+                            <div
+                                className={`item-card-content ${
+                                    showQRCode[item.id] ? 'qr-code-visible' : ''
+                                }`}
+                            >
                                 {showQRCode[item.id] ? (
                                     <div className="qr-code-container">
                                         {item.qr_code ? (
@@ -720,7 +733,7 @@ const handleEdit = (item) => {
                                         className="fa fa-pen"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            handleEdit(item);
+                                            handleEdit(item); // Open edit modal or form
                                         }}
                                         title="Edit"
                                     ></i>
@@ -728,7 +741,7 @@ const handleEdit = (item) => {
                                         className="fa fa-trash"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            handleDelete(item.id);
+                                            handleDelete(item.id); // Trigger delete confirmation or API call
                                         }}
                                         title="Delete"
                                     ></i>
@@ -737,11 +750,10 @@ const handleEdit = (item) => {
                         </div>
                     ))}
                 </div>
-
-
             ) : (
                 <div>No items found</div>
             )}
+
 
 
             <h2>Containers</h2>
