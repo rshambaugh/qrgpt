@@ -69,12 +69,6 @@ def generate_qr_code(data: str) -> str:
     img.save(buffered, format="PNG")
     return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
 
-
-
-
-
-
-
 # Create Item
 @app.post("/items/")
 def create_item(item: Item):
@@ -102,6 +96,8 @@ def create_item(item: Item):
             ),
         )
         conn.commit()
+        conn.close()
+
 
         new_item_id = cursor.fetchone()[0]
         return {"id": new_item_id, "qr_code": qr_code_data}
@@ -150,6 +146,8 @@ def create_container(container: Container):
             (container.name, container.parent_container_id, container.location, container.tags, qr_code_data),
         )
         conn.commit()
+        conn.close()
+
         container_id = cursor.fetchone()[0]
         return {"id": container_id, "qr_code": qr_code_data}
     except Exception as e:
@@ -259,6 +257,8 @@ def update_container(container_id: int, container: Container):
             (container.name, container.parent_container_id, container.location, container.tags, container.qr_code, container_id),
         )
         conn.commit()
+        conn.close()
+
         updated_id = cursor.fetchone()
         if updated_id:
             return {"id": updated_id[0], "message": "Container updated successfully"}
@@ -273,6 +273,8 @@ def delete_container(container_id: int):
     try:
         cursor.execute("DELETE FROM containers WHERE id = %s RETURNING id;", (container_id,))
         conn.commit()
+        conn.close()
+
         deleted_id = cursor.fetchone()
         if deleted_id:
             return {"id": deleted_id[0], "message": "Container deleted successfully"}
@@ -309,6 +311,8 @@ def create_item(item: Item):
             ),
         )
         conn.commit()
+        conn.close()
+
         item_id = cursor.fetchone()[0]
         return {"id": item_id, "qr_code": qr_code_data}
     except Exception as e:
@@ -359,6 +363,8 @@ def update_item(item_id: int, item: Item):
             item.location, item.storage_container, item.tags, qr_code_data, item_id
         ))
         conn.commit()
+        conn.close()
+
 
         return {"message": "Item updated successfully"}
     except Exception as e:
@@ -376,6 +382,8 @@ def delete_item(item_id: int):
         # Delete the item
         cursor.execute("DELETE FROM items WHERE id = %s RETURNING id;", (item_id,))
         conn.commit()
+        conn.close()
+
         deleted_item_id = cursor.fetchone()
 
         if deleted_item_id:
@@ -386,6 +394,8 @@ def delete_item(item_id: int):
                 if count == 0:  # If no items are left, remove the category
                     cursor.execute("DELETE FROM categories WHERE name = %s;", (category[0],))
                     conn.commit()
+                    conn.close()
+
 
             return {"id": deleted_item_id[0], "message": "Item deleted successfully"}
 
@@ -396,25 +406,28 @@ def delete_item(item_id: int):
         return {"error": "Server error"}, 500
 
 
-# Get all items
-@app.get("/items/{item_id}")
-def get_item(item_id: int):
-    cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
-    row = cursor.fetchone()
-    if row:
-        item = {
-            "id": row[0],
-            "name": row[1],
-            "category": row[2],
-            "description": row[3],
-            "quantity": row[4],
-            "location": row[5],
-            "storage_container": row[6],
-            "tags": row[7],
-            "qr_code": row[8],  # Use raw value from the database
-        }
-        return item
-    raise HTTPException(status_code=404, detail="Item not found")
+@app.get("/items")
+def get_items():
+    cursor.execute("SELECT * FROM items;")
+    rows = cursor.fetchall()
+    if rows:
+        items = [
+            {
+                "id": row[0],
+                "name": row[1],
+                "category": row[2],
+                "description": row[3],
+                "quantity": row[4],
+                "location": row[5],
+                "storage_container": row[6],
+                "tags": row[7],
+                "qr_code": row[8],  # Use raw value from the database
+            }
+            for row in rows
+        ]
+        return items
+    return []  # Return an empty list if no items exist
+
 
 
 @app.get("/categories/")
