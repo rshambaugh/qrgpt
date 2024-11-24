@@ -226,7 +226,6 @@ function App() {
     // Add a new item
     const handleSubmit = async (e) => {
         e.preventDefault(); // Prevent form reload
-    
         try {
             let containerId = newItem.storage_container;
     
