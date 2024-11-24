@@ -54,40 +54,45 @@ class Item(BaseModel):
 # Generage QR Code
 def generate_qr_code(data: str) -> str:
     try:
-        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
         qr.add_data(data)
         qr.make(fit=True)
 
-        # Create an image from the QR Code instance
-        img = qr.make_image(fill='black', back_color='white')
-
-        # Save the image to a bytes buffer
+        img = qr.make_image(fill_color="black", back_color="white")
         buffered = BytesIO()
         img.save(buffered, format="PNG")
 
-        # Encode the image to base64
-        img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+        base64_data = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-        # Return as a data URL
-        return f"data:image/png;base64,{img_str}"
+        # Ensure the prefix is added only once
+        if not base64_data.startswith("data:image/png;base64,"):
+            return f"data:image/png;base64,{base64_data}"
+        return base64_data
     except Exception as e:
         print(f"Error generating QR code: {e}")
         return None
+
 
 
 # Create Item
 @app.post("/items/")
 def create_item(item: Item):
     try:
-        # Generate QR code
+        # Generate QR code data
         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
-        qr_code_data = generate_qr_code(qr_data) if not item.qr_code else item.qr_code
+        qr_code_data = generate_qr_code(qr_data)
 
         # Insert into database
         cursor.execute(
             """
             INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id;
             """,
             (
                 item.name,
@@ -97,20 +102,18 @@ def create_item(item: Item):
                 item.location,
                 item.storage_container,
                 item.tags,
-                qr_code_data,
+                qr_code_data,  # Ensure no duplication
             ),
         )
         conn.commit()
-        item_id = cursor.fetchone()[0]
 
-        # Return the new item's ID and QR code
-        return {"id": item_id, "qr_code": qr_code_data}
-
+        new_item_id = cursor.fetchone()[0]
+        return {"id": new_item_id, "qr_code": qr_code_data}
     except Exception as e:
-        # Roll back transaction and log error
         conn.rollback()
-        print(f"Error during item creation: {e}")
+        print(f"Error creating item: {e}")
         return {"error": f"Server error: {str(e)}"}, 500
+
 
 
 
@@ -388,94 +391,50 @@ def get_item(item_id: int):
 @app.put("/items/{item_id}")
 def update_item(item_id: int, item: Item):
     try:
-        print(f"Updating item with ID: {item_id}")  # Debugging log
+        # Fetch the existing item from the database
+        cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+        existing_item = cursor.fetchone()
+        if not existing_item:
+            return {"error": "Item not found"}, 404
 
-        # Check if the category exists
-        cursor.execute("SELECT * FROM categories WHERE name = %s;", (item.category,))
-        category = cursor.fetchone()
-        if not category:
-            print(f"Category '{item.category}' does not exist. Creating a new category.")
-            # Create a new category with default values
-            cursor.execute(
-                """
-                INSERT INTO categories (name, color, icon)
-                VALUES (%s, %s, %s);
-                """,
-                (
-                    item.category,
-                    "#E0E0E0",  # Default color
-                    None,       # Default icon
-                ),
-            )
+        # Determine if QR code needs to be regenerated
+        qr_code_data = existing_item['qr_code']
+        if (
+            item.name != existing_item['name'] or
+            item.location != existing_item['location'] or
+            item.storage_container != existing_item['storage_container']
+        ):
+            qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+            qr_code_data = generate_qr_code(qr_data)
+
+        # Prepare the update statement dynamically
+        update_fields = []
+        update_values = []
+        for field in ['name', 'category', 'description', 'quantity', 'location', 'storage_container', 'tags']:
+            new_value = getattr(item, field)
+            if new_value != existing_item[field]:
+                update_fields.append(f"{field} = %s")
+                update_values.append(new_value)
+
+        # Include the QR code in the update if it was regenerated
+        if qr_code_data != existing_item['qr_code']:
+            update_fields.append("qr_code = %s")
+            update_values.append(qr_code_data)
+
+        # Proceed with the update if there are changes
+        if update_fields:
+            update_values.append(item_id)
+            update_query = f"UPDATE items SET {', '.join(update_fields)} WHERE id = %s;"
+            cursor.execute(update_query, tuple(update_values))
             conn.commit()
-
-        # Generate updated QR code content
-        qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
-
-        # Generate the QR Code
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_Q,
-            box_size=10,  # Appropriate size for clarity
-            border=4,     # Ensure sufficient border
-        )
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-
-        # Convert QR Code to base64
-        img = qr.make_image(fill="black", back_color="white")
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
-
-        # Update the database with the new data and QR code
-        cursor.execute(
-            """
-            UPDATE items
-            SET name = %s, category = %s, description = %s, quantity = %s, 
-                location = %s, storage_container = %s, tags = %s, qr_code = %s
-            WHERE id = %s
-            RETURNING id;
-            """,
-            (
-                item.name,
-                item.category,
-                item.description,
-                item.quantity,
-                item.location,
-                int(item.storage_container) if item.storage_container else None,
-                item.tags,
-                qr_code_data,  # Updated QR code
-                item_id,
-            ),
-        )
-        conn.commit()
-        updated_item_id = cursor.fetchone()
-        print("Updated Item ID:", updated_item_id)  # Debugging log
-
-        if updated_item_id:
-            cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
-            row = cursor.fetchone()
-            if row:
-                updated_item = {
-                    "id": row[0],
-                    "name": row[1],
-                    "category": row[2],
-                    "description": row[3],
-                    "quantity": row[4],
-                    "location": row[5],
-                    "storage_container": row[6],
-                    "tags": row[7],
-                    "qr_code": row[8],  # Include qr_code here
-                }
-
-                return {"item": updated_item, "message": "Item updated successfully"}
-        return {"error": "Item not found"}, 404
-
+            return {"message": "Item updated successfully."}
+        else:
+            return {"message": "No changes detected."}
     except Exception as e:
-        conn.rollback()  # Roll back the transaction to avoid the aborted state
-        print("Error during update:", e)  # Debugging log
+        conn.rollback()
+        print(f"Error updating item: {e}")
         return {"error": "Server error"}, 500
+
 
 
 # Delete an item

@@ -675,7 +675,8 @@ const handleSubmit = async (e) => {
                                 {showQRCode[item.id] ? (
                                     <div className="qr-code-container">
                                         {item.qr_code ? (
-                                            <img src={item.qr_code} alt={`QR Code for ${item.name}`} />
+                                            <img src={item.qr_code} alt="QR Code" />
+                                          
                                         ) : (
                                             <p>Loading QR Code...</p> // Fallback for when QR code is not ready
                                         )}
