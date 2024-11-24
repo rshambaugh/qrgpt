@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -415,6 +415,7 @@ def delete_item(item_id: int):
         return {"error": "Server error"}, 500
 
 
+# Get Items
 @app.get("/items/")
 def get_items():
     conn = None
@@ -447,6 +448,7 @@ def get_items():
             cursor.close()
         if conn:
             conn.close()
+
 
 
 
