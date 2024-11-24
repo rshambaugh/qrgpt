@@ -421,10 +421,14 @@ def get_items():
     conn = None
     cursor = None
     try:
-        conn = get_db()
+        logging.info("Connecting to the database...")
+        conn = get_db()  # Ensure this function works as intended
         cursor = conn.cursor()
+        logging.info("Executing SQL query to fetch all items...")
         cursor.execute("SELECT * FROM items;")
         rows = cursor.fetchall()
+        logging.info(f"Fetched {len(rows)} items from the database.")
+
         items = []
         for row in rows:
             item = {
@@ -439,18 +443,19 @@ def get_items():
                 "qr_code": row[8],  # Use raw value from the database
             }
             items.append(item)
+
         return items
+
     except Exception as e:
-        logging.error(f"Error fetching items: {e}")
+        logging.error(f"Error occurred in get_items: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
     finally:
         if cursor:
+            logging.info("Closing cursor.")
             cursor.close()
         if conn:
+            logging.info("Closing database connection.")
             conn.close()
-
-
-
 
 
 @app.get("/categories/")

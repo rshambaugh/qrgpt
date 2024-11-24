@@ -1,0 +1,2375 @@
+commit a9d3cd5314bcc6711f1326a81ccd4cd7558b8b94
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sun Nov 24 01:46:39 2024 -0500
+
+    A few fixes to test
+
+diff --git a/backend/main.py b/backend/main.py
+index e776426..d115e4d 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -1,5 +1,5 @@
+ import os
+-from fastapi import FastAPI
++from fastapi import FastAPI, HTTPException
+ from fastapi.middleware.cors import CORSMiddleware
+ from pydantic import BaseModel
+ from typing import Optional
+@@ -415,6 +415,7 @@ def delete_item(item_id: int):
+         return {"error": "Server error"}, 500
+ 
+ 
++# Get Items
+ @app.get("/items/")
+ def get_items():
+     conn = None
+@@ -451,6 +452,7 @@ def get_items():
+ 
+ 
+ 
++
+ @app.get("/categories/")
+ def get_categories():
+     try:
+
+commit 0636cbc744f0f9cac4a220656ac22a23eb9d3e60
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sun Nov 24 01:21:04 2024 -0500
+
+    working on a few errors
+
+diff --git a/backend/main.py b/backend/main.py
+index 639d893..e776426 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -324,23 +324,32 @@ def create_item(item: Item):
+ # Get a specific item
+ @app.get("/items/{item_id}")
+ def get_item(item_id: int):
+-    cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+-    row = cursor.fetchone()
+-    if row:
+-        item = {
+-            "id": row[0],
+-            "name": row[1],
+-            "category": row[2],
+-            "description": row[3],
+-            "quantity": row[4],
+-            "location": row[5],
+-            "storage_container": row[6],
+-            "tags": row[7],
+-            # Ensure the qr_code field includes the base64 prefix
+-            "qr_code": row[8],  # Use as-is from the database
+-        }
+-        return {"item": item}
+-    return {"error": "Item not found"}, 404
++    try:
++        conn = get_db()
++        cursor = conn.cursor()
++        cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
++        row = cursor.fetchone()
++        if row:
++            item = {
++                "id": row[0],
++                "name": row[1],
++                "category": row[2],
++                "description": row[3],
++                "quantity": row[4],
++                "location": row[5],
++                "storage_container": row[6],
++                "tags": row[7],
++                "qr_code": row[8],  # Use raw value from the database
++            }
++            return item
++        else:
++            raise HTTPException(status_code=404, detail="Item not found")
++    except Exception as e:
++        logging.error(f"Error fetching item with id {item_id}: {e}")
++        raise HTTPException(status_code=500, detail="Internal Server Error")
++    finally:
++        cursor.close()
++        conn.close()
+ 
+ 
+ # Update an item
+@@ -406,13 +415,18 @@ def delete_item(item_id: int):
+         return {"error": "Server error"}, 500
+ 
+ 
+-@app.get("/items")
++@app.get("/items/")
+ def get_items():
+-    cursor.execute("SELECT * FROM items;")
+-    rows = cursor.fetchall()
+-    if rows:
+-        items = [
+-            {
++    conn = None
++    cursor = None
++    try:
++        conn = get_db()
++        cursor = conn.cursor()
++        cursor.execute("SELECT * FROM items;")
++        rows = cursor.fetchall()
++        items = []
++        for row in rows:
++            item = {
+                 "id": row[0],
+                 "name": row[1],
+                 "category": row[2],
+@@ -423,10 +437,17 @@ def get_items():
+                 "tags": row[7],
+                 "qr_code": row[8],  # Use raw value from the database
+             }
+-            for row in rows
+-        ]
++            items.append(item)
+         return items
+-    return []  # Return an empty list if no items exist
++    except Exception as e:
++        logging.error(f"Error fetching items: {e}")
++        raise HTTPException(status_code=500, detail="Internal Server Error")
++    finally:
++        if cursor:
++            cursor.close()
++        if conn:
++            conn.close()
++
+ 
+ 
+ 
+
+commit 61e2c0f0be4ecf2059746add1e3f253708ec2322
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sun Nov 24 01:02:15 2024 -0500
+
+    a bunch of changes. Still working on qr codes
+
+diff --git a/backend/main.py b/backend/main.py
+index 9cc29f1..639d893 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -69,12 +69,6 @@ def generate_qr_code(data: str) -> str:
+     img.save(buffered, format="PNG")
+     return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
+ 
+-
+-
+-
+-
+-
+-
+ # Create Item
+ @app.post("/items/")
+ def create_item(item: Item):
+@@ -102,6 +96,8 @@ def create_item(item: Item):
+             ),
+         )
+         conn.commit()
++        conn.close()
++
+ 
+         new_item_id = cursor.fetchone()[0]
+         return {"id": new_item_id, "qr_code": qr_code_data}
+@@ -150,6 +146,8 @@ def create_container(container: Container):
+             (container.name, container.parent_container_id, container.location, container.tags, qr_code_data),
+         )
+         conn.commit()
++        conn.close()
++
+         container_id = cursor.fetchone()[0]
+         return {"id": container_id, "qr_code": qr_code_data}
+     except Exception as e:
+@@ -259,6 +257,8 @@ def update_container(container_id: int, container: Container):
+             (container.name, container.parent_container_id, container.location, container.tags, container.qr_code, container_id),
+         )
+         conn.commit()
++        conn.close()
++
+         updated_id = cursor.fetchone()
+         if updated_id:
+             return {"id": updated_id[0], "message": "Container updated successfully"}
+@@ -273,6 +273,8 @@ def delete_container(container_id: int):
+     try:
+         cursor.execute("DELETE FROM containers WHERE id = %s RETURNING id;", (container_id,))
+         conn.commit()
++        conn.close()
++
+         deleted_id = cursor.fetchone()
+         if deleted_id:
+             return {"id": deleted_id[0], "message": "Container deleted successfully"}
+@@ -309,6 +311,8 @@ def create_item(item: Item):
+             ),
+         )
+         conn.commit()
++        conn.close()
++
+         item_id = cursor.fetchone()[0]
+         return {"id": item_id, "qr_code": qr_code_data}
+     except Exception as e:
+@@ -359,6 +363,8 @@ def update_item(item_id: int, item: Item):
+             item.location, item.storage_container, item.tags, qr_code_data, item_id
+         ))
+         conn.commit()
++        conn.close()
++
+ 
+         return {"message": "Item updated successfully"}
+     except Exception as e:
+@@ -376,6 +382,8 @@ def delete_item(item_id: int):
+         # Delete the item
+         cursor.execute("DELETE FROM items WHERE id = %s RETURNING id;", (item_id,))
+         conn.commit()
++        conn.close()
++
+         deleted_item_id = cursor.fetchone()
+ 
+         if deleted_item_id:
+@@ -386,6 +394,8 @@ def delete_item(item_id: int):
+                 if count == 0:  # If no items are left, remove the category
+                     cursor.execute("DELETE FROM categories WHERE name = %s;", (category[0],))
+                     conn.commit()
++                    conn.close()
++
+ 
+             return {"id": deleted_item_id[0], "message": "Item deleted successfully"}
+ 
+@@ -396,25 +406,28 @@ def delete_item(item_id: int):
+         return {"error": "Server error"}, 500
+ 
+ 
+-# Get all items
+-@app.get("/items/{item_id}")
+-def get_item(item_id: int):
+-    cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+-    row = cursor.fetchone()
+-    if row:
+-        item = {
+-            "id": row[0],
+-            "name": row[1],
+-            "category": row[2],
+-            "description": row[3],
+-            "quantity": row[4],
+-            "location": row[5],
+-            "storage_container": row[6],
+-            "tags": row[7],
+-            "qr_code": row[8],  # Use raw value from the database
+-        }
+-        return item
+-    raise HTTPException(status_code=404, detail="Item not found")
++@app.get("/items")
++def get_items():
++    cursor.execute("SELECT * FROM items;")
++    rows = cursor.fetchall()
++    if rows:
++        items = [
++            {
++                "id": row[0],
++                "name": row[1],
++                "category": row[2],
++                "description": row[3],
++                "quantity": row[4],
++                "location": row[5],
++                "storage_container": row[6],
++                "tags": row[7],
++                "qr_code": row[8],  # Use raw value from the database
++            }
++            for row in rows
++        ]
++        return items
++    return []  # Return an empty list if no items exist
++
+ 
+ 
+ @app.get("/categories/")
+
+commit ce568da9ba8ea2960d27c547258d51b222887cf9
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sun Nov 24 00:42:07 2024 -0500
+
+    still working on qr code
+
+diff --git a/backend/main.py b/backend/main.py
+index b04d0ab..9cc29f1 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -333,7 +333,7 @@ def get_item(item_id: int):
+             "storage_container": row[6],
+             "tags": row[7],
+             # Ensure the qr_code field includes the base64 prefix
+-            "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
++            "qr_code": row[8],  # Use as-is from the database
+         }
+         return {"item": item}
+     return {"error": "Item not found"}, 404
+@@ -345,40 +345,24 @@ def update_item(item_id: int, item: Item):
+     try:
+         # Generate QR code content
+         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+-        qr_code_data = f"data:image/png;base64,{generate_qr_code(qr_data)}"
++        qr_code_data = generate_qr_code(qr_data)  # Use raw output from generate_qr_code()
+ 
+         # Update the database
+-        cursor.execute(
+-            """
++        query = """
+             UPDATE items
+-            SET name = %s, category = %s, description = %s, quantity = %s, 
++            SET name = %s, category = %s, description = %s, quantity = %s,
+                 location = %s, storage_container = %s, tags = %s, qr_code = %s
+-            WHERE id = %s RETURNING id;
+-            """,
+-            (
+-                item.name,
+-                item.category,
+-                item.description,
+-                item.quantity,
+-                item.location,
+-                item.storage_container,
+-                item.tags,
+-                qr_code_data,
+-                item_id,
+-            ),
+-        )
++            WHERE id = %s
++        """
++        cursor.execute(query, (
++            item.name, item.category, item.description, item.quantity,
++            item.location, item.storage_container, item.tags, qr_code_data, item_id
++        ))
+         conn.commit()
+ 
+-        # Confirm update
+-        updated_item_id = cursor.fetchone()
+-        if updated_item_id:
+-            return {"id": updated_item_id[0], "qr_code": qr_code_data}
+-
+-        return {"error": "Item not found"}, 404
++        return {"message": "Item updated successfully"}
+     except Exception as e:
+-        conn.rollback()
+-        print(f"Error during update: {e}")
+-        return {"error": f"Server error: {str(e)}"}, 500
++        raise HTTPException(status_code=500, detail="Error updating item")
+ 
+ 
+ # Delete an item
+@@ -413,45 +397,24 @@ def delete_item(item_id: int):
+ 
+ 
+ # Get all items
+-@app.get("/items/")
+-def get_items():
+-    try:
+-        # Fetch items along with their associated category details
+-        query = """
+-            SELECT 
+-                i.id, i.name, i.category, i.description, i.quantity, 
+-                i.location, i.storage_container, i.tags, i.qr_code, 
+-                c.color, c.icon
+-            FROM items i
+-            LEFT JOIN categories c ON i.category = c.name;
+-        """
+-        cursor.execute(query)
+-        rows = cursor.fetchall()
+-
+-        items = []
+-        for row in rows:
+-            item_id = row[0]
+-            is_container = check_is_container(item_id)
+-            items.append({
+-                "id": item_id,
+-                "name": row[1],
+-                "category": row[2],
+-                "description": row[3],
+-                "quantity": row[4],
+-                "location": row[5],
+-                "storage_container": row[6],
+-                "tags": row[7],
+-                "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
+-                "category_color": row[9] or "#E0E0E0",  # Default color if none exists
+-                "category_icon": row[10] or "fa-solid fa-question",  # Default icon if none exists
+-                "is_container": is_container,
+-            })
+-
+-        return items
+-
+-    except Exception as e:
+-        print(f"Error fetching items: {e}")
+-        return {"error": "Server error"}, 500
++@app.get("/items/{item_id}")
++def get_item(item_id: int):
++    cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
++    row = cursor.fetchone()
++    if row:
++        item = {
++            "id": row[0],
++            "name": row[1],
++            "category": row[2],
++            "description": row[3],
++            "quantity": row[4],
++            "location": row[5],
++            "storage_container": row[6],
++            "tags": row[7],
++            "qr_code": row[8],  # Use raw value from the database
++        }
++        return item
++    raise HTTPException(status_code=404, detail="Item not found")
+ 
+ 
+ @app.get("/categories/")
+
+commit 9ab7f36789a695fdd8e2bddc807cb94f5601e986
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sun Nov 24 00:32:46 2024 -0500
+
+    still working on qr code
+
+diff --git a/backend/main.py b/backend/main.py
+index c4415f3..b04d0ab 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -139,7 +139,7 @@ def create_container(container: Container):
+     try:
+         # Generate QR code content
+         qr_data = f"Container: {container.name}\nLocation: {container.location or 'N/A'}"
+-        qr_code_data = f"data:image/png;base64,{generate_qr_code(qr_data)}"
++        qr_code_data = generate_qr_code(qr_data)
+ 
+         # Insert the container into the database
+         cursor.execute(
+@@ -289,7 +289,7 @@ def create_item(item: Item):
+     try:
+         # Generate QR code content
+         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+-        qr_code_data = f"data:image/png;base64,{generate_qr_code(qr_data)}"
++        qr_code_data = generate_qr_code(qr_data)
+ 
+         # Insert the item into the database
+         cursor.execute(
+
+commit 4a296d64adcbd1e26f13f1803a950d2fca6765cb
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sun Nov 24 00:13:37 2024 -0500
+
+    working on QR Code processing
+
+diff --git a/backend/main.py b/backend/main.py
+index ffa4128..c4415f3 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -52,30 +52,26 @@ class Item(BaseModel):
+     qr_code: Optional[str] = None
+ 
+ # Generage QR Code
++import logging
++
++# Configure logging
++logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
++
++# Generate QR Code with base64 prefix. Ensure double prefix does not exist
+ def generate_qr_code(data: str) -> str:
+-    try:
+-        qr = qrcode.QRCode(
+-            version=1,
+-            error_correction=qrcode.constants.ERROR_CORRECT_L,
+-            box_size=10,
+-            border=4,
+-        )
+-        qr.add_data(data)
+-        qr.make(fit=True)
++    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=8, border=4)
++    qr.add_data(data)
++    qr.make(fit=True)
++
++    # Convert QR code to base64
++    img = qr.make_image(fill="black", back_color="white")
++    buffered = io.BytesIO()
++    img.save(buffered, format="PNG")
++    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
++
+ 
+-        img = qr.make_image(fill_color="black", back_color="white")
+-        buffered = BytesIO()
+-        img.save(buffered, format="PNG")
+ 
+-        base64_data = base64.b64encode(buffered.getvalue()).decode("utf-8")
+ 
+-        # Ensure the prefix is added only once
+-        if not base64_data.startswith("data:image/png;base64,"):
+-            return f"data:image/png;base64,{base64_data}"
+-        return base64_data
+-    except Exception as e:
+-        print(f"Error generating QR code: {e}")
+-        return None
+ 
+ 
+ 
+@@ -137,20 +133,13 @@ def check_is_container(item_id: int) -> bool:
+     cursor.execute("SELECT COUNT(*) FROM items WHERE storage_container = %s;", (item_id,))
+     return cursor.fetchone()[0] > 0
+ 
++# Create Container
+ @app.post("/containers/")
+ def create_container(container: Container):
+     try:
+         # Generate QR code content
+         qr_data = f"Container: {container.name}\nLocation: {container.location or 'N/A'}"
+-        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=8, border=4)
+-        qr.add_data(qr_data)
+-        qr.make(fit=True)
+-
+-        # Convert QR code to base64
+-        img = qr.make_image(fill="black", back_color="white")
+-        buffered = io.BytesIO()
+-        img.save(buffered, format="PNG")
+-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
++        qr_code_data = f"data:image/png;base64,{generate_qr_code(qr_data)}"
+ 
+         # Insert the container into the database
+         cursor.execute(
+@@ -168,6 +157,7 @@ def create_container(container: Container):
+         print(f"Error creating container: {e}")
+         return {"error": "Server error"}, 500
+ 
++
+ def fetch_nested_containers(container_id: int):
+     """Recursively fetch nested containers."""
+     cursor.execute("SELECT * FROM containers WHERE parent_container_id = %s;", (container_id,))
+@@ -297,47 +287,11 @@ def delete_container(container_id: int):
+ @app.post("/items/")
+ def create_item(item: Item):
+     try:
+-        print(f"Creating item: {item}")  # Debugging log
+-
+-        # Check if the category exists
+-        cursor.execute("SELECT * FROM categories WHERE name = %s", (item.category,))
+-        category = cursor.fetchone()
+-
+-        if not category:
+-            # If the category doesn't exist, insert it with default values
+-            default_color = "#E0E0E0"  # Default gray color
+-            default_icon = "fa-solid fa-question-circle"  # Default question icon
+-            cursor.execute(
+-                """
+-                INSERT INTO categories (name, color, icon)
+-                VALUES (%s, %s, %s)
+-                """,
+-                (item.category, default_color, default_icon),
+-            )
+-            conn.commit()
+-            print(f"Added new category: {item.category}")
+-
+         # Generate QR code content
+         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
++        qr_code_data = f"data:image/png;base64,{generate_qr_code(qr_data)}"
+ 
+-        # Generate QR code
+-        qr = qrcode.QRCode(
+-            version=1,
+-            error_correction=qrcode.constants.ERROR_CORRECT_Q,  # High error correction
+-            box_size=8,  # Smaller box size to reduce QR code size
+-            border=4,  # Smaller border for tighter fitting
+-        )
+-        qr.add_data(qr_data)
+-        qr.make(fit=True)
+-
+-        # Generate and resize the QR code image
+-        # Generate and save QR Code data
+-        img = qr.make_image(fill="black", back_color="white")
+-        buffered = io.BytesIO()
+-        img.save(buffered, format="PNG")
+-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
+-
+-        # Save to database
++        # Insert the item into the database
+         cursor.execute(
+             """
+             INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
+@@ -349,19 +303,17 @@ def create_item(item: Item):
+                 item.description,
+                 item.quantity,
+                 item.location,
+-                int(item.storage_container) if item.storage_container else None,
++                item.storage_container,
+                 item.tags,
+-                qr_code_data,  # Ensure this matches the Base64 format
++                qr_code_data,
+             ),
+         )
+         conn.commit()
+-
+-        item_id = cursor.fetchone()
+-        if item_id:
+-            return {"id": item_id[0], "qr_code": qr_code_data}
++        item_id = cursor.fetchone()[0]
++        return {"id": item_id, "qr_code": qr_code_data}
+     except Exception as e:
+         conn.rollback()
+-        print(f"Error during creation: {e}")
++        print(f"Error creating item: {e}")
+         return {"error": "Server error"}, 500
+ 
+ 
+@@ -391,50 +343,42 @@ def get_item(item_id: int):
+ @app.put("/items/{item_id}")
+ def update_item(item_id: int, item: Item):
+     try:
+-        # Fetch the existing item from the database
+-        cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+-        existing_item = cursor.fetchone()
+-        if not existing_item:
+-            return {"error": "Item not found"}, 404
+-
+-        # Determine if QR code needs to be regenerated
+-        qr_code_data = existing_item['qr_code']
+-        if (
+-            item.name != existing_item['name'] or
+-            item.location != existing_item['location'] or
+-            item.storage_container != existing_item['storage_container']
+-        ):
+-            qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+-            qr_code_data = generate_qr_code(qr_data)
+-
+-        # Prepare the update statement dynamically
+-        update_fields = []
+-        update_values = []
+-        for field in ['name', 'category', 'description', 'quantity', 'location', 'storage_container', 'tags']:
+-            new_value = getattr(item, field)
+-            if new_value != existing_item[field]:
+-                update_fields.append(f"{field} = %s")
+-                update_values.append(new_value)
+-
+-        # Include the QR code in the update if it was regenerated
+-        if qr_code_data != existing_item['qr_code']:
+-            update_fields.append("qr_code = %s")
+-            update_values.append(qr_code_data)
+-
+-        # Proceed with the update if there are changes
+-        if update_fields:
+-            update_values.append(item_id)
+-            update_query = f"UPDATE items SET {', '.join(update_fields)} WHERE id = %s;"
+-            cursor.execute(update_query, tuple(update_values))
+-            conn.commit()
+-            return {"message": "Item updated successfully."}
+-        else:
+-            return {"message": "No changes detected."}
++        # Generate QR code content
++        qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
++        qr_code_data = f"data:image/png;base64,{generate_qr_code(qr_data)}"
++
++        # Update the database
++        cursor.execute(
++            """
++            UPDATE items
++            SET name = %s, category = %s, description = %s, quantity = %s, 
++                location = %s, storage_container = %s, tags = %s, qr_code = %s
++            WHERE id = %s RETURNING id;
++            """,
++            (
++                item.name,
++                item.category,
++                item.description,
++                item.quantity,
++                item.location,
++                item.storage_container,
++                item.tags,
++                qr_code_data,
++                item_id,
++            ),
++        )
++        conn.commit()
++
++        # Confirm update
++        updated_item_id = cursor.fetchone()
++        if updated_item_id:
++            return {"id": updated_item_id[0], "qr_code": qr_code_data}
++
++        return {"error": "Item not found"}, 404
+     except Exception as e:
+         conn.rollback()
+-        print(f"Error updating item: {e}")
+-        return {"error": "Server error"}, 500
+-
++        print(f"Error during update: {e}")
++        return {"error": f"Server error: {str(e)}"}, 500
+ 
+ 
+ # Delete an item
+
+commit 9df47e583d6bf72ede03f61ae0387b8c15d46d97
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sat Nov 23 22:59:36 2024 -0500
+
+    Updating update_item function with qr code, more efficient query, and improved error handling
+
+diff --git a/backend/main.py b/backend/main.py
+index f2e0d6d..ffa4128 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -54,40 +54,45 @@ class Item(BaseModel):
+ # Generage QR Code
+ def generate_qr_code(data: str) -> str:
+     try:
+-        qr = qrcode.QRCode(version=1, box_size=10, border=5)
++        qr = qrcode.QRCode(
++            version=1,
++            error_correction=qrcode.constants.ERROR_CORRECT_L,
++            box_size=10,
++            border=4,
++        )
+         qr.add_data(data)
+         qr.make(fit=True)
+ 
+-        # Create an image from the QR Code instance
+-        img = qr.make_image(fill='black', back_color='white')
+-
+-        # Save the image to a bytes buffer
++        img = qr.make_image(fill_color="black", back_color="white")
+         buffered = BytesIO()
+         img.save(buffered, format="PNG")
+ 
+-        # Encode the image to base64
+-        img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
++        base64_data = base64.b64encode(buffered.getvalue()).decode("utf-8")
+ 
+-        # Return as a data URL
+-        return f"data:image/png;base64,{img_str}"
++        # Ensure the prefix is added only once
++        if not base64_data.startswith("data:image/png;base64,"):
++            return f"data:image/png;base64,{base64_data}"
++        return base64_data
+     except Exception as e:
+         print(f"Error generating QR code: {e}")
+         return None
+ 
+ 
++
+ # Create Item
+ @app.post("/items/")
+ def create_item(item: Item):
+     try:
+-        # Generate QR code
++        # Generate QR code data
+         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+-        qr_code_data = generate_qr_code(qr_data) if not item.qr_code else item.qr_code
++        qr_code_data = generate_qr_code(qr_data)
+ 
+         # Insert into database
+         cursor.execute(
+             """
+             INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
+-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
++            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
++            RETURNING id;
+             """,
+             (
+                 item.name,
+@@ -97,23 +102,21 @@ def create_item(item: Item):
+                 item.location,
+                 item.storage_container,
+                 item.tags,
+-                qr_code_data,
++                qr_code_data,  # Ensure no duplication
+             ),
+         )
+         conn.commit()
+-        item_id = cursor.fetchone()[0]
+-
+-        # Return the new item's ID and QR code
+-        return {"id": item_id, "qr_code": qr_code_data}
+ 
++        new_item_id = cursor.fetchone()[0]
++        return {"id": new_item_id, "qr_code": qr_code_data}
+     except Exception as e:
+-        # Roll back transaction and log error
+         conn.rollback()
+-        print(f"Error during item creation: {e}")
++        print(f"Error creating item: {e}")
+         return {"error": f"Server error: {str(e)}"}, 500
+ 
+ 
+ 
++
+ #Define the Container model
+ class Container(BaseModel):
+     name: str
+@@ -388,96 +391,52 @@ def get_item(item_id: int):
+ @app.put("/items/{item_id}")
+ def update_item(item_id: int, item: Item):
+     try:
+-        print(f"Updating item with ID: {item_id}")  # Debugging log
+-
+-        # Check if the category exists
+-        cursor.execute("SELECT * FROM categories WHERE name = %s;", (item.category,))
+-        category = cursor.fetchone()
+-        if not category:
+-            print(f"Category '{item.category}' does not exist. Creating a new category.")
+-            # Create a new category with default values
+-            cursor.execute(
+-                """
+-                INSERT INTO categories (name, color, icon)
+-                VALUES (%s, %s, %s);
+-                """,
+-                (
+-                    item.category,
+-                    "#E0E0E0",  # Default color
+-                    None,       # Default icon
+-                ),
+-            )
++        # Fetch the existing item from the database
++        cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
++        existing_item = cursor.fetchone()
++        if not existing_item:
++            return {"error": "Item not found"}, 404
++
++        # Determine if QR code needs to be regenerated
++        qr_code_data = existing_item['qr_code']
++        if (
++            item.name != existing_item['name'] or
++            item.location != existing_item['location'] or
++            item.storage_container != existing_item['storage_container']
++        ):
++            qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
++            qr_code_data = generate_qr_code(qr_data)
++
++        # Prepare the update statement dynamically
++        update_fields = []
++        update_values = []
++        for field in ['name', 'category', 'description', 'quantity', 'location', 'storage_container', 'tags']:
++            new_value = getattr(item, field)
++            if new_value != existing_item[field]:
++                update_fields.append(f"{field} = %s")
++                update_values.append(new_value)
++
++        # Include the QR code in the update if it was regenerated
++        if qr_code_data != existing_item['qr_code']:
++            update_fields.append("qr_code = %s")
++            update_values.append(qr_code_data)
++
++        # Proceed with the update if there are changes
++        if update_fields:
++            update_values.append(item_id)
++            update_query = f"UPDATE items SET {', '.join(update_fields)} WHERE id = %s;"
++            cursor.execute(update_query, tuple(update_values))
+             conn.commit()
+-
+-        # Generate updated QR code content
+-        qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+-
+-        # Generate the QR Code
+-        qr = qrcode.QRCode(
+-            version=1,
+-            error_correction=qrcode.constants.ERROR_CORRECT_Q,
+-            box_size=10,  # Appropriate size for clarity
+-            border=4,     # Ensure sufficient border
+-        )
+-        qr.add_data(qr_data)
+-        qr.make(fit=True)
+-
+-        # Convert QR Code to base64
+-        img = qr.make_image(fill="black", back_color="white")
+-        buffered = io.BytesIO()
+-        img.save(buffered, format="PNG")
+-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+-
+-        # Update the database with the new data and QR code
+-        cursor.execute(
+-            """
+-            UPDATE items
+-            SET name = %s, category = %s, description = %s, quantity = %s, 
+-                location = %s, storage_container = %s, tags = %s, qr_code = %s
+-            WHERE id = %s
+-            RETURNING id;
+-            """,
+-            (
+-                item.name,
+-                item.category,
+-                item.description,
+-                item.quantity,
+-                item.location,
+-                int(item.storage_container) if item.storage_container else None,
+-                item.tags,
+-                qr_code_data,  # Updated QR code
+-                item_id,
+-            ),
+-        )
+-        conn.commit()
+-        updated_item_id = cursor.fetchone()
+-        print("Updated Item ID:", updated_item_id)  # Debugging log
+-
+-        if updated_item_id:
+-            cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+-            row = cursor.fetchone()
+-            if row:
+-                updated_item = {
+-                    "id": row[0],
+-                    "name": row[1],
+-                    "category": row[2],
+-                    "description": row[3],
+-                    "quantity": row[4],
+-                    "location": row[5],
+-                    "storage_container": row[6],
+-                    "tags": row[7],
+-                    "qr_code": row[8],  # Include qr_code here
+-                }
+-
+-                return {"item": updated_item, "message": "Item updated successfully"}
+-        return {"error": "Item not found"}, 404
+-
++            return {"message": "Item updated successfully."}
++        else:
++            return {"message": "No changes detected."}
+     except Exception as e:
+-        conn.rollback()  # Roll back the transaction to avoid the aborted state
+-        print("Error during update:", e)  # Debugging log
++        conn.rollback()
++        print(f"Error updating item: {e}")
+         return {"error": "Server error"}, 500
+ 
+ 
++
+ # Delete an item
+ @app.delete("/items/{item_id}")
+ def delete_item(item_id: int):
+
+commit 5b846d348efdf6e04978f2142d39d1b6157641f5
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sat Nov 23 22:33:29 2024 -0500
+
+    Adjusting create_item in main.py
+
+diff --git a/backend/main.py b/backend/main.py
+index 5d8fbb0..f2e0d6d 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -79,11 +79,11 @@ def generate_qr_code(data: str) -> str:
+ @app.post("/items/")
+ def create_item(item: Item):
+     try:
+-        # Generate QR code data
+-        qr_data = f"Item: {item.name}\nLocation: {item.location}\nCategory: {item.category}\nQuantity: {item.quantity}"
+-        qr_code_data = generate_qr_code(qr_data)
++        # Generate QR code
++        qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
++        qr_code_data = generate_qr_code(qr_data) if not item.qr_code else item.qr_code
+ 
+-        # Insert the new item into the database
++        # Insert into database
+         cursor.execute(
+             """
+             INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
+@@ -97,18 +97,21 @@ def create_item(item: Item):
+                 item.location,
+                 item.storage_container,
+                 item.tags,
+-                qr_code_data,  # Store the generated QR code
++                qr_code_data,
+             ),
+         )
+         conn.commit()
++        item_id = cursor.fetchone()[0]
+ 
+-        new_item_id = cursor.fetchone()[0]  # Fetch the newly inserted item's ID
++        # Return the new item's ID and QR code
++        return {"id": item_id, "qr_code": qr_code_data}
+ 
+-        return {"id": new_item_id, "qr_code": qr_code_data}  # Return the QR code as part of the response
+     except Exception as e:
++        # Roll back transaction and log error
+         conn.rollback()
+-        print(f"Error creating item: {e}")
+-        return {"error": str(e)}, 500
++        print(f"Error during item creation: {e}")
++        return {"error": f"Server error: {str(e)}"}, 500
++
+ 
+ 
+ #Define the Container model
+
+commit 5edc4e673843fd07328c9ac3954f1e8287a6442a
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sat Nov 23 22:21:45 2024 -0500
+
+    Adjustments for QR code saving and rendering
+
+diff --git a/backend/main.py b/backend/main.py
+index b7dfc79..5d8fbb0 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -51,8 +51,7 @@ class Item(BaseModel):
+     tags: Optional[list[str]] = []
+     qr_code: Optional[str] = None
+ 
+-
+-
++# Generage QR Code
+ def generate_qr_code(data: str) -> str:
+     try:
+         qr = qrcode.QRCode(version=1, box_size=10, border=5)
+@@ -80,9 +79,9 @@ def generate_qr_code(data: str) -> str:
+ @app.post("/items/")
+ def create_item(item: Item):
+     try:
+-        # Prepare the QR code data
++        # Generate QR code data
+         qr_data = f"Item: {item.name}\nLocation: {item.location}\nCategory: {item.category}\nQuantity: {item.quantity}"
+-        qr_code_data = generate_qr_code(qr_data)  # Ensure this function works as expected
++        qr_code_data = generate_qr_code(qr_data)
+ 
+         # Insert the new item into the database
+         cursor.execute(
+@@ -104,13 +103,14 @@ def create_item(item: Item):
+         conn.commit()
+ 
+         new_item_id = cursor.fetchone()[0]  # Fetch the newly inserted item's ID
+-        print(f"Generated QR Code: {qr_code_data}")
++
+         return {"id": new_item_id, "qr_code": qr_code_data}  # Return the QR code as part of the response
+     except Exception as e:
+         conn.rollback()
+         print(f"Error creating item: {e}")
+         return {"error": str(e)}, 500
+ 
++
+ #Define the Container model
+ class Container(BaseModel):
+     name: str
+
+commit 7352c3f0f8c39aaccc3af5e378e9e96e6d1adcbf
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sat Nov 23 20:22:39 2024 -0500
+
+    Updated App.js get_item
+
+diff --git a/backend/main.py b/backend/main.py
+index 3b93540..b7dfc79 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -51,6 +51,8 @@ class Item(BaseModel):
+     tags: Optional[list[str]] = []
+     qr_code: Optional[str] = None
+ 
++
++
+ def generate_qr_code(data: str) -> str:
+     try:
+         qr = qrcode.QRCode(version=1, box_size=10, border=5)
+@@ -73,6 +75,7 @@ def generate_qr_code(data: str) -> str:
+         print(f"Error generating QR code: {e}")
+         return None
+ 
++
+ # Create Item
+ @app.post("/items/")
+ def create_item(item: Item):
+
+commit f3148672d248cbf409189409f0a5cde82368e132
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sat Nov 23 18:44:45 2024 -0500
+
+    added generate qr code function
+
+diff --git a/backend/main.py b/backend/main.py
+index 78615a9..3b93540 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -8,6 +8,8 @@ import qrcode
+ import io
+ import base64
+ from dotenv import load_dotenv
++from io import BytesIO
++
+ 
+ # Load environment variables from the .env file
+ load_dotenv()
+@@ -55,13 +57,18 @@ def generate_qr_code(data: str) -> str:
+         qr.add_data(data)
+         qr.make(fit=True)
+ 
+-        # Save the QR code to a BytesIO stream
+-        img = qr.make_image(fill="black", back_color="white")
++        # Create an image from the QR Code instance
++        img = qr.make_image(fill='black', back_color='white')
++
++        # Save the image to a bytes buffer
+         buffered = BytesIO()
+         img.save(buffered, format="PNG")
+ 
+-        # Encode the image in base64
+-        return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
++        # Encode the image to base64
++        img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
++
++        # Return as a data URL
++        return f"data:image/png;base64,{img_str}"
+     except Exception as e:
+         print(f"Error generating QR code: {e}")
+         return None
+
+commit 336bbd0e926873168d35a54ed6f8f6c64b524cdf
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sat Nov 23 18:37:59 2024 -0500
+
+    most basic functionality is working. QR codes stopped working again.
+
+diff --git a/backend/main.py b/backend/main.py
+index 59ccb5e..78615a9 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -39,7 +39,6 @@ app.add_middleware(
+     allow_headers=["*"],
+ )
+ 
+-# Define the Item data model
+ class Item(BaseModel):
+     name: str
+     category: str
+@@ -50,6 +49,58 @@ class Item(BaseModel):
+     tags: Optional[list[str]] = []
+     qr_code: Optional[str] = None
+ 
++def generate_qr_code(data: str) -> str:
++    try:
++        qr = qrcode.QRCode(version=1, box_size=10, border=5)
++        qr.add_data(data)
++        qr.make(fit=True)
++
++        # Save the QR code to a BytesIO stream
++        img = qr.make_image(fill="black", back_color="white")
++        buffered = BytesIO()
++        img.save(buffered, format="PNG")
++
++        # Encode the image in base64
++        return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
++    except Exception as e:
++        print(f"Error generating QR code: {e}")
++        return None
++
++# Create Item
++@app.post("/items/")
++def create_item(item: Item):
++    try:
++        # Prepare the QR code data
++        qr_data = f"Item: {item.name}\nLocation: {item.location}\nCategory: {item.category}\nQuantity: {item.quantity}"
++        qr_code_data = generate_qr_code(qr_data)  # Ensure this function works as expected
++
++        # Insert the new item into the database
++        cursor.execute(
++            """
++            INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
++            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
++            """,
++            (
++                item.name,
++                item.category,
++                item.description,
++                item.quantity,
++                item.location,
++                item.storage_container,
++                item.tags,
++                qr_code_data,  # Store the generated QR code
++            ),
++        )
++        conn.commit()
++
++        new_item_id = cursor.fetchone()[0]  # Fetch the newly inserted item's ID
++        print(f"Generated QR Code: {qr_code_data}")
++        return {"id": new_item_id, "qr_code": qr_code_data}  # Return the QR code as part of the response
++    except Exception as e:
++        conn.rollback()
++        print(f"Error creating item: {e}")
++        return {"error": str(e)}, 500
++
+ #Define the Container model
+ class Container(BaseModel):
+     name: str
+
+commit 35b1dbb5fd8cb11ffaf949fd5ca2dfbd95d0f71c
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Sat Nov 23 09:33:40 2024 -0500
+
+    Fixed containers endpoint and verified working backend.
+
+diff --git a/backend/main.py b/backend/main.py
+index bf27ee8..59ccb5e 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -166,6 +166,28 @@ def get_container(container_id: int):
+     except Exception as e:
+         print(f"Error fetching container: {e}")
+         return {"error": "Server error"}, 500
++    
++@app.get("/containers/")
++def get_all_containers():
++    try:
++        cursor.execute("SELECT * FROM containers;")
++        containers = [
++            {
++                "id": row[0],
++                "name": row[1],
++                "parent_container_id": row[2],
++                "location": row[3],
++                "tags": row[4],
++                "qr_code": row[5],
++                "created_at": row[6],
++                "updated_at": row[7],
++            }
++            for row in cursor.fetchall()
++        ]
++        return containers
++    except Exception as e:
++        print(f"Error fetching containers: {e}")
++        return {"error": "Server error"}, 500
+ 
+ 
+ @app.put("/containers/{container_id}")
+
+commit 6bb721764e428b74188adf241fab752fee84af75
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Thu Nov 21 13:46:40 2024 -0500
+
+    working on adding container logic. Currently, the form is broken
+
+diff --git a/backend/main.py b/backend/main.py
+index 62b49cd..bf27ee8 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -1,3 +1,4 @@
++import os
+ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ from pydantic import BaseModel
+@@ -6,16 +7,26 @@ import psycopg2
+ import qrcode
+ import io
+ import base64
++from dotenv import load_dotenv
++
++# Load environment variables from the .env file
++load_dotenv()
+ 
+ # Initialize the FastAPI app instance
+ app = FastAPI()
+ 
++# Use environment variables for the database connection
++DB_NAME = os.getenv("DB_NAME", "qrganizer")
++DB_USER = os.getenv("DB_USER", "qr_user")
++DB_PASSWORD = os.getenv("DB_PASSWORD", "securepassword")
++DB_HOST = os.getenv("DB_HOST", "localhost")
++
+ # Connect to PostgreSQL
+ conn = psycopg2.connect(
+-    dbname="qrganizer",
+-    user="qr_user",
+-    password="securepassword",
+-    host="localhost"
++    dbname=DB_NAME,
++    user=DB_USER,
++    password=DB_PASSWORD,
++    host=DB_HOST
+ )
+ cursor = conn.cursor()
+ 
+@@ -35,15 +46,164 @@ class Item(BaseModel):
+     description: Optional[str] = None
+     quantity: int
+     location: str
+-    storage_container: Optional[str] = None
++    storage_container: Optional[int] = None
++    tags: Optional[list[str]] = []
++    qr_code: Optional[str] = None
++
++#Define the Container model
++class Container(BaseModel):
++    name: str
++    parent_container_id: Optional[int] = None
++    location: Optional[str] = None
+     tags: Optional[list[str]] = []
+     qr_code: Optional[str] = None
+ 
++
+ # Root endpoint
+ @app.get("/")
+ def read_root():
+     return {"message": "Welcome to QRganizer!"}
+ 
++# Helper function to check if an item is a container
++def check_is_container(item_id: int) -> bool:
++    """Check if an item is a container by checking for nested items."""
++    cursor.execute("SELECT COUNT(*) FROM items WHERE storage_container = %s;", (item_id,))
++    return cursor.fetchone()[0] > 0
++
++@app.post("/containers/")
++def create_container(container: Container):
++    try:
++        # Generate QR code content
++        qr_data = f"Container: {container.name}\nLocation: {container.location or 'N/A'}"
++        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=8, border=4)
++        qr.add_data(qr_data)
++        qr.make(fit=True)
++
++        # Convert QR code to base64
++        img = qr.make_image(fill="black", back_color="white")
++        buffered = io.BytesIO()
++        img.save(buffered, format="PNG")
++        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
++
++        # Insert the container into the database
++        cursor.execute(
++            """
++            INSERT INTO containers (name, parent_container_id, location, tags, qr_code)
++            VALUES (%s, %s, %s, %s, %s) RETURNING id;
++            """,
++            (container.name, container.parent_container_id, container.location, container.tags, qr_code_data),
++        )
++        conn.commit()
++        container_id = cursor.fetchone()[0]
++        return {"id": container_id, "qr_code": qr_code_data}
++    except Exception as e:
++        conn.rollback()
++        print(f"Error creating container: {e}")
++        return {"error": "Server error"}, 500
++
++def fetch_nested_containers(container_id: int):
++    """Recursively fetch nested containers."""
++    cursor.execute("SELECT * FROM containers WHERE parent_container_id = %s;", (container_id,))
++    containers = cursor.fetchall()
++    
++    nested_containers = []
++    for container in containers:
++        container_data = {
++            "id": container[0],
++            "name": container[1],
++            "parent_container_id": container[2],
++            "location": container[3],
++            "tags": container[4],
++            "qr_code": container[5],
++            "nested_containers": fetch_nested_containers(container[0]),  # Recursive call
++        }
++        nested_containers.append(container_data)
++    
++    return nested_containers
++
++@app.get("/containers/{container_id}")
++def get_container(container_id: int):
++    try:
++        # Get container details
++        cursor.execute("SELECT * FROM containers WHERE id = %s;", (container_id,))
++        container = cursor.fetchone()
++        if not container:
++            return {"error": "Container not found"}, 404
++
++        container_data = {
++            "id": container[0],
++            "name": container[1],
++            "parent_container_id": container[2],
++            "location": container[3],
++            "tags": container[4],
++            "qr_code": container[5],
++        }
++
++        # Get items inside the container
++        cursor.execute("SELECT * FROM items WHERE container_id = %s;", (container_id,))
++        items = [
++            {
++                "id": row[0],
++                "name": row[1],
++                "category": row[2],
++                "description": row[3],
++                "quantity": row[4],
++                "location": row[5],
++                "tags": row[7],
++                "qr_code": row[8],
++            }
++            for row in cursor.fetchall()
++        ]
++
++        # Fetch all nested containers recursively
++        nested_containers = fetch_nested_containers(container_id)
++
++        return {
++            "container": container_data,
++            "items": items,
++            "nested_containers": nested_containers,
++        }
++    except Exception as e:
++        print(f"Error fetching container: {e}")
++        return {"error": "Server error"}, 500
++
++
++@app.put("/containers/{container_id}")
++def update_container(container_id: int, container: Container):
++    try:
++        cursor.execute(
++            """
++            UPDATE containers
++            SET name = %s, parent_container_id = %s, location = %s, tags = %s, qr_code = %s
++            WHERE id = %s RETURNING id;
++            """,
++            (container.name, container.parent_container_id, container.location, container.tags, container.qr_code, container_id),
++        )
++        conn.commit()
++        updated_id = cursor.fetchone()
++        if updated_id:
++            return {"id": updated_id[0], "message": "Container updated successfully"}
++        return {"error": "Container not found"}, 404
++    except Exception as e:
++        conn.rollback()
++        print(f"Error updating container: {e}")
++        return {"error": "Server error"}, 500
++
++@app.delete("/containers/{container_id}")
++def delete_container(container_id: int):
++    try:
++        cursor.execute("DELETE FROM containers WHERE id = %s RETURNING id;", (container_id,))
++        conn.commit()
++        deleted_id = cursor.fetchone()
++        if deleted_id:
++            return {"id": deleted_id[0], "message": "Container deleted successfully"}
++        return {"error": "Container not found"}, 404
++    except Exception as e:
++        conn.rollback()
++        print(f"Error deleting container: {e}")
++        return {"error": "Server error"}, 500
++
++
+ # Create an item
+ @app.post("/items/")
+ def create_item(item: Item):
+@@ -100,7 +260,7 @@ def create_item(item: Item):
+                 item.description,
+                 item.quantity,
+                 item.location,
+-                item.storage_container,
++                int(item.storage_container) if item.storage_container else None,
+                 item.tags,
+                 qr_code_data,  # Ensure this matches the Base64 format
+             ),
+@@ -133,10 +293,11 @@ def get_item(item_id: int):
+             "tags": row[7],
+             # Ensure the qr_code field includes the base64 prefix
+             "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
+-                }
++        }
+         return {"item": item}
+     return {"error": "Item not found"}, 404
+ 
++
+ # Update an item
+ @app.put("/items/{item_id}")
+ def update_item(item_id: int, item: Item):
+@@ -196,7 +357,7 @@ def update_item(item_id: int, item: Item):
+                 item.description,
+                 item.quantity,
+                 item.location,
+-                item.storage_container,
++                int(item.storage_container) if item.storage_container else None,
+                 item.tags,
+                 qr_code_data,  # Updated QR code
+                 item_id,
+@@ -278,9 +439,12 @@ def get_items():
+         cursor.execute(query)
+         rows = cursor.fetchall()
+ 
+-        items = [
+-            {
+-                "id": row[0],
++        items = []
++        for row in rows:
++            item_id = row[0]
++            is_container = check_is_container(item_id)
++            items.append({
++                "id": item_id,
+                 "name": row[1],
+                 "category": row[2],
+                 "description": row[3],
+@@ -291,9 +455,8 @@ def get_items():
+                 "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
+                 "category_color": row[9] or "#E0E0E0",  # Default color if none exists
+                 "category_icon": row[10] or "fa-solid fa-question",  # Default icon if none exists
+-            }
+-            for row in rows
+-        ]
++                "is_container": is_container,
++            })
+ 
+         return items
+ 
+@@ -301,6 +464,7 @@ def get_items():
+         print(f"Error fetching items: {e}")
+         return {"error": "Server error"}, 500
+ 
++
+ @app.get("/categories/")
+ def get_categories():
+     try:
+
+commit cb8c497cb5c596d7da37aa79ab7e3385f15e287d
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Thu Nov 21 10:21:21 2024 -0500
+
+    Form, video placeholder, and inventory setup correctly. About to add video feed. Inventory is hit or miss with appearing or showing No Items Found
+
+diff --git a/backend/main.py b/backend/main.py
+index 9d02f78..62b49cd 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -1,4 +1,3 @@
+-import os
+ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ from pydantic import BaseModel
+@@ -7,33 +6,18 @@ import psycopg2
+ import qrcode
+ import io
+ import base64
+-from dotenv import load_dotenv
+-
+-# Load environment variables from .env file
+-load_dotenv()
+ 
+ # Initialize the FastAPI app instance
+ app = FastAPI()
+ 
+-# Fetch database credentials from environment variables
+-DB_NAME = os.getenv("DB_NAME")
+-DB_USER = os.getenv("DB_USER")
+-DB_PASSWORD = os.getenv("DB_PASSWORD")
+-DB_HOST = os.getenv("DB_HOST")
+-
+ # Connect to PostgreSQL
+-try:
+-    conn = psycopg2.connect(
+-        dbname=DB_NAME,
+-        user=DB_USER,
+-        password=DB_PASSWORD,
+-        host=DB_HOST,
+-    )
+-    cursor = conn.cursor()
+-    print("Database connection successful.")
+-except Exception as e:
+-    print(f"Error connecting to the database: {e}")
+-    raise
++conn = psycopg2.connect(
++    dbname="qrganizer",
++    user="qr_user",
++    password="securepassword",
++    host="localhost"
++)
++cursor = conn.cursor()
+ 
+ # Add middleware after initializing the app
+ app.add_middleware(
+@@ -90,18 +74,19 @@ def create_item(item: Item):
+         # Generate QR code
+         qr = qrcode.QRCode(
+             version=1,
+-            error_correction=qrcode.constants.ERROR_CORRECT_Q,
+-            box_size=8,
+-            border=4,
++            error_correction=qrcode.constants.ERROR_CORRECT_Q,  # High error correction
++            box_size=8,  # Smaller box size to reduce QR code size
++            border=4,  # Smaller border for tighter fitting
+         )
+-        qr.add_data(f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}")
++        qr.add_data(qr_data)
+         qr.make(fit=True)
+ 
++        # Generate and resize the QR code image
++        # Generate and save QR Code data
+         img = qr.make_image(fill="black", back_color="white")
+         buffered = io.BytesIO()
+         img.save(buffered, format="PNG")
+-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+-
++        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
+ 
+         # Save to database
+         cursor.execute(
+
+commit f6f03836f7594eef36beffe6653ddd45d4378bdd
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Wed Nov 20 10:03:58 2024 -0500
+
+    Setting up github and Digital Ocean
+
+diff --git a/backend/main.py b/backend/main.py
+index 62b49cd..9d02f78 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -1,3 +1,4 @@
++import os
+ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ from pydantic import BaseModel
+@@ -6,18 +7,33 @@ import psycopg2
+ import qrcode
+ import io
+ import base64
++from dotenv import load_dotenv
++
++# Load environment variables from .env file
++load_dotenv()
+ 
+ # Initialize the FastAPI app instance
+ app = FastAPI()
+ 
++# Fetch database credentials from environment variables
++DB_NAME = os.getenv("DB_NAME")
++DB_USER = os.getenv("DB_USER")
++DB_PASSWORD = os.getenv("DB_PASSWORD")
++DB_HOST = os.getenv("DB_HOST")
++
+ # Connect to PostgreSQL
+-conn = psycopg2.connect(
+-    dbname="qrganizer",
+-    user="qr_user",
+-    password="securepassword",
+-    host="localhost"
+-)
+-cursor = conn.cursor()
++try:
++    conn = psycopg2.connect(
++        dbname=DB_NAME,
++        user=DB_USER,
++        password=DB_PASSWORD,
++        host=DB_HOST,
++    )
++    cursor = conn.cursor()
++    print("Database connection successful.")
++except Exception as e:
++    print(f"Error connecting to the database: {e}")
++    raise
+ 
+ # Add middleware after initializing the app
+ app.add_middleware(
+@@ -74,19 +90,18 @@ def create_item(item: Item):
+         # Generate QR code
+         qr = qrcode.QRCode(
+             version=1,
+-            error_correction=qrcode.constants.ERROR_CORRECT_Q,  # High error correction
+-            box_size=8,  # Smaller box size to reduce QR code size
+-            border=4,  # Smaller border for tighter fitting
++            error_correction=qrcode.constants.ERROR_CORRECT_Q,
++            box_size=8,
++            border=4,
+         )
+-        qr.add_data(qr_data)
++        qr.add_data(f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}")
+         qr.make(fit=True)
+ 
+-        # Generate and resize the QR code image
+-        # Generate and save QR Code data
+         img = qr.make_image(fill="black", back_color="white")
+         buffered = io.BytesIO()
+         img.save(buffered, format="PNG")
+-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
++        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
++
+ 
+         # Save to database
+         cursor.execute(
+
+commit 6a0a8afba1e3efe31d4b8e2611f89009bc7a6524
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Wed Nov 20 03:23:40 2024 -0500
+
+    Added category labels to cards and working on responsive design
+
+diff --git a/backend/main.py b/backend/main.py
+index afce443..62b49cd 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -50,11 +50,28 @@ def create_item(item: Item):
+     try:
+         print(f"Creating item: {item}")  # Debugging log
+ 
++        # Check if the category exists
++        cursor.execute("SELECT * FROM categories WHERE name = %s", (item.category,))
++        category = cursor.fetchone()
++
++        if not category:
++            # If the category doesn't exist, insert it with default values
++            default_color = "#E0E0E0"  # Default gray color
++            default_icon = "fa-solid fa-question-circle"  # Default question icon
++            cursor.execute(
++                """
++                INSERT INTO categories (name, color, icon)
++                VALUES (%s, %s, %s)
++                """,
++                (item.category, default_color, default_icon),
++            )
++            conn.commit()
++            print(f"Added new category: {item.category}")
++
+         # Generate QR code content
+         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+ 
+         # Generate QR code
+-        ## Generate the QR Code
+         qr = qrcode.QRCode(
+             version=1,
+             error_correction=qrcode.constants.ERROR_CORRECT_Q,  # High error correction
+@@ -65,17 +82,13 @@ def create_item(item: Item):
+         qr.make(fit=True)
+ 
+         # Generate and resize the QR code image
+-        img = qr.make_image(fill="black", back_color="white").resize((200, 200))  # Resize to 200x200
+-
+-        
+-        # Generating QR code
++        # Generate and save QR Code data
++        img = qr.make_image(fill="black", back_color="white")
+         buffered = io.BytesIO()
+         img.save(buffered, format="PNG")
+         qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
+ 
+-
+-
+-        # Save item to database
++        # Save to database
+         cursor.execute(
+             """
+             INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
+@@ -89,10 +102,11 @@ def create_item(item: Item):
+                 item.location,
+                 item.storage_container,
+                 item.tags,
+-                qr_code_data,
++                qr_code_data,  # Ensure this matches the Base64 format
+             ),
+         )
+         conn.commit()
++
+         item_id = cursor.fetchone()
+         if item_id:
+             return {"id": item_id[0], "qr_code": qr_code_data}
+@@ -129,6 +143,25 @@ def update_item(item_id: int, item: Item):
+     try:
+         print(f"Updating item with ID: {item_id}")  # Debugging log
+ 
++        # Check if the category exists
++        cursor.execute("SELECT * FROM categories WHERE name = %s;", (item.category,))
++        category = cursor.fetchone()
++        if not category:
++            print(f"Category '{item.category}' does not exist. Creating a new category.")
++            # Create a new category with default values
++            cursor.execute(
++                """
++                INSERT INTO categories (name, color, icon)
++                VALUES (%s, %s, %s);
++                """,
++                (
++                    item.category,
++                    "#E0E0E0",  # Default color
++                    None,       # Default icon
++                ),
++            )
++            conn.commit()
++
+         # Generate updated QR code content
+         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+ 
+@@ -201,31 +234,84 @@ def update_item(item_id: int, item: Item):
+ # Delete an item
+ @app.delete("/items/{item_id}")
+ def delete_item(item_id: int):
+-    cursor.execute("DELETE FROM items WHERE id = %s RETURNING id;", (item_id,))
+-    conn.commit()
+-    deleted_item_id = cursor.fetchone()
+-    if deleted_item_id:
+-        return {"id": deleted_item_id[0], "message": "Item deleted successfully"}
+-    return {"error": "Item not found"}, 404
++    try:
++        # First, fetch the category of the item being deleted
++        cursor.execute("SELECT category FROM items WHERE id = %s;", (item_id,))
++        category = cursor.fetchone()
++
++        # Delete the item
++        cursor.execute("DELETE FROM items WHERE id = %s RETURNING id;", (item_id,))
++        conn.commit()
++        deleted_item_id = cursor.fetchone()
++
++        if deleted_item_id:
++            # Check if the category has any remaining items
++            if category:
++                cursor.execute("SELECT COUNT(*) FROM items WHERE category = %s;", (category[0],))
++                count = cursor.fetchone()[0]
++                if count == 0:  # If no items are left, remove the category
++                    cursor.execute("DELETE FROM categories WHERE name = %s;", (category[0],))
++                    conn.commit()
++
++            return {"id": deleted_item_id[0], "message": "Item deleted successfully"}
++
++        return {"error": "Item not found"}, 404
++    except Exception as e:
++        conn.rollback()
++        print("Error during item deletion:", e)
++        return {"error": "Server error"}, 500
++
+ 
+ # Get all items
+ @app.get("/items/")
+ def get_items():
+-    cursor.execute("SELECT * FROM items;")
+-    rows = cursor.fetchall()
+-    items = [
+-        {
+-            "id": row[0],
+-            "name": row[1],
+-            "category": row[2],
+-            "description": row[3],
+-            "quantity": row[4],
+-            "location": row[5],
+-            "storage_container": row[6],
+-            "tags": row[7],
+-            # Ensure the qr_code field includes the base64 prefix
+-            "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
++    try:
++        # Fetch items along with their associated category details
++        query = """
++            SELECT 
++                i.id, i.name, i.category, i.description, i.quantity, 
++                i.location, i.storage_container, i.tags, i.qr_code, 
++                c.color, c.icon
++            FROM items i
++            LEFT JOIN categories c ON i.category = c.name;
++        """
++        cursor.execute(query)
++        rows = cursor.fetchall()
++
++        items = [
++            {
++                "id": row[0],
++                "name": row[1],
++                "category": row[2],
++                "description": row[3],
++                "quantity": row[4],
++                "location": row[5],
++                "storage_container": row[6],
++                "tags": row[7],
++                "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
++                "category_color": row[9] or "#E0E0E0",  # Default color if none exists
++                "category_icon": row[10] or "fa-solid fa-question",  # Default icon if none exists
++            }
++            for row in rows
++        ]
++
++        return items
++
++    except Exception as e:
++        print(f"Error fetching items: {e}")
++        return {"error": "Server error"}, 500
++
++@app.get("/categories/")
++def get_categories():
++    try:
++        cursor.execute("SELECT name, color, icon FROM categories;")
++        rows = cursor.fetchall()
++        # Provide default values if color or icon are NULL
++        categories = {
++            row[0]: {"color": row[1] or "#E0E0E0", "icon": row[2] or "fa-solid fa-question-circle"}
++            for row in rows
+         }
+-        for row in rows
+-    ]
+-    return items
++        return {"categories": categories}
++    except Exception as e:
++        print("Error fetching categories:", e)
++        return {"error": "Could not fetch categories"}, 500
+
+commit 38816c4a365f5afde9532831bbbfbd9adcf76c0a
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Wed Nov 20 01:22:24 2024 -0500
+
+    Search is working!
+
+diff --git a/backend/main.py b/backend/main.py
+index ff3207a..afce443 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -136,16 +136,17 @@ def update_item(item_id: int, item: Item):
+         qr = qrcode.QRCode(
+             version=1,
+             error_correction=qrcode.constants.ERROR_CORRECT_Q,
+-            box_size=8,  # Ensure the box size is appropriate for the image size
+-            border=4,    # Minimal border to save space
++            box_size=10,  # Appropriate size for clarity
++            border=4,     # Ensure sufficient border
+         )
+         qr.add_data(qr_data)
+         qr.make(fit=True)
+ 
+-        # Resize the QR Code to fit within the container
+-        img = qr.make_image(fill="black", back_color="white").resize((180, 180))  # Match container size
+-
+-
++        # Convert QR Code to base64
++        img = qr.make_image(fill="black", back_color="white")
++        buffered = io.BytesIO()
++        img.save(buffered, format="PNG")
++        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
+ 
+         # Update the database with the new data and QR code
+         cursor.execute(
+
+commit b4f17d6742b457ba57b2612dd418ff752dec05c9
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Wed Nov 20 00:57:17 2024 -0500
+
+    QR Code is working on the cards. Updating items stopped working
+
+diff --git a/backend/main.py b/backend/main.py
+index 1e41398..ff3207a 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
+ from pydantic import BaseModel
+ from typing import Optional
+ import psycopg2
+-
++import qrcode
++import io
++import base64
+ 
+ # Initialize the FastAPI app instance
+ app = FastAPI()
+@@ -17,7 +19,6 @@ conn = psycopg2.connect(
+ )
+ cursor = conn.cursor()
+ 
+-
+ # Add middleware after initializing the app
+ app.add_middleware(
+     CORSMiddleware,
+@@ -36,6 +37,7 @@ class Item(BaseModel):
+     location: str
+     storage_container: Optional[str] = None
+     tags: Optional[list[str]] = []
++    qr_code: Optional[str] = None
+ 
+ # Root endpoint
+ @app.get("/")
+@@ -47,39 +49,60 @@ def read_root():
+ def create_item(item: Item):
+     try:
+         print(f"Creating item: {item}")  # Debugging log
++
++        # Generate QR code content
++        qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
++
++        # Generate QR code
++        ## Generate the QR Code
++        qr = qrcode.QRCode(
++            version=1,
++            error_correction=qrcode.constants.ERROR_CORRECT_Q,  # High error correction
++            box_size=8,  # Smaller box size to reduce QR code size
++            border=4,  # Smaller border for tighter fitting
++        )
++        qr.add_data(qr_data)
++        qr.make(fit=True)
++
++        # Generate and resize the QR code image
++        img = qr.make_image(fill="black", back_color="white").resize((200, 200))  # Resize to 200x200
++
++        
++        # Generating QR code
++        buffered = io.BytesIO()
++        img.save(buffered, format="PNG")
++        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
++
++
++
++        # Save item to database
+         cursor.execute(
+             """
+-            INSERT INTO items (name, category, description, quantity, location, storage_container, tags)
+-            VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id;
++            INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
++            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
+             """,
+-            (item.name, item.category, item.description, item.quantity, 
+-             item.location, item.storage_container, item.tags)
++            (
++                item.name,
++                item.category,
++                item.description,
++                item.quantity,
++                item.location,
++                item.storage_container,
++                item.tags,
++                qr_code_data,
++            ),
+         )
+         conn.commit()
+         item_id = cursor.fetchone()
+-        print("Created Item ID:", item_id)  # Debugging log
+         if item_id:
+-            # Fetch the created item to ensure all fields are returned
+-            cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id[0],))
+-            row = cursor.fetchone()
+-            if row:
+-                created_item = {
+-                    "id": row[0],
+-                    "name": row[1],
+-                    "category": row[2],
+-                    "description": row[3],
+-                    "quantity": row[4],
+-                    "location": row[5],
+-                    "storage_container": row[6],
+-                    "tags": row[7],
+-                }
+-                return {"item": created_item}
++            return {"id": item_id[0], "qr_code": qr_code_data}
+     except Exception as e:
+-        print("Error during creation:", e)  # Debugging log
++        conn.rollback()
++        print(f"Error during creation: {e}")
+         return {"error": "Server error"}, 500
+ 
+ 
+-
++# Get a specific item
+ @app.get("/items/{item_id}")
+ def get_item(item_id: int):
+     cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+@@ -94,32 +117,62 @@ def get_item(item_id: int):
+             "location": row[5],
+             "storage_container": row[6],
+             "tags": row[7],
+-        }
++            # Ensure the qr_code field includes the base64 prefix
++            "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
++                }
+         return {"item": item}
+     return {"error": "Item not found"}, 404
+ 
++# Update an item
+ @app.put("/items/{item_id}")
+ def update_item(item_id: int, item: Item):
+     try:
+         print(f"Updating item with ID: {item_id}")  # Debugging log
++
++        # Generate updated QR code content
++        qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
++
++        # Generate the QR Code
++        qr = qrcode.QRCode(
++            version=1,
++            error_correction=qrcode.constants.ERROR_CORRECT_Q,
++            box_size=8,  # Ensure the box size is appropriate for the image size
++            border=4,    # Minimal border to save space
++        )
++        qr.add_data(qr_data)
++        qr.make(fit=True)
++
++        # Resize the QR Code to fit within the container
++        img = qr.make_image(fill="black", back_color="white").resize((180, 180))  # Match container size
++
++
++
++        # Update the database with the new data and QR code
+         cursor.execute(
+             """
+             UPDATE items
+             SET name = %s, category = %s, description = %s, quantity = %s, 
+-                location = %s, storage_container = %s, tags = %s
++                location = %s, storage_container = %s, tags = %s, qr_code = %s
+             WHERE id = %s
+             RETURNING id;
+             """,
+             (
+-                item.name, item.category, item.description, item.quantity,
+-                item.location, item.storage_container, item.tags, item_id
+-            )
++                item.name,
++                item.category,
++                item.description,
++                item.quantity,
++                item.location,
++                item.storage_container,
++                item.tags,
++                qr_code_data,  # Updated QR code
++                item_id,
++            ),
+         )
+         conn.commit()
+         updated_item_id = cursor.fetchone()
+         print("Updated Item ID:", updated_item_id)  # Debugging log
++
+         if updated_item_id:
+-            # Fetch the updated item from the database
+             cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+             row = cursor.fetchone()
+             if row:
+@@ -132,29 +185,29 @@ def update_item(item_id: int, item: Item):
+                     "location": row[5],
+                     "storage_container": row[6],
+                     "tags": row[7],
++                    "qr_code": row[8],  # Include qr_code here
+                 }
++
+                 return {"item": updated_item, "message": "Item updated successfully"}
+         return {"error": "Item not found"}, 404
++
+     except Exception as e:
++        conn.rollback()  # Roll back the transaction to avoid the aborted state
+         print("Error during update:", e)  # Debugging log
+         return {"error": "Server error"}, 500
+ 
+ 
+-
++# Delete an item
+ @app.delete("/items/{item_id}")
+ def delete_item(item_id: int):
+-    cursor.execute(
+-        "DELETE FROM items WHERE id = %s RETURNING id;",
+-        (item_id,)
+-    )
++    cursor.execute("DELETE FROM items WHERE id = %s RETURNING id;", (item_id,))
+     conn.commit()
+     deleted_item_id = cursor.fetchone()
+     if deleted_item_id:
+         return {"id": deleted_item_id[0], "message": "Item deleted successfully"}
+     return {"error": "Item not found"}, 404
+ 
+-
+-
++# Get all items
+ @app.get("/items/")
+ def get_items():
+     cursor.execute("SELECT * FROM items;")
+@@ -169,6 +222,8 @@ def get_items():
+             "location": row[5],
+             "storage_container": row[6],
+             "tags": row[7],
++            # Ensure the qr_code field includes the base64 prefix
++            "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
+         }
+         for row in rows
+     ]
+
+commit c66f0e3c051458b174dd73f3486e042a74bfc35d
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Tue Nov 19 21:41:13 2024 -0500
+
+    Add, edit, and delete are all working. About to add QR Code generating
+
+diff --git a/backend/main.py b/backend/main.py
+index b0fb0ec..1e41398 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -59,7 +59,21 @@ def create_item(item: Item):
+         item_id = cursor.fetchone()
+         print("Created Item ID:", item_id)  # Debugging log
+         if item_id:
+-            return {"id": item_id[0], "item": item}
++            # Fetch the created item to ensure all fields are returned
++            cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id[0],))
++            row = cursor.fetchone()
++            if row:
++                created_item = {
++                    "id": row[0],
++                    "name": row[1],
++                    "category": row[2],
++                    "description": row[3],
++                    "quantity": row[4],
++                    "location": row[5],
++                    "storage_container": row[6],
++                    "tags": row[7],
++                }
++                return {"item": created_item}
+     except Exception as e:
+         print("Error during creation:", e)  # Debugging log
+         return {"error": "Server error"}, 500
+@@ -105,13 +119,28 @@ def update_item(item_id: int, item: Item):
+         updated_item_id = cursor.fetchone()
+         print("Updated Item ID:", updated_item_id)  # Debugging log
+         if updated_item_id:
+-            return {"id": updated_item_id[0], "message": "Item updated successfully"}
++            # Fetch the updated item from the database
++            cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
++            row = cursor.fetchone()
++            if row:
++                updated_item = {
++                    "id": row[0],
++                    "name": row[1],
++                    "category": row[2],
++                    "description": row[3],
++                    "quantity": row[4],
++                    "location": row[5],
++                    "storage_container": row[6],
++                    "tags": row[7],
++                }
++                return {"item": updated_item, "message": "Item updated successfully"}
+         return {"error": "Item not found"}, 404
+     except Exception as e:
+         print("Error during update:", e)  # Debugging log
+         return {"error": "Server error"}, 500
+ 
+ 
++
+ @app.delete("/items/{item_id}")
+ def delete_item(item_id: int):
+     cursor.execute(
+
+commit a80656da89ee57b1f30182b987fa7f0d8670e7c5
+Author: Rob Shambaugh <rob.shambaugh@gmail.com>
+Date:   Tue Nov 19 16:37:15 2024 -0500
+
+    Initial commit for QRganizer project structure
+
+diff --git a/backend/main.py b/backend/main.py
+new file mode 100644
+index 0000000..b0fb0ec
+--- /dev/null
++++ b/backend/main.py
+@@ -0,0 +1,146 @@
++from fastapi import FastAPI
++from fastapi.middleware.cors import CORSMiddleware
++from pydantic import BaseModel
++from typing import Optional
++import psycopg2
++
++
++# Initialize the FastAPI app instance
++app = FastAPI()
++
++# Connect to PostgreSQL
++conn = psycopg2.connect(
++    dbname="qrganizer",
++    user="qr_user",
++    password="securepassword",
++    host="localhost"
++)
++cursor = conn.cursor()
++
++
++# Add middleware after initializing the app
++app.add_middleware(
++    CORSMiddleware,
++    allow_origins=["*"],  # Change '*' to a specific domain in production
++    allow_credentials=True,
++    allow_methods=["*"],
++    allow_headers=["*"],
++)
++
++# Define the Item data model
++class Item(BaseModel):
++    name: str
++    category: str
++    description: Optional[str] = None
++    quantity: int
++    location: str
++    storage_container: Optional[str] = None
++    tags: Optional[list[str]] = []
++
++# Root endpoint
++@app.get("/")
++def read_root():
++    return {"message": "Welcome to QRganizer!"}
++
++# Create an item
++@app.post("/items/")
++def create_item(item: Item):
++    try:
++        print(f"Creating item: {item}")  # Debugging log
++        cursor.execute(
++            """
++            INSERT INTO items (name, category, description, quantity, location, storage_container, tags)
++            VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id;
++            """,
++            (item.name, item.category, item.description, item.quantity, 
++             item.location, item.storage_container, item.tags)
++        )
++        conn.commit()
++        item_id = cursor.fetchone()
++        print("Created Item ID:", item_id)  # Debugging log
++        if item_id:
++            return {"id": item_id[0], "item": item}
++    except Exception as e:
++        print("Error during creation:", e)  # Debugging log
++        return {"error": "Server error"}, 500
++
++
++
++@app.get("/items/{item_id}")
++def get_item(item_id: int):
++    cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
++    row = cursor.fetchone()
++    if row:
++        item = {
++            "id": row[0],
++            "name": row[1],
++            "category": row[2],
++            "description": row[3],
++            "quantity": row[4],
++            "location": row[5],
++            "storage_container": row[6],
++            "tags": row[7],
++        }
++        return {"item": item}
++    return {"error": "Item not found"}, 404
++
++@app.put("/items/{item_id}")
++def update_item(item_id: int, item: Item):
++    try:
++        print(f"Updating item with ID: {item_id}")  # Debugging log
++        cursor.execute(
++            """
++            UPDATE items
++            SET name = %s, category = %s, description = %s, quantity = %s, 
++                location = %s, storage_container = %s, tags = %s
++            WHERE id = %s
++            RETURNING id;
++            """,
++            (
++                item.name, item.category, item.description, item.quantity,
++                item.location, item.storage_container, item.tags, item_id
++            )
++        )
++        conn.commit()
++        updated_item_id = cursor.fetchone()
++        print("Updated Item ID:", updated_item_id)  # Debugging log
++        if updated_item_id:
++            return {"id": updated_item_id[0], "message": "Item updated successfully"}
++        return {"error": "Item not found"}, 404
++    except Exception as e:
++        print("Error during update:", e)  # Debugging log
++        return {"error": "Server error"}, 500
++
++
++@app.delete("/items/{item_id}")
++def delete_item(item_id: int):
++    cursor.execute(
++        "DELETE FROM items WHERE id = %s RETURNING id;",
++        (item_id,)
++    )
++    conn.commit()
++    deleted_item_id = cursor.fetchone()
++    if deleted_item_id:
++        return {"id": deleted_item_id[0], "message": "Item deleted successfully"}
++    return {"error": "Item not found"}, 404
++
++
++
++@app.get("/items/")
++def get_items():
++    cursor.execute("SELECT * FROM items;")
++    rows = cursor.fetchall()
++    items = [
++        {
++            "id": row[0],
++            "name": row[1],
++            "category": row[2],
++            "description": row[3],
++            "quantity": row[4],
++            "location": row[5],
++            "storage_container": row[6],
++            "tags": row[7],
++        }
++        for row in rows
++    ]
++    return items
