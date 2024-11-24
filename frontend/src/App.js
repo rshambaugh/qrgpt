@@ -39,71 +39,64 @@ function App() {
         const fetchData = async () => {
             try {
                 setLoading(true);
-    
+        
                 let items = [];
                 if (currentContainerId) {
-                    // Fetch items within a specific container
                     const response = await api.get(`/containers/${currentContainerId}`);
+                    console.log('API Response for Container:', response.data); // Log container data
                     const containerData = response.data || {};
-    
-                    // Set container details and items
                     setContainerDetails(containerData.container || null);
                     items = containerData.items || [];
-                    console.log('Items within a container:', containerData);
                 } else {
-                    // Fetch all items for the main inventory view
                     const response = await api.get('/items/');
-                    items = response.data.items || []; // Access the 'items' key
-                    console.log('Fetched items for main inventory:', items);
-    
-                    // Ensure all items have QR codes
-                    items = await Promise.all(
-                        items.map(async (item) => {
-                            if (!item.qr_code) {
-                                try {
-                                    const qrCodeData = await generateQRCode(
-                                        `Item: ${item.name}, Location: ${item.location}, Container: ${item.storage_container || 'None'}`
-                                    );
-                                    return { ...item, qr_code: qrCodeData };
-                                } catch (qrError) {
-                                    console.error('Error generating QR code for item:', item, qrError);
-                                    return item; // Return item without QR code if generation fails
-                                }
-                            }
-                            return item;
-                        })
-                    );
-    
-                    // Clear container details for the main inventory view
-                    setContainerDetails(null);
+                    console.log('API Response for Items:', response.data); // Log all items
+                    items = response.data.items || [];
                 }
-    
-                // Set the fetched items
-                setItems(items);
-                console.log('Items with QR Code:', items);
-    
-                // Fetch and set categories
+        
+                // Ensure all items have QR codes
+                items = await Promise.all(
+                    items.map(async (item) => {
+                        if (!item.qr_code) {
+                            try {
+                                const qrCodeData = await generateQRCode(
+                                    `Item: ${item.name}, Location: ${item.location}, Container: ${item.storage_container || 'None'}`
+                                );
+                                return { ...item, qr_code: qrCodeData };
+                            } catch (qrError) {
+                                console.error('Error generating QR code for item:', item, qrError);
+                                return item;
+                            }
+                        }
+                        return item;
+                    })
+                );
+        
+                setItems(items); // Update state with processed items
+                console.log('Final Items with QR Codes:', items);
+        
+                // Fetch categories
                 const categoryResponse = await api.get('/categories/');
-                const categories = categoryResponse.data.categories || [];
-                setCategories(categories);
-                console.log('Fetched Categories:', categories);
+                console.log('API Response for Categories:', categoryResponse.data); // Log categories
+                setCategories(categoryResponse.data.categories || []);
             } catch (error) {
-                console.error('Error fetching items or categories:', error);
+                console.error('Error in fetchData:', error);
             } finally {
-                setLoading(false); // Reset loading state regardless of success or failure
+                setLoading(false);
             }
         };
+        
     
-        const fetchContainers = async () => {
-            try {
-                const response = await api.get('/containers/');
-                const containers = Array.isArray(response.data) ? response.data : [];
-                setContainers(containers);
-                console.log('Fetched Containers:', containers);
-            } catch (error) {
-                console.error('Error fetching containers:', error);
-            }
-        };
+        const filteredItems = items.filter((item) => {
+            const query = searchQuery.toLowerCase();
+            const tags = Array.isArray(item.tags) ? item.tags : []; // Ensure tags is an array
+            return (
+                item.name.toLowerCase().includes(query) ||
+                item.category.toLowerCase().includes(query) ||
+                tags.some((tag) => tag.toLowerCase().includes(query)) ||
+                item.location.toLowerCase().includes(query)
+            );
+        });
+        
     
         fetchData();
         fetchContainers();
