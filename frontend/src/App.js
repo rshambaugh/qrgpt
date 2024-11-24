@@ -270,11 +270,41 @@ function App() {
             } else {
                 alert("Failed to create item.");
             }
-        } catch (error) {
-            console.error("Error creating item:", error);
-            alert("An error occurred while adding the item.");
-        }
-    };
+            
+            @app.post("/items/")
+            def create_item(item: Item):
+                try:
+                    # Generate QR code data
+                    qr_data = f"Item: {item.name}\nLocation: {item.location}\nCategory: {item.category}\nQuantity: {item.quantity}"
+                    qr_code_data = generate_qr_code(qr_data)
+            
+                    # Insert the new item into the database
+                    cursor.execute(
+                        """
+                        INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
+                        """,
+                        (
+                            item.name,
+                            item.category,
+                            item.description,
+                            item.quantity,
+                            item.location,
+                            item.storage_container,
+                            item.tags,
+                            qr_code_data,  # Store the generated QR code
+                        ),
+                    )
+                    conn.commit()
+            
+                    new_item_id = cursor.fetchone()[0]  # Fetch the newly inserted item's ID
+            
+                    return {"id": new_item_id, "qr_code": qr_code_data}  # Return the QR code as part of the response
+                except Exception as e:
+                    conn.rollback()
+                    print(f"Error creating item: {e}")
+                    return {"error": str(e)}, 500
+            
     
 
     // Edit an item

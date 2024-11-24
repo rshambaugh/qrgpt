@@ -51,6 +51,8 @@ class Item(BaseModel):
     tags: Optional[list[str]] = []
     qr_code: Optional[str] = None
 
+
+
 def generate_qr_code(data: str) -> str:
     try:
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -72,6 +74,7 @@ def generate_qr_code(data: str) -> str:
     except Exception as e:
         print(f"Error generating QR code: {e}")
         return None
+
 
 # Create Item
 @app.post("/items/")
