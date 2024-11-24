@@ -57,6 +57,18 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Generate QR Code with base64 prefix. Ensure double prefix does not exist
+def generate_qr_code(data: str) -> str:
+    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=8, border=4)
+    qr.add_data(data)
+    qr.make(fit=True)
+
+    # Convert QR code to base64
+    img = qr.make_image(fill="black", back_color="white")
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
+
 
 # Create Item
 @app.post("/items/")
