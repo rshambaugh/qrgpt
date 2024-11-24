@@ -212,15 +212,17 @@ function App() {
     
 
     // Generate QR code
-    const generateQRCode = async (text) => {
-        try {
-            const qrCode = await QRCode.toDataURL(text || 'No Data');
-            return qrCode.replace(/^data:image\/png;base64,/, ''); // Strip the prefix
-        } catch (error) {
-            console.error('Error generating QR code:', error);
-            return null;
-        }
-    };
+    // Generate QR code
+const generateQRCode = async (text) => {
+    try {
+        const qrCode = await QRCode.toDataURL(text || 'No Data');
+        return qrCode; // Keep the prefix intact
+    } catch (error) {
+        console.error('Error generating QR code:', error);
+        return null;
+    }
+};
+
     
 
 // Add a new item
@@ -675,7 +677,7 @@ const handleSubmit = async (e) => {
                                 {showQRCode[item.id] ? (
                                     <div className="qr-code-container">
                                         {item.qr_code ? (
-                                            <img src={item.qr_code} alt={`QR Code for ${item.name}`} />
+                                            <img src={item.qr_code} alt={`QR code for ${item.name}`} />
                                         ) : (
                                             <p>Loading QR Code...</p> // Fallback for when QR code is not ready
                                         )}

@@ -333,7 +333,7 @@ def get_item(item_id: int):
             "storage_container": row[6],
             "tags": row[7],
             # Ensure the qr_code field includes the base64 prefix
-            "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
+            "qr_code": row[8],  # Use as-is from the database
         }
         return {"item": item}
     return {"error": "Item not found"}, 404
@@ -345,40 +345,24 @@ def update_item(item_id: int, item: Item):
     try:
         # Generate QR code content
         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
-        qr_code_data = f"data:image/png;base64,{generate_qr_code(qr_data)}"
+        qr_code_data = generate_qr_code(qr_data)  # Use raw output from generate_qr_code()
 
         # Update the database
-        cursor.execute(
-            """
+        query = """
             UPDATE items
-            SET name = %s, category = %s, description = %s, quantity = %s, 
+            SET name = %s, category = %s, description = %s, quantity = %s,
                 location = %s, storage_container = %s, tags = %s, qr_code = %s
-            WHERE id = %s RETURNING id;
-            """,
-            (
-                item.name,
-                item.category,
-                item.description,
-                item.quantity,
-                item.location,
-                item.storage_container,
-                item.tags,
-                qr_code_data,
-                item_id,
-            ),
-        )
+            WHERE id = %s
+        """
+        cursor.execute(query, (
+            item.name, item.category, item.description, item.quantity,
+            item.location, item.storage_container, item.tags, qr_code_data, item_id
+        ))
         conn.commit()
 
-        # Confirm update
-        updated_item_id = cursor.fetchone()
-        if updated_item_id:
-            return {"id": updated_item_id[0], "qr_code": qr_code_data}
-
-        return {"error": "Item not found"}, 404
+        return {"message": "Item updated successfully"}
     except Exception as e:
-        conn.rollback()
-        print(f"Error during update: {e}")
-        return {"error": f"Server error: {str(e)}"}, 500
+        raise HTTPException(status_code=500, detail="Error updating item")
 
 
 # Delete an item
@@ -413,45 +397,24 @@ def delete_item(item_id: int):
 
 
 # Get all items
-@app.get("/items/")
-def get_items():
-    try:
-        # Fetch items along with their associated category details
-        query = """
-            SELECT 
-                i.id, i.name, i.category, i.description, i.quantity, 
-                i.location, i.storage_container, i.tags, i.qr_code, 
-                c.color, c.icon
-            FROM items i
-            LEFT JOIN categories c ON i.category = c.name;
-        """
-        cursor.execute(query)
-        rows = cursor.fetchall()
-
-        items = []
-        for row in rows:
-            item_id = row[0]
-            is_container = check_is_container(item_id)
-            items.append({
-                "id": item_id,
-                "name": row[1],
-                "category": row[2],
-                "description": row[3],
-                "quantity": row[4],
-                "location": row[5],
-                "storage_container": row[6],
-                "tags": row[7],
-                "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
-                "category_color": row[9] or "#E0E0E0",  # Default color if none exists
-                "category_icon": row[10] or "fa-solid fa-question",  # Default icon if none exists
-                "is_container": is_container,
-            })
-
-        return items
-
-    except Exception as e:
-        print(f"Error fetching items: {e}")
-        return {"error": "Server error"}, 500
+@app.get("/items/{item_id}")
+def get_item(item_id: int):
+    cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+    row = cursor.fetchone()
+    if row:
+        item = {
+            "id": row[0],
+            "name": row[1],
+            "category": row[2],
+            "description": row[3],
+            "quantity": row[4],
+            "location": row[5],
+            "storage_container": row[6],
+            "tags": row[7],
+            "qr_code": row[8],  # Use raw value from the database
+        }
+        return item
+    raise HTTPException(status_code=404, detail="Item not found")
 
 
 @app.get("/categories/")
