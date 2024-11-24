@@ -324,23 +324,32 @@ def create_item(item: Item):
 # Get a specific item
 @app.get("/items/{item_id}")
 def get_item(item_id: int):
-    cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
-    row = cursor.fetchone()
-    if row:
-        item = {
-            "id": row[0],
-            "name": row[1],
-            "category": row[2],
-            "description": row[3],
-            "quantity": row[4],
-            "location": row[5],
-            "storage_container": row[6],
-            "tags": row[7],
-            # Ensure the qr_code field includes the base64 prefix
-            "qr_code": row[8],  # Use as-is from the database
-        }
-        return {"item": item}
-    return {"error": "Item not found"}, 404
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+        row = cursor.fetchone()
+        if row:
+            item = {
+                "id": row[0],
+                "name": row[1],
+                "category": row[2],
+                "description": row[3],
+                "quantity": row[4],
+                "location": row[5],
+                "storage_container": row[6],
+                "tags": row[7],
+                "qr_code": row[8],  # Use raw value from the database
+            }
+            return item
+        else:
+            raise HTTPException(status_code=404, detail="Item not found")
+    except Exception as e:
+        logging.error(f"Error fetching item with id {item_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # Update an item
@@ -406,13 +415,18 @@ def delete_item(item_id: int):
         return {"error": "Server error"}, 500
 
 
-@app.get("/items")
+@app.get("/items/")
 def get_items():
-    cursor.execute("SELECT * FROM items;")
-    rows = cursor.fetchall()
-    if rows:
-        items = [
-            {
+    conn = None
+    cursor = None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM items;")
+        rows = cursor.fetchall()
+        items = []
+        for row in rows:
+            item = {
                 "id": row[0],
                 "name": row[1],
                 "category": row[2],
@@ -423,10 +437,17 @@ def get_items():
                 "tags": row[7],
                 "qr_code": row[8],  # Use raw value from the database
             }
-            for row in rows
-        ]
+            items.append(item)
         return items
-    return []  # Return an empty list if no items exist
+    except Exception as e:
+        logging.error(f"Error fetching items: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 
 
 
