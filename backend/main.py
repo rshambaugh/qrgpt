@@ -57,18 +57,16 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Generate QR Code with base64 prefix. Ensure double prefix does not exist
-def generate_qr_code(data: str) -> str:
-    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=8, border=4)
-    qr.add_data(data)
-    qr.make(fit=True)
-
-    # Convert QR code to base64
-    img = qr.make_image(fill="black", back_color="white")
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
-    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
-
+const generateQRCode = async (text) => {
+    try {
+        console.log('Generating QR Code for:', text);
+        const qrCode = await QRCode.toDataURL(text || 'No Data');
+        return qrCode.replace(/^data:image\/png;base64,/, ''); // Strip the prefix
+    } catch (error) {
+        console.error('Error generating QR code:', error);
+        return null;
+    }
+};
 
 # Create Item
 @app.post("/items/")
@@ -243,6 +241,32 @@ def get_all_containers():
         return containers
     except Exception as e:
         print(f"Error fetching containers: {e}")
+        return {"error": "Server error"}, 500
+
+# Create Container
+@app.post("/containers/")
+def create_container(container: Container):
+    try:
+        # Generate QR code content
+        qr_data = f"Container: {container.name}\nLocation: {container.location or 'N/A'}"
+        qr_code_data = generate_qr_code(qr_data)
+
+        # Insert the container into the database
+        cursor.execute(
+            """
+            INSERT INTO containers (name, parent_container_id, location, tags, qr_code)
+            VALUES (%s, %s, %s, %s, %s) RETURNING id;
+            """,
+            (container.name, container.parent_container_id, container.location, container.tags, qr_code_data),
+        )
+        conn.commit()
+        conn.close()
+
+        container_id = cursor.fetchone()[0]
+        return {"id": container_id, "qr_code": qr_code_data}
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating container: {e}")
         return {"error": "Server error"}, 500
 
 
