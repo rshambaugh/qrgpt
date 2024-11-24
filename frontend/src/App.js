@@ -456,15 +456,18 @@ const handleEdit = (item) => {
                 type="text"
                 id="category"
                 name="category"
-                placeholder="Category"
+                placeholder="Enter category (e.g., Electronics, Tools)"
                 value={editingItem ? editingItem.category : newItem.category}
-                onChange={(e) =>
+                onChange={(e) => {
+                    const value = e.target.value.trim();
+                    console.log('Updated Category:', value);
                     editingItem
-                        ? setEditingItem({ ...editingItem, category: e.target.value })
-                        : setNewItem({ ...newItem, category: e.target.value })
-                }
+                        ? setEditingItem({ ...editingItem, category: value })
+                        : setNewItem({ ...newItem, category: value });
+                }}
             />
         </div>
+
 
         <div className="form-group">
             <label htmlFor="description">Description</label>
