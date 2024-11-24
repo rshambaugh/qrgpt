@@ -139,7 +139,7 @@ def create_container(container: Container):
     try:
         # Generate QR code content
         qr_data = f"Container: {container.name}\nLocation: {container.location or 'N/A'}"
-        qr_code_data = f"data:image/png;base64,{generate_qr_code(qr_data)}"
+        qr_code_data = generate_qr_code(qr_data)
 
         # Insert the container into the database
         cursor.execute(
@@ -289,7 +289,7 @@ def create_item(item: Item):
     try:
         # Generate QR code content
         qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
-        qr_code_data = f"data:image/png;base64,{generate_qr_code(qr_data)}"
+        qr_code_data = generate_qr_code(qr_data)
 
         # Insert the item into the database
         cursor.execute(
