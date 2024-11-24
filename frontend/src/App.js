@@ -243,9 +243,7 @@ const handleSubmit = async (e) => {
             const response = await api.post("/containers/", {
                 name: newContainer.name,
                 location: newContainer.location,
-                tags: newContainer.tags
-                    ? newContainer.tags.split(",").map((tag) => tag.trim())
-                    : [], // Process tags as an array
+                tags: newContainer.tags ? newContainer.tags.split(",").map((tag) => tag.trim()) : [],
             });
 
             if (response.data && response.data.id) {
@@ -260,9 +258,7 @@ const handleSubmit = async (e) => {
         const itemData = {
             ...newItem,
             storage_container: containerId, // Use the container ID
-            tags: newItem.tags
-                ? newItem.tags.split(",").map((tag) => tag.trim())
-                : [], // Process tags as an array
+            tags: newItem.tags ? newItem.tags.split(",").map((tag) => tag.trim()) : [],
         };
 
         // Create the new item in the backend
@@ -270,14 +266,18 @@ const handleSubmit = async (e) => {
 
         if (itemResponse.data && itemResponse.data.id) {
             // Update the items state with the newly added item
-            setItems([...items, { ...itemData, id: itemResponse.data.id, qr_code: itemResponse.data.qr_code }]);
-            resetForm(); // Clear the form
+            setItems([...items, { ...itemData, id: itemResponse.data.id }]);
+
+            // Reset the form
+            resetForm(); // Clear the item form
+            setNewContainer({ name: "", location: "", tags: "" }); // Clear the new container fields
+            setShowNewContainerFields(false); // Hide the new container fields
         } else {
             alert("Failed to create item.");
         }
     } catch (error) {
-        console.error("Error during item creation:", error);
-        alert("An error occurred while creating the item.");
+        console.error("Error creating item:", error);
+        alert("An error occurred while adding the item.");
     }
 };
 
