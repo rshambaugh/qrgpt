@@ -9,29 +9,6 @@ import io
 import base64
 from dotenv import load_dotenv
 from io import BytesIO
-import psycopg2@app.get("/items/")
-def get_items():
-    try:
-        cursor.execute("SELECT * FROM items;")
-        rows = cursor.fetchall()
-        items = []
-        for row in rows:
-            items.append({
-                "id": row[0],
-                "name": row[1],
-                "category": row[2],
-                "description": row[3],
-                "quantity": row[4],
-                "location": row[5],
-                "storage_container": row[6],
-                "tags": row[7],
-                "qr_code": row[8],  # Use raw value from the database
-            })
-        return items
-    except Exception as e:
-        print(f"Error in get_items: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
 
 
 # Load environment variables from the .env file
@@ -80,17 +57,6 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Generate QR Code with base64 prefix. Ensure double prefix does not exist
-def generate_qr_code(data: str) -> str:
-    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=8, border=4)
-    qr.add_data(data)
-    qr.make(fit=True)
-
-    # Convert QR code to base64
-    img = qr.make_image(fill="black", back_color="white")
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
-    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
 
 # Create Item
 @app.post("/items/")
@@ -347,27 +313,24 @@ def create_item(item: Item):
 # Get a specific item
 @app.get("/items/{item_id}")
 def get_item(item_id: int):
-    try:
-        cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
-        row = cursor.fetchone()
-        if row:
-            item = {
-                "id": row[0],
-                "name": row[1],
-                "category": row[2],
-                "description": row[3],
-                "quantity": row[4],
-                "location": row[5],
-                "storage_container": row[6],
-                "tags": row[7],
-                "qr_code": row[8],  # Use raw value from the database
-            }
-            return item
-        else:
-            raise HTTPException(status_code=404, detail="Item not found")
-    except Exception as e:
-        print(f"Error in get_item: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+    cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
+    row = cursor.fetchone()
+    if row:
+        item = {
+            "id": row[0],
+            "name": row[1],
+            "category": row[2],
+            "description": row[3],
+            "quantity": row[4],
+            "location": row[5],
+            "storage_container": row[6],
+            "tags": row[7],
+            "qr_code": row[8],  # Use raw value from the database
+        }
+        return item
+    raise HTTPException(status_code=404, detail="Item not found")
+
+
 
 
 
@@ -440,9 +403,8 @@ def get_items():
     try:
         cursor.execute("SELECT * FROM items;")
         rows = cursor.fetchall()
-        items = []
-        for row in rows:
-            items.append({
+        items = [
+            {
                 "id": row[0],
                 "name": row[1],
                 "category": row[2],
@@ -452,14 +414,17 @@ def get_items():
                 "storage_container": row[6],
                 "tags": row[7],
                 "qr_code": row[8],  # Use raw value from the database
-            })
-        return items
+            }
+            for row in rows
+        ]
+        return {"items": items}
     except Exception as e:
-        print(f"Error in get_items: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        print("Error fetching items:", e)
+        return {"error": "Server error"}, 500
 
 
 
+# Get Categories
 @app.get("/categories/")
 def get_categories():
     try:
@@ -475,6 +440,7 @@ def get_categories():
         print("Error fetching categories:", e)
         return {"error": "Could not fetch categories"}, 500
 
+# Shutdown DB Connection
 @app.on_event("shutdown")
 def shutdown_event():
     cursor.close()

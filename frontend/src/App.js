@@ -39,63 +39,68 @@ function App() {
         const fetchData = async () => {
             try {
                 setLoading(true);
-
+    
                 if (currentContainerId) {
                     // Fetch items within a specific container
                     const response = await api.get(`/containers/${currentContainerId}`);
-                    setContainerDetails(response.data.container); // Set the container details
-                    setItems(response.data.items || []);
+                    setContainerDetails(response.data.container || null); // Set the container details
+                    setItems(response.data.items || []); // Set items, fallback to an empty array
+                    console.log('Items within a container:', response.data);
+
                 } else {
                     // Fetch all items for the main inventory view
                     const response = await api.get('/items/');
-                    const validItems = response.data.filter((item) => item && item.id);
-
+                    const items = Array.isArray(response.data) ? response.data : [];
+                    console.log('Items for the main inventory view:', response.data);
+                    // Filter valid items and generate missing QR codes
                     const itemsWithQRCode = await Promise.all(
-                        validItems.map(async (item) => {
-                            if (!item.qr_code) {
-                                const qrCodeData = await generateQRCode(
-                                    `${item.name}, Location: ${item.location}, Container: ${item.storage_container}`
-                                );                                
-                                item.qr_code = qrCodeData;
-                            }
-                            return item;
-                        })
+                        items
+                            .filter((item) => item && item.id) // Validate items
+                            .map(async (item) => {
+                                if (!item.qr_code) {
+                                    const qrCodeData = await generateQRCode(
+                                        `${item.name}, Location: ${item.location}, Container: ${item.storage_container || 'None'}`
+                                    );
+                                    item.qr_code = qrCodeData;
+                                }
+                                return item;
+                            })
                     );
-
+    
                     setItems(itemsWithQRCode);
-                    console.log("Items with QR Code:", itemsWithQRCode);
-
-                    setContainerDetails(null);
+                    console.log('Items with QR Code:', itemsWithQRCode);
+    
+                    setContainerDetails(null); // Clear container details for main view
                 }
-
+    
                 // Fetch and set categories
                 const categoryResponse = await api.get('/categories/');
                 if (categoryResponse.data.categories) {
                     setCategories(categoryResponse.data.categories);
                 }
-
-                setLoading(false);
+    
+                setLoading(false); // Reset loading state
             } catch (error) {
                 console.error('Error fetching items or categories:', error);
-                setLoading(false);
+                setLoading(false); // Reset loading state on error
             }
         };
-
-        fetchData();
-
+    
         const fetchContainers = async () => {
             try {
                 const response = await api.get('/containers/');
                 console.log('Fetched Containers:', response.data); // Debug log
-                setContainers(response.data);
+                setContainers(Array.isArray(response.data) ? response.data : []); // Ensure data is an array
             } catch (error) {
                 console.error('Error fetching containers:', error);
             }
         };
-        
+    
+        fetchData();
         fetchContainers();
-
+    
     }, [currentContainerId]);
+    
 
     const filteredItems = items.filter((item) => {
         const query = searchQuery.toLowerCase();
@@ -269,7 +274,6 @@ const handleSubmit = async (e) => {
         if (itemResponse.data && itemResponse.data.id) {
             // Update the items state with the newly added item
             setItems([...items, { ...itemData, id: itemResponse.data.id }]);
-
             // Reset the form
             resetForm(); // Clear the item form
             setNewContainer({ name: "", location: "", tags: "" }); // Clear the new container fields
