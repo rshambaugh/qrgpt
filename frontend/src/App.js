@@ -700,16 +700,8 @@ function App() {
                                 {showQRCode[item.id] ? (
                                     <div className="qr-code-container">
                                         {item.qr_code ? (
-                                            <img
-                                                src={
-                                                    item.qr_code?.startsWith("data:image/png;base64,data:image/png;base64,")
-                                                        ? item.qr_code.replace("data:image/png;base64,data:image/png;base64,", "data:image/png;base64,") // Remove duplicate prefix
-                                                        : item.qr_code
-                                                }
-                                            
-                                                alt="QR Code"
-                                                style={{ maxWidth: "100%", height: "auto" }}
-                                            />
+                                            <img src={item.qr_code} alt={`QR Code for ${item.name}`} />
+
                                         ) : (
                                             <p>Loading QR Code...</p> // Fallback for when QR code is not ready
                                         )}
