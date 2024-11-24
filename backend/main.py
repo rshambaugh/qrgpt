@@ -79,11 +79,11 @@ def generate_qr_code(data: str) -> str:
 @app.post("/items/")
 def create_item(item: Item):
     try:
-        # Generate QR code data
-        qr_data = f"Item: {item.name}\nLocation: {item.location}\nCategory: {item.category}\nQuantity: {item.quantity}"
-        qr_code_data = generate_qr_code(qr_data)
+        # Generate QR code
+        qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+        qr_code_data = generate_qr_code(qr_data) if not item.qr_code else item.qr_code
 
-        # Insert the new item into the database
+        # Insert into database
         cursor.execute(
             """
             INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
@@ -97,18 +97,21 @@ def create_item(item: Item):
                 item.location,
                 item.storage_container,
                 item.tags,
-                qr_code_data,  # Store the generated QR code
+                qr_code_data,
             ),
         )
         conn.commit()
+        item_id = cursor.fetchone()[0]
 
-        new_item_id = cursor.fetchone()[0]  # Fetch the newly inserted item's ID
+        # Return the new item's ID and QR code
+        return {"id": item_id, "qr_code": qr_code_data}
 
-        return {"id": new_item_id, "qr_code": qr_code_data}  # Return the QR code as part of the response
     except Exception as e:
+        # Roll back transaction and log error
         conn.rollback()
-        print(f"Error creating item: {e}")
-        return {"error": str(e)}, 500
+        print(f"Error during item creation: {e}")
+        return {"error": f"Server error: {str(e)}"}, 500
+
 
 
 #Define the Container model
