@@ -9,6 +9,29 @@ import io
 import base64
 from dotenv import load_dotenv
 from io import BytesIO
+import psycopg2@app.get("/items/")
+def get_items():
+    try:
+        cursor.execute("SELECT * FROM items;")
+        rows = cursor.fetchall()
+        items = []
+        for row in rows:
+            items.append({
+                "id": row[0],
+                "name": row[1],
+                "category": row[2],
+                "description": row[3],
+                "quantity": row[4],
+                "location": row[5],
+                "storage_container": row[6],
+                "tags": row[7],
+                "qr_code": row[8],  # Use raw value from the database
+            })
+        return items
+    except Exception as e:
+        print(f"Error in get_items: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 
 # Load environment variables from the .env file
@@ -325,8 +348,6 @@ def create_item(item: Item):
 @app.get("/items/{item_id}")
 def get_item(item_id: int):
     try:
-        conn = get_db()
-        cursor = conn.cursor()
         cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
         row = cursor.fetchone()
         if row:
@@ -345,11 +366,9 @@ def get_item(item_id: int):
         else:
             raise HTTPException(status_code=404, detail="Item not found")
     except Exception as e:
-        logging.error(f"Error fetching item with id {item_id}: {e}")
+        print(f"Error in get_item: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        cursor.close()
-        conn.close()
+
 
 
 # Update an item
@@ -418,20 +437,12 @@ def delete_item(item_id: int):
 # Get Items
 @app.get("/items/")
 def get_items():
-    conn = None
-    cursor = None
     try:
-        logging.info("Connecting to the database...")
-        conn = get_db()  # Ensure this function works as intended
-        cursor = conn.cursor()
-        logging.info("Executing SQL query to fetch all items...")
         cursor.execute("SELECT * FROM items;")
         rows = cursor.fetchall()
-        logging.info(f"Fetched {len(rows)} items from the database.")
-
         items = []
         for row in rows:
-            item = {
+            items.append({
                 "id": row[0],
                 "name": row[1],
                 "category": row[2],
@@ -441,21 +452,12 @@ def get_items():
                 "storage_container": row[6],
                 "tags": row[7],
                 "qr_code": row[8],  # Use raw value from the database
-            }
-            items.append(item)
-
+            })
         return items
-
     except Exception as e:
-        logging.error(f"Error occurred in get_items: {e}")
+        print(f"Error in get_items: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
-    finally:
-        if cursor:
-            logging.info("Closing cursor.")
-            cursor.close()
-        if conn:
-            logging.info("Closing database connection.")
-            conn.close()
+
 
 
 @app.get("/categories/")
@@ -472,3 +474,8 @@ def get_categories():
     except Exception as e:
         print("Error fetching categories:", e)
         return {"error": "Could not fetch categories"}, 500
+
+@app.on_event("shutdown")
+def shutdown_event():
+    cursor.close()
+    connection.close()
