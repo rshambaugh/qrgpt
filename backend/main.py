@@ -51,8 +51,7 @@ class Item(BaseModel):
     tags: Optional[list[str]] = []
     qr_code: Optional[str] = None
 
-
-
+# Generage QR Code
 def generate_qr_code(data: str) -> str:
     try:
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -80,9 +79,9 @@ def generate_qr_code(data: str) -> str:
 @app.post("/items/")
 def create_item(item: Item):
     try:
-        # Prepare the QR code data
+        # Generate QR code data
         qr_data = f"Item: {item.name}\nLocation: {item.location}\nCategory: {item.category}\nQuantity: {item.quantity}"
-        qr_code_data = generate_qr_code(qr_data)  # Ensure this function works as expected
+        qr_code_data = generate_qr_code(qr_data)
 
         # Insert the new item into the database
         cursor.execute(
@@ -104,12 +103,13 @@ def create_item(item: Item):
         conn.commit()
 
         new_item_id = cursor.fetchone()[0]  # Fetch the newly inserted item's ID
-        print(f"Generated QR Code: {qr_code_data}")
+
         return {"id": new_item_id, "qr_code": qr_code_data}  # Return the QR code as part of the response
     except Exception as e:
         conn.rollback()
         print(f"Error creating item: {e}")
         return {"error": str(e)}, 500
+
 
 #Define the Container model
 class Container(BaseModel):
