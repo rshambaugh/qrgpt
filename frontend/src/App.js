@@ -40,57 +40,66 @@ function App() {
             try {
                 setLoading(true);
     
+                let items = [];
                 if (currentContainerId) {
                     // Fetch items within a specific container
                     const response = await api.get(`/containers/${currentContainerId}`);
-                    setContainerDetails(response.data.container || null); // Set the container details
-                    setItems(response.data.items || []); // Set items, fallback to an empty array
-                    console.log('Items within a container:', response.data);
-
+                    const containerData = response.data || {};
+    
+                    // Set container details and items
+                    setContainerDetails(containerData.container || null);
+                    items = containerData.items || [];
+                    console.log('Items within a container:', containerData);
                 } else {
                     // Fetch all items for the main inventory view
                     const response = await api.get('/items/');
-                    const items = Array.isArray(response.data) ? response.data : [];
-                    console.log('Items for the main inventory view:', response.data);
-                    // Filter valid items and generate missing QR codes
-                    const itemsWithQRCode = await Promise.all(
-                        items
-                            .filter((item) => item && item.id) // Validate items
-                            .map(async (item) => {
-                                if (!item.qr_code) {
+                    items = response.data.items || []; // Access the 'items' key
+                    console.log('Fetched items for main inventory:', items);
+    
+                    // Ensure all items have QR codes
+                    items = await Promise.all(
+                        items.map(async (item) => {
+                            if (!item.qr_code) {
+                                try {
                                     const qrCodeData = await generateQRCode(
-                                        `${item.name}, Location: ${item.location}, Container: ${item.storage_container || 'None'}`
+                                        `Item: ${item.name}, Location: ${item.location}, Container: ${item.storage_container || 'None'}`
                                     );
-                                    item.qr_code = qrCodeData;
+                                    return { ...item, qr_code: qrCodeData };
+                                } catch (qrError) {
+                                    console.error('Error generating QR code for item:', item, qrError);
+                                    return item; // Return item without QR code if generation fails
                                 }
-                                return item;
-                            })
+                            }
+                            return item;
+                        })
                     );
     
-                    setItems(itemsWithQRCode);
-                    console.log('Items with QR Code:', itemsWithQRCode);
-    
-                    setContainerDetails(null); // Clear container details for main view
+                    // Clear container details for the main inventory view
+                    setContainerDetails(null);
                 }
+    
+                // Set the fetched items
+                setItems(items);
+                console.log('Items with QR Code:', items);
     
                 // Fetch and set categories
                 const categoryResponse = await api.get('/categories/');
-                if (categoryResponse.data.categories) {
-                    setCategories(categoryResponse.data.categories);
-                }
-    
-                setLoading(false); // Reset loading state
+                const categories = categoryResponse.data.categories || [];
+                setCategories(categories);
+                console.log('Fetched Categories:', categories);
             } catch (error) {
                 console.error('Error fetching items or categories:', error);
-                setLoading(false); // Reset loading state on error
+            } finally {
+                setLoading(false); // Reset loading state regardless of success or failure
             }
         };
     
         const fetchContainers = async () => {
             try {
                 const response = await api.get('/containers/');
-                console.log('Fetched Containers:', response.data); // Debug log
-                setContainers(Array.isArray(response.data) ? response.data : []); // Ensure data is an array
+                const containers = Array.isArray(response.data) ? response.data : [];
+                setContainers(containers);
+                console.log('Fetched Containers:', containers);
             } catch (error) {
                 console.error('Error fetching containers:', error);
             }
@@ -98,7 +107,6 @@ function App() {
     
         fetchData();
         fetchContainers();
-    
     }, [currentContainerId]);
     
 
@@ -288,17 +296,30 @@ const handleSubmit = async (e) => {
 };
 
 
-    // Edit an item
-    const handleEdit = (item) => {
+// Edit an item
+const handleEdit = (item) => {
+    try {
+        // Ensure tags is always processed as an array
+        const tags = Array.isArray(item.tags) ? item.tags : (item.tags || '').split(',');
+
+        // Set the editing item with pre-processed tags and container field
         setEditingItem({
             ...item,
-            tags: item.tags.join(', '),
+            tags: tags.join(', '), // Convert tags array back to a comma-separated string for editing
             storage_container: item.storage_container || "", // Pre-select existing container or leave blank
         });
-    
+
+        // Log for debugging
+        console.log('Editing item:', item);
+        console.log('Item tags:', tags);
+
         // Automatically toggle the 'new container' fields off if editing
         setShowNewContainerFields(false);
-    };
+    } catch (error) {
+        console.error('Error handling item edit:', error);
+    }
+};
+
     
 
     const handleUpdate = async (e) => {

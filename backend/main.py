@@ -424,13 +424,15 @@ def delete_item(item_id: int):
         print("Error during item deletion:", e)
         return {"error": "Server error"}, 500
 
-
 # Get Items
 @app.get("/items/")
 def get_items():
     try:
+        # Execute query
         cursor.execute("SELECT * FROM items;")
         rows = cursor.fetchall()
+
+        # Map rows to objects
         items = [
             {
                 "id": row[0],
@@ -441,14 +443,21 @@ def get_items():
                 "location": row[5],
                 "storage_container": row[6],
                 "tags": row[7],
-                "qr_code": row[8],  # Use raw value from the database
+                "qr_code": row[8],
             }
             for row in rows
         ]
+
+        # Debug logs
+        print("Fetched rows from database:", rows)
+        print("Constructed items:", items)
+
+        # Return items
         return {"items": items}
     except Exception as e:
+        # Improved error logging
         print("Error fetching items:", e)
-        return {"error": "Server error"}, 500
+        return {"error": f"Server error: {str(e)}"}, 500
 
 
 
