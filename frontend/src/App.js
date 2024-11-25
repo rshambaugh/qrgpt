@@ -44,17 +44,17 @@ function App() {
         const fetchData = async () => {
             try {
                 setLoading(true);
-
+    
                 let items = [];
                 if (currentContainerId) {
                     // Fetch items within a specific container
                     const response = await api.get(`/containers/${currentContainerId}`);
                     console.log('API Response for Container:', response.data);
-
+                    
                     if (!response.data || response.status !== 200) {
                         throw new Error('Failed to fetch container data');
                     }
-
+                    
                     const containerData = response.data || {};
                     setContainerDetails(containerData.container || null);
                     items = containerData.items || [];
@@ -62,14 +62,14 @@ function App() {
                     // Fetch all items for the main inventory view
                     const response = await api.get('/items/');
                     console.log('API Response for Items:', response.data);
-
+    
                     if (!response.data || response.status !== 200) {
                         throw new Error('Failed to fetch items');
                     }
-
+    
                     items = response.data.items || [];
                 }
-
+    
                 // Ensure all items have QR codes
                 items = await Promise.all(
                     items.map(async (item) => {
@@ -87,11 +87,11 @@ function App() {
                         return item;
                     })
                 );
-
+    
                 // Update items state
                 setItems(items);
                 console.log('Final Items with QR Codes:', items);
-
+    
                 // Fetch and update categories
                 const categoryResponse = await api.get('/categories/');
                 if (!categoryResponse.data || categoryResponse.status !== 200) {
@@ -101,40 +101,16 @@ function App() {
                 setCategories(categoryResponse.data.categories || []);
             } catch (error) {
                 console.error('Error in fetchData:', error);
+                // Optional: Add error state here if needed
             } finally {
                 setLoading(false); // Reset loading state regardless of success or failure
             }
         };
-
-        const fetchCategories = async () => {
-            try {
-                const response = await api.get('/categories/');
-                if (!response.data || response.status !== 200) {
-                    throw new Error('Failed to fetch categories');
-                }
-                const categories = response.data.categories || [];
-                setCategories(categories);
-                console.log('API Response for Categories:', categories);
-            } catch (error) {
-                console.error('Error fetching categories:', error);
-            }
-        };
-
-        const filteredItems = items.filter((item) => {
-            const query = searchQuery.toLowerCase();
-            const tags = Array.isArray(item.tags) ? item.tags : []; // Ensure tags is an array
-            return (
-                item.name.toLowerCase().includes(query) ||
-                item.category.toLowerCase().includes(query) ||
-                tags.some((tag) => tag.toLowerCase().includes(query)) ||
-                item.location.toLowerCase().includes(query)
-            );
-        });
-
+    
         fetchData();
         fetchContainers();
     }, [currentContainerId]);
-
+    
 
     const filteredItems = items.filter((item) => {
         const query = searchQuery.toLowerCase();
