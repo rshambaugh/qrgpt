@@ -9,6 +9,8 @@ import io
 import base64
 from dotenv import load_dotenv
 from io import BytesIO
+from contextlib import asynccontextmanager
+
 
 
 # Load environment variables from the .env file
@@ -30,6 +32,18 @@ conn = psycopg2.connect(
     password=DB_PASSWORD,
     host=DB_HOST
 )
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize resources
+    connection = await initialize_connection()
+    app.state.connection = connection
+    yield
+    # Shutdown: Clean up resources
+    await app.state.connection.close()
+
+app = FastAPI(lifespan=lifespan)
+
 cursor = conn.cursor()
 
 # Add middleware after initializing the app
@@ -428,11 +442,9 @@ def delete_item(item_id: int):
 @app.get("/items/")
 def get_items():
     try:
-        # Execute query
+        cursor = conn.cursor()  # Ensure the cursor is created in the function
         cursor.execute("SELECT * FROM items;")
         rows = cursor.fetchall()
-
-        # Map rows to objects
         items = [
             {
                 "id": row[0],
@@ -447,17 +459,13 @@ def get_items():
             }
             for row in rows
         ]
-
-        # Debug logs
-        print("Fetched rows from database:", rows)
-        print("Constructed items:", items)
-
-        # Return items
         return {"items": items}
     except Exception as e:
-        # Improved error logging
-        print("Error fetching items:", e)
+        print(f"Error fetching items: {e}")
         return {"error": f"Server error: {str(e)}"}, 500
+    finally:
+        cursor.close()  # Ensure the cursor is closed after use
+
 
 
 
