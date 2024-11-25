@@ -758,24 +758,25 @@ const handleUpdate = async (e) => {
 {/* Containers List */}
 <h2>Containers</h2>
 <div className="container-list">
-    {containers.length > 0 ? (
-        containers.map((container) => (
-            <div
-                className="card"
-                key={`container-${container.id || Math.random()}`} // Use unique fallback if ID is undefined
-                onClick={() => handleNavigateToContainer(container.id)}
-                style={{ cursor: 'pointer' }}
-            >
-                <div className="card-content">
-                    <h3>{container.name || 'Unnamed Container'}</h3>
-                    <p>Location: {container.location || 'No Location'}</p>
-                    <p>Tags: {container.tags?.join(', ') || 'No Tags'}</p>
-                </div>
+{containers.length > 0 ? (
+    containers.map((container) => (
+        <div
+            className="card"
+            key={`container-${container.id}`} // Add a prefix to ensure uniqueness
+            onClick={() => handleNavigateToContainer(container.id)}
+            style={{ cursor: 'pointer' }}
+        >
+            <div className="card-content">
+                <h3>{container.name || 'Unnamed Container'}</h3>
+                <p>Location: {container.location || 'No Location'}</p>
+                <p>Tags: {container.tags?.join(', ') || 'No Tags'}</p>
             </div>
-        ))
-    ) : (
-        <div>No containers found</div>
-    )}
+        </div>
+    ))
+) : (
+    <div>No containers found</div>
+)}
+
 
 </div>
 </div>
