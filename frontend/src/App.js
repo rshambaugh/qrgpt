@@ -759,10 +759,10 @@ const handleUpdate = async (e) => {
 <h2>Containers</h2>
 <div className="container-list">
 {containers.length > 0 ? (
-    containers.map((container) => (
+    containers.map((container, index) => (
         <div
             className="card"
-            key={`container-${container.id}`} // Add a prefix to ensure uniqueness
+            key={container.id ? `container-${container.id}` : `container-${index}`}
             onClick={() => handleNavigateToContainer(container.id)}
             style={{ cursor: 'pointer' }}
         >
