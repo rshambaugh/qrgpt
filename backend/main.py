@@ -1,475 +1,622 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
-import psycopg2
+from typing import Optional, List
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import text
+
 import qrcode
 import io
 import base64
 from dotenv import load_dotenv
 
-# Load environment variables from the .env file
-load_dotenv()
+# Determine which .env file to load based on APP_ENV
+app_env = os.getenv("APP_ENV", "development")  # Default to 'development'
+dotenv_file = ".env" if app_env == "development" else ".env.production"
+load_dotenv(dotenv_file)
+print(f"Loaded .env from {dotenv_file}")
+print(f"DB_USER: {os.getenv('DB_USER')}, DB_PASSWORD: {os.getenv('DB_PASSWORD')}, DB_NAME: {os.getenv('DB_NAME')}")
 
-# Initialize the FastAPI app instance
+
+# Build the DATABASE_URL dynamically
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME")
+DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# Log which environment and database are being used
+print(f"Environment: {app_env}")
+print(f"Using DATABASE_URL: {DATABASE_URL}")
+
+
+engine = create_async_engine(DATABASE_URL, echo=True)
+SessionLocal = sessionmaker(
+    bind=engine, class_=AsyncSession, expire_on_commit=False
+)
+Base = declarative_base()
+
+
+
+
+# FastAPI app initialization
 app = FastAPI()
 
-# Use environment variables for the database connection
-DB_NAME = os.getenv("DB_NAME", "qrganizer")
-DB_USER = os.getenv("DB_USER", "qr_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "securepassword")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-
-# Connect to PostgreSQL
-conn = psycopg2.connect(
-    dbname=DB_NAME,
-    user=DB_USER,
-    password=DB_PASSWORD,
-    host=DB_HOST
-)
-cursor = conn.cursor()
-
-# Add middleware after initializing the app
+# Middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change '*' to a specific domain in production
+    allow_origins=["http://localhost:3000"],  # Allow only your front-end origin
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
-# Define the Item data model
-class Item(BaseModel):
+
+# Dependency for database session
+async def get_db():
+    async with SessionLocal() as session:
+        yield session
+
+# SQLAlchemy Models
+class Container(Base):
+    __tablename__ = "containers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    parent_container_id = Column(Integer, ForeignKey("containers.id"), nullable=True)
+    location = Column(String, nullable=True)
+    tags = Column(String, nullable=True)
+    qr_code = Column(Text, nullable=True)
+
+    parent = relationship("Container", remote_side=[id])
+    children = relationship("Container", cascade="all, delete")
+    items = relationship("Item", back_populates="storage_container")
+
+
+class Item(Base):
+    __tablename__ = "items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    quantity = Column(Integer, default=1)
+    location = Column(String, nullable=False)
+    storage_container_id = Column(Integer, ForeignKey("containers.id"), nullable=True)
+    tags = Column(String, nullable=True)
+    qr_code = Column(Text, nullable=True)
+
+    storage_container = relationship("Container", back_populates="items")
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    name = Column(String, primary_key=True, index=True)
+    color = Column(String, default="#E0E0E0")
+    icon = Column(String, default="fa-solid fa-question-circle")
+
+# Pydantic Schema
+class ItemBase(BaseModel):
     name: str
     category: str
     description: Optional[str] = None
     quantity: int
     location: str
-    storage_container: Optional[int] = None
-    tags: Optional[list[str]] = []
+    storage_container_id: Optional[int] = None
+    tags: Optional[List[str]] = []
     qr_code: Optional[str] = None
 
-#Define the Container model
-class Container(BaseModel):
+    class Config:
+        from_attributes = True
+
+
+
+class ItemCreate(ItemBase):
+    pass
+
+
+class ItemUpdate(ItemBase):
+    pass
+
+
+class ContainerBase(BaseModel):
     name: str
     parent_container_id: Optional[int] = None
     location: Optional[str] = None
-    tags: Optional[list[str]] = []
+    tags: Optional[List[str]] = []
     qr_code: Optional[str] = None
 
+    class Config:
+        orm_mode = True
 
-# Root endpoint
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to QRganizer!"}
 
-# Helper function to check if an item is a container
-def check_is_container(item_id: int) -> bool:
-    """Check if an item is a container by checking for nested items."""
-    cursor.execute("SELECT COUNT(*) FROM items WHERE storage_container = %s;", (item_id,))
-    return cursor.fetchone()[0] > 0
+class ContainerCreate(ContainerBase):
+    pass
 
-@app.post("/containers/")
-def create_container(container: Container):
+
+class ContainerUpdate(ContainerBase):
+    pass
+
+
+class CategoryBase(BaseModel):
+    name: str
+    color: str
+    icon: str
+
+
+class CategoryCreate(CategoryBase):
+    pass
+
+
+# Helper Function
+async def generate_qr_code(content: str) -> str:
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_Q,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(content)
+    qr.make(fit=True)
+
+    buffered = io.BytesIO()
+    img = qr.make_image(fill="black", back_color="white")
+    img.save(buffered, format="PNG")
+    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
+
+
+# Create a new item
+@app.post("/items/", response_model=ItemBase)
+async def create_item(item: ItemCreate, db: AsyncSession = Depends(get_db)):
     try:
-        # Generate QR code content
-        qr_data = f"Container: {container.name}\nLocation: {container.location or 'N/A'}"
-        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_Q, box_size=8, border=4)
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-
-        # Convert QR code to base64
-        img = qr.make_image(fill="black", back_color="white")
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
-
-        # Insert the container into the database
-        cursor.execute(
-            """
-            INSERT INTO containers (name, parent_container_id, location, tags, qr_code)
-            VALUES (%s, %s, %s, %s, %s) RETURNING id;
-            """,
-            (container.name, container.parent_container_id, container.location, container.tags, qr_code_data),
-        )
-        conn.commit()
-        container_id = cursor.fetchone()[0]
-        return {"id": container_id, "qr_code": qr_code_data}
-    except Exception as e:
-        conn.rollback()
-        print(f"Error creating container: {e}")
-        return {"error": "Server error"}, 500
-
-def fetch_nested_containers(container_id: int):
-    """Recursively fetch nested containers."""
-    cursor.execute("SELECT * FROM containers WHERE parent_container_id = %s;", (container_id,))
-    containers = cursor.fetchall()
-    
-    nested_containers = []
-    for container in containers:
-        container_data = {
-            "id": container[0],
-            "name": container[1],
-            "parent_container_id": container[2],
-            "location": container[3],
-            "tags": container[4],
-            "qr_code": container[5],
-            "nested_containers": fetch_nested_containers(container[0]),  # Recursive call
-        }
-        nested_containers.append(container_data)
-    
-    return nested_containers
-
-@app.get("/containers/{container_id}")
-def get_container(container_id: int):
-    try:
-        # Get container details
-        cursor.execute("SELECT * FROM containers WHERE id = %s;", (container_id,))
-        container = cursor.fetchone()
-        if not container:
-            return {"error": "Container not found"}, 404
-
-        container_data = {
-            "id": container[0],
-            "name": container[1],
-            "parent_container_id": container[2],
-            "location": container[3],
-            "tags": container[4],
-            "qr_code": container[5],
-        }
-
-        # Get items inside the container
-        cursor.execute("SELECT * FROM items WHERE container_id = %s;", (container_id,))
-        items = [
-            {
-                "id": row[0],
-                "name": row[1],
-                "category": row[2],
-                "description": row[3],
-                "quantity": row[4],
-                "location": row[5],
-                "tags": row[7],
-                "qr_code": row[8],
-            }
-            for row in cursor.fetchall()
-        ]
-
-        # Fetch all nested containers recursively
-        nested_containers = fetch_nested_containers(container_id)
-
-        return {
-            "container": container_data,
-            "items": items,
-            "nested_containers": nested_containers,
-        }
-    except Exception as e:
-        print(f"Error fetching container: {e}")
-        return {"error": "Server error"}, 500
-
-
-@app.put("/containers/{container_id}")
-def update_container(container_id: int, container: Container):
-    try:
-        cursor.execute(
-            """
-            UPDATE containers
-            SET name = %s, parent_container_id = %s, location = %s, tags = %s, qr_code = %s
-            WHERE id = %s RETURNING id;
-            """,
-            (container.name, container.parent_container_id, container.location, container.tags, container.qr_code, container_id),
-        )
-        conn.commit()
-        updated_id = cursor.fetchone()
-        if updated_id:
-            return {"id": updated_id[0], "message": "Container updated successfully"}
-        return {"error": "Container not found"}, 404
-    except Exception as e:
-        conn.rollback()
-        print(f"Error updating container: {e}")
-        return {"error": "Server error"}, 500
-
-@app.delete("/containers/{container_id}")
-def delete_container(container_id: int):
-    try:
-        cursor.execute("DELETE FROM containers WHERE id = %s RETURNING id;", (container_id,))
-        conn.commit()
-        deleted_id = cursor.fetchone()
-        if deleted_id:
-            return {"id": deleted_id[0], "message": "Container deleted successfully"}
-        return {"error": "Container not found"}, 404
-    except Exception as e:
-        conn.rollback()
-        print(f"Error deleting container: {e}")
-        return {"error": "Server error"}, 500
-
-
-# Create an item
-@app.post("/items/")
-def create_item(item: Item):
-    try:
-        print(f"Creating item: {item}")  # Debugging log
-
-        # Check if the category exists
-        cursor.execute("SELECT * FROM categories WHERE name = %s", (item.category,))
-        category = cursor.fetchone()
+        # Ensure the category exists or create it
+        category_query = "SELECT * FROM categories WHERE name = :name;"
+        category_result = await db.execute(category_query, {"name": item.category})
+        category = category_result.fetchone()
 
         if not category:
-            # If the category doesn't exist, insert it with default values
-            default_color = "#E0E0E0"  # Default gray color
-            default_icon = "fa-solid fa-question-circle"  # Default question icon
-            cursor.execute(
-                """
+            insert_category_query = """
                 INSERT INTO categories (name, color, icon)
-                VALUES (%s, %s, %s)
-                """,
-                (item.category, default_color, default_icon),
-            )
-            conn.commit()
-            print(f"Added new category: {item.category}")
-
-        # Generate QR code content
-        qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
-
-        # Generate QR code
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_Q,  # High error correction
-            box_size=8,  # Smaller box size to reduce QR code size
-            border=4,  # Smaller border for tighter fitting
-        )
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-
-        # Generate and resize the QR code image
-        # Generate and save QR Code data
-        img = qr.make_image(fill="black", back_color="white")
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
-
-        # Save to database
-        cursor.execute(
+                VALUES (:name, :color, :icon);
             """
-            INSERT INTO items (name, category, description, quantity, location, storage_container, tags, qr_code)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
-            """,
-            (
-                item.name,
-                item.category,
-                item.description,
-                item.quantity,
-                item.location,
-                int(item.storage_container) if item.storage_container else None,
-                item.tags,
-                qr_code_data,  # Ensure this matches the Base64 format
-            ),
-        )
-        conn.commit()
-
-        item_id = cursor.fetchone()
-        if item_id:
-            return {"id": item_id[0], "qr_code": qr_code_data}
-    except Exception as e:
-        conn.rollback()
-        print(f"Error during creation: {e}")
-        return {"error": "Server error"}, 500
-
-
-# Get a specific item
-@app.get("/items/{item_id}")
-def get_item(item_id: int):
-    cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
-    row = cursor.fetchone()
-    if row:
-        item = {
-            "id": row[0],
-            "name": row[1],
-            "category": row[2],
-            "description": row[3],
-            "quantity": row[4],
-            "location": row[5],
-            "storage_container": row[6],
-            "tags": row[7],
-            # Ensure the qr_code field includes the base64 prefix
-            "qr_code": f"data:image/png;base64,{row[8]}" if row[8] else None,
-        }
-        return {"item": item}
-    return {"error": "Item not found"}, 404
-
-
-# Update an item
-@app.put("/items/{item_id}")
-def update_item(item_id: int, item: Item):
-    try:
-        print(f"Updating item with ID: {item_id}")  # Debugging log
-
-        # Check if the category exists
-        cursor.execute("SELECT * FROM categories WHERE name = %s;", (item.category,))
-        category = cursor.fetchone()
-        if not category:
-            print(f"Category '{item.category}' does not exist. Creating a new category.")
-            # Create a new category with default values
-            cursor.execute(
-                """
-                INSERT INTO categories (name, color, icon)
-                VALUES (%s, %s, %s);
-                """,
-                (
-                    item.category,
-                    "#E0E0E0",  # Default color
-                    None,       # Default icon
-                ),
+            await db.execute(
+                insert_category_query,
+                {
+                    "name": item.category,
+                    "color": "#E0E0E0",  # Default color
+                    "icon": "fa-solid fa-question-circle",  # Default icon
+                },
             )
-            conn.commit()
+            await db.commit()
 
-        # Generate updated QR code content
-        qr_data = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container or 'None'}"
+        # Generate QR Code
+        qr_content = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container_id or 'None'}"
+        qr_code = await generate_qr_code(qr_content)
 
-        # Generate the QR Code
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_Q,
-            box_size=10,  # Appropriate size for clarity
-            border=4,     # Ensure sufficient border
-        )
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-
-        # Convert QR Code to base64
-        img = qr.make_image(fill="black", back_color="white")
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        qr_code_data = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
-
-        # Update the database with the new data and QR code
-        cursor.execute(
-            """
-            UPDATE items
-            SET name = %s, category = %s, description = %s, quantity = %s, 
-                location = %s, storage_container = %s, tags = %s, qr_code = %s
-            WHERE id = %s
+        # Insert the item into the database
+        insert_item_query = """
+            INSERT INTO items (name, category, description, quantity, location, storage_container_id, tags, qr_code)
+            VALUES (:name, :category, :description, :quantity, :location, :storage_container_id, :tags, :qr_code)
             RETURNING id;
-            """,
-            (
-                item.name,
-                item.category,
-                item.description,
-                item.quantity,
-                item.location,
-                int(item.storage_container) if item.storage_container else None,
-                item.tags,
-                qr_code_data,  # Updated QR code
-                item_id,
-            ),
+        """
+        result = await db.execute(
+            insert_item_query,
+            {
+                **item.dict(),
+                "tags": ",".join(item.tags) if item.tags else None,
+                "qr_code": qr_code,
+            },
         )
-        conn.commit()
-        updated_item_id = cursor.fetchone()
-        print("Updated Item ID:", updated_item_id)  # Debugging log
+        new_item_id = result.fetchone()
+        await db.commit()
 
-        if updated_item_id:
-            cursor.execute("SELECT * FROM items WHERE id = %s;", (item_id,))
-            row = cursor.fetchone()
-            if row:
-                updated_item = {
-                    "id": row[0],
-                    "name": row[1],
-                    "category": row[2],
-                    "description": row[3],
-                    "quantity": row[4],
-                    "location": row[5],
-                    "storage_container": row[6],
-                    "tags": row[7],
-                    "qr_code": row[8],  # Include qr_code here
-                }
-
-                return {"item": updated_item, "message": "Item updated successfully"}
-        return {"error": "Item not found"}, 404
-
+        # Return the newly created item
+        return {**item.dict(), "id": new_item_id.id, "qr_code": qr_code}
     except Exception as e:
-        conn.rollback()  # Roll back the transaction to avoid the aborted state
-        print("Error during update:", e)  # Debugging log
-        return {"error": "Server error"}, 500
-
-
-# Delete an item
-@app.delete("/items/{item_id}")
-def delete_item(item_id: int):
-    try:
-        # First, fetch the category of the item being deleted
-        cursor.execute("SELECT category FROM items WHERE id = %s;", (item_id,))
-        category = cursor.fetchone()
-
-        # Delete the item
-        cursor.execute("DELETE FROM items WHERE id = %s RETURNING id;", (item_id,))
-        conn.commit()
-        deleted_item_id = cursor.fetchone()
-
-        if deleted_item_id:
-            # Check if the category has any remaining items
-            if category:
-                cursor.execute("SELECT COUNT(*) FROM items WHERE category = %s;", (category[0],))
-                count = cursor.fetchone()[0]
-                if count == 0:  # If no items are left, remove the category
-                    cursor.execute("DELETE FROM categories WHERE name = %s;", (category[0],))
-                    conn.commit()
-
-            return {"id": deleted_item_id[0], "message": "Item deleted successfully"}
-
-        return {"error": "Item not found"}, 404
-    except Exception as e:
-        conn.rollback()
-        print("Error during item deletion:", e)
-        return {"error": "Server error"}, 500
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating item: {str(e)}")
 
 
 # Get all items
 @app.get("/items/")
-async def get_items():
-    """Fetch all items from the database."""
+async def get_items(db: AsyncSession = Depends(get_db)):
     try:
-        query = """
+        query = text("""
             SELECT 
-                i.id, i.name, i.category, i.description, i.quantity, 
-                i.location, i.storage_container, i.tags, i.qr_code, 
-                c.color, c.icon
+                i.id, i.name, i.category, i.description, i.quantity,
+                i.location, i.storage_container_id, i.tags, i.qr_code,
+                c.color AS category_color, c.icon AS category_icon
             FROM items i
             LEFT JOIN categories c ON i.category = c.name;
-        """
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        items = []
-        for row in rows:
-            item_data = {
-                "id": row[0],
-                "name": row[1],
-                "category": row[2],
-                "description": row[3],
-                "quantity": row[4],
-                "location": row[5],
-                "storage_container": row[6],
-                "tags": row[7],
-                "qr_code": row[8],
-                "color": row[9],
-                "icon": row[10],
+        """)
+        result = await db.execute(query)
+        rows = result.fetchall()
+
+        items = [
+            {
+                "id": row.id,
+                "name": row.name,
+                "category": row.category,
+                "description": row.description,
+                "quantity": row.quantity,
+                "location": row.location,
+                "storage_container_id": row.storage_container_id,
+                "tags": row.tags if isinstance(row.tags, list) else row.tags.split(",") if row.tags else [],
+                "qr_code": row.qr_code,
+                "color": row.category_color or "#E0E0E0",
+                "icon": row.category_icon or "fa-solid fa-question-circle",
             }
-            items.append(item_data)
+            for row in rows
+        ]
         return items
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error fetching items: " + str(e))
+        print(f"Error fetching items: {str(e)}")  # Log the detailed error
+        raise HTTPException(status_code=500, detail=f"Error fetching items: {str(e)}")
+
+
+
+# Get single item
+@app.get("/items/{item_id}", response_model=ItemBase)
+async def get_item(item_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        query = "SELECT * FROM items WHERE id = :id"
+        result = await db.execute(query, {"id": item_id})
+        item = result.fetchone()
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        return {
+            "id": item.id,
+            "name": item.name,
+            "category": item.category,
+            "description": item.description,
+            "quantity": item.quantity,
+            "location": item.location,
+            "storage_container_id": item.storage_container_id,
+            "tags": item.tags.split(",") if item.tags else [],
+            "qr_code": item.qr_code,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching item: {str(e)}")
+
+
+# Update an item
+@app.put("/items/{item_id}", response_model=ItemBase)
+async def update_item(item_id: int, item: ItemUpdate, db: AsyncSession = Depends(get_db)):
+    try:
+        # Generate updated QR Code
+        qr_content = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container_id or 'None'}"
+        qr_code = await generate_qr_code(qr_content)
+
+        # Update the item in the database
+        query = """
+            UPDATE items
+            SET name = :name, category = :category, description = :description,
+                quantity = :quantity, location = :location, 
+                storage_container_id = :storage_container_id, tags = :tags, qr_code = :qr_code
+            WHERE id = :id
+            RETURNING *;
+        """
+        result = await db.execute(query, {
+            "id": item_id,
+            **item.dict(),
+            "tags": ",".join(item.tags) if item.tags else None,
+            "qr_code": qr_code,
+        })
+        updated_item = result.fetchone()
+        await db.commit()
+
+        if not updated_item:
+            raise HTTPException(status_code=404, detail="Item not found")
+
+        return {
+            "id": updated_item.id,
+            "name": updated_item.name,
+            "category": updated_item.category,
+            "description": updated_item.description,
+            "quantity": updated_item.quantity,
+            "location": updated_item.location,
+            "storage_container_id": updated_item.storage_container_id,
+            "tags": updated_item.tags.split(",") if updated_item.tags else [],
+            "qr_code": updated_item.qr_code,
+        }
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating item: {str(e)}")
+
+
+
+@app.delete("/items/{item_id}", response_model=dict)
+async def delete_item(item_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        # Delete the item
+        query = "DELETE FROM items WHERE id = :id RETURNING id;"
+        result = await db.execute(query, {"id": item_id})
+        deleted_item = result.fetchone()
+        await db.commit()
+
+        if not deleted_item:
+            raise HTTPException(status_code=404, detail="Item not found")
+
+        return {"message": "Item deleted successfully", "id": deleted_item.id}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting item: {str(e)}")
+
+
+# API Endpoints for Containers
+
+# Create a new container
+@app.post("/containers/", response_model=ContainerBase)
+async def create_container(container: ContainerCreate, db: AsyncSession = Depends(get_db)):
+    try:
+        # Generate QR Code
+        qr_content = f"Container: {container.name}\nLocation: {container.location or 'N/A'}"
+        qr_code = await generate_qr_code(qr_content)
+
+        # Insert the container into the database
+        query = """
+            INSERT INTO containers (name, parent_container_id, location, tags, qr_code)
+            VALUES (:name, :parent_container_id, :location, :tags, :qr_code)
+            RETURNING id;
+        """
+        result = await db.execute(query, {
+            "name": container.name,
+            "parent_container_id": container.parent_container_id,
+            "location": container.location,
+            "tags": ",".join(container.tags) if container.tags else None,
+            "qr_code": qr_code,
+        })
+        container_id = result.fetchone()
+        await db.commit()
+
+        return {**container.dict(), "id": container_id.id, "qr_code": qr_code}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating container: {str(e)}")
+
+
+
+# Get all containers
+@app.get("/containers/", response_model=List[ContainerBase])
+async def get_containers(db: AsyncSession = Depends(get_db)):
+    try:
+        # Wrap the SQL query in `text()` to avoid SQLAlchemy errors
+        query = text("SELECT * FROM containers;")
+        result = await db.execute(query)
+        rows = result.fetchall()
+
+        # Process rows into the expected format
+        containers = [
+            {
+                "id": row.id,
+                "name": row.name,
+                "parent_container_id": row.parent_container_id,
+                "location": row.location,
+                "tags": row.tags.split(",") if row.tags and isinstance(row.tags, str) else [],
+                "qr_code": row.qr_code,
+            }
+            for row in rows
+        ]
+        return containers
+    except Exception as e:
+        # Log and raise an HTTP exception with details
+        print(f"Error fetching containers: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching containers: {str(e)}")
+
+
+
+
+
+# Get a specific container
+@app.get("/containers/{container_id}")
+async def get_container(container_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        # Fetch container details
+        container_query = "SELECT * FROM containers WHERE id = :id;"
+        result = await db.execute(container_query, {"id": container_id})
+        container = result.fetchone()
+        if not container:
+            raise HTTPException(status_code=404, detail="Container not found")
+
+        # Fetch nested containers
+        nested_query = "SELECT * FROM containers WHERE parent_container_id = :parent_id;"
+        nested_result = await db.execute(nested_query, {"parent_id": container_id})
+        nested_containers = [
+            {
+                "id": row.id,
+                "name": row.name,
+                "parent_container_id": row.parent_container_id,
+                "location": row.location,
+                "tags": row.tags.split(",") if row.tags else [],
+                "qr_code": row.qr_code,
+            }
+            for row in nested_result.fetchall()
+        ]
+
+        # Fetch items in the container
+        items_query = "SELECT * FROM items WHERE storage_container_id = :container_id;"
+        items_result = await db.execute(items_query, {"container_id": container_id})
+        items = [
+            {
+                "id": row.id,
+                "name": row.name,
+                "category": row.category,
+                "description": row.description,
+                "quantity": row.quantity,
+                "location": row.location,
+                "tags": row.tags.split(",") if row.tags else [],
+                "qr_code": row.qr_code,
+            }
+            for row in items_result.fetchall()
+        ]
+
+        return {
+            "container": {
+                "id": container.id,
+                "name": container.name,
+                "parent_container_id": container.parent_container_id,
+                "location": container.location,
+                "tags": container.tags.split(",") if container.tags else [],
+                "qr_code": container.qr_code,
+            },
+            "nested_containers": nested_containers,
+            "items": items,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching container: {str(e)}")
+
+
+
+@app.put("/containers/{container_id}", response_model=ContainerBase)
+async def update_container(container_id: int, container: ContainerUpdate, db: AsyncSession = Depends(get_db)):
+    try:
+        # Generate updated QR Code
+        qr_content = f"Container: {container.name}\nLocation: {container.location or 'N/A'}"
+        qr_code = await generate_qr_code(qr_content)
+
+        # Update the container in the database
+        query = """
+            UPDATE containers
+            SET name = :name, parent_container_id = :parent_container_id, location = :location,
+                tags = :tags, qr_code = :qr_code
+            WHERE id = :id
+            RETURNING id, name, parent_container_id, location, tags, qr_code;
+        """
+        result = await db.execute(query, {
+            "id": container_id,
+            **container.dict(),
+            "tags": ",".join(container.tags) if container.tags else None,
+            "qr_code": qr_code,
+        })
+        updated_container = result.fetchone()
+        await db.commit()
+
+        if not updated_container:
+            raise HTTPException(status_code=404, detail="Container not found")
+
+        # Construct response object directly from the returned result
+        return dict(updated_container._mapping)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating container: {str(e)}")
+
+
+# Delete a container
+@app.delete("/containers/{container_id}", response_model=dict)
+async def delete_container(container_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        # Check for nested containers or items
+        nested_query = "SELECT COUNT(*) FROM containers WHERE parent_container_id = :parent_id;"
+        nested_result = await db.execute(nested_query, {"parent_id": container_id})
+        nested_count = nested_result.scalar()
+
+        items_query = "SELECT COUNT(*) FROM items WHERE storage_container_id = :container_id;"
+        items_result = await db.execute(items_query, {"container_id": container_id})
+        items_count = items_result.scalar()
+
+        if nested_count > 0 or items_count > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Container cannot be deleted because it contains nested containers or items.",
+            )
+
+        # Delete the container
+        delete_query = "DELETE FROM containers WHERE id = :id RETURNING id;"
+        result = await db.execute(delete_query, {"id": container_id})
+        deleted_container_id = result.fetchone()
+        await db.commit()
+
+        if not deleted_container_id:
+            raise HTTPException(status_code=404, detail="Container not found")
+
+        return {"message": "Container deleted successfully", "id": deleted_container_id.id}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting container: {str(e)}")
+
+# Create a newcontainer
+async def fetch_nested_containers(container_id: int):
+    query = "SELECT * FROM containers WHERE parent_container_id = :parent_id"
+    rows = await database.fetch_all(query=query, values={"parent_id": container_id})
+    nested_containers = []
+    for row in rows:
+        container_data = {
+            "id": row["id"],
+            "name": row["name"],
+            "parent_container_id": row["parent_container_id"],
+            "location": row["location"],
+            "tags": row["tags"].split(",") if row["tags"] else [],
+            "qr_code": row["qr_code"],
+            "nested_containers": await fetch_nested_containers(row["id"]),
+        }
+        nested_containers.append(container_data)
+    return nested_containers
+
+@app.get("/containers/{container_id}")
+async def get_container(container_id: int):
+    try:
+        # Fetch container details
+        container_query = "SELECT * FROM containers WHERE id = :id"
+        container = await database.fetch_one(query=container_query, values={"id": container_id})
+        if not container:
+            raise HTTPException(status_code=404, detail="Container not found")
+
+        # Fetch nested containers
+        nested_containers = await fetch_nested_containers(container_id)
+
+        # Fetch items in the container
+        items_query = "SELECT * FROM items WHERE storage_container = :container_id"
+        items = await database.fetch_all(query=items_query, values={"container_id": container_id})
+
+        return {
+            "container": {
+                "id": container["id"],
+                "name": container["name"],
+                "parent_container_id": container["parent_container_id"],
+                "location": container["location"],
+                "tags": container["tags"].split(",") if container["tags"] else [],
+                "qr_code": container["qr_code"],
+            },
+            "items": [
+                {
+                    "id": item["id"],
+                    "name": item["name"],
+                    "category": item["category"],
+                    "description": item["description"],
+                    "quantity": item["quantity"],
+                    "location": item["location"],
+                    "tags": item["tags"].split(",") if item["tags"] else [],
+                    "qr_code": item["qr_code"],
+                }
+                for item in items
+            ],
+            "nested_containers": nested_containers,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching container: {str(e)}")
 
 
 @app.get("/categories/")
-def get_categories():
+async def get_categories(db: AsyncSession = Depends(get_db)):
     try:
-        cursor.execute("SELECT name, color, icon FROM categories;")
-        rows = cursor.fetchall()
-        # Provide default values if color or icon are NULL
+        query = text("SELECT name, color, icon FROM categories;")
+        result = await db.execute(query)
+        rows = result.fetchall()
+
         categories = {
-            row[0]: {"color": row[1] or "#E0E0E0", "icon": row[2] or "fa-solid fa-question-circle"}
+            row.name: {
+                "color": row.color or "#E0E0E0",
+                "icon": row.icon or "fa-solid fa-question-circle",
+            }
             for row in rows
         }
         return {"categories": categories}
     except Exception as e:
-        print("Error fetching categories:", e)
-        return {"error": "Could not fetch categories"}, 500
+        print(f"Error fetching categories: {str(e)}")  # Log the error
+        raise HTTPException(status_code=500, detail=f"Error fetching categories: {str(e)}")
