@@ -1,74 +1,34 @@
 import os
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import text
-from fastapi.routing import APIRouter
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from dotenv import dotenv_values
 from jose import jwt, JWTError
-
+from dotenv import load_dotenv, dotenv_values
 import qrcode
 import io
-from dotenv import load_dotenv
 import aiofiles
-import qrcode
 import base64
 
+# Set up security and router
 security = HTTPBearer()
-router = APIRouter()
 
-# Determine which .env file to load based on APP_ENV
+# Load environment variables
 app_env = os.getenv("APP_ENV", "development")  # Default to 'development'
 dotenv_file = ".env" if app_env == "development" else ".env.production"
-# Load environment variables
-jwt_env = dotenv_values(".jwt_env")  # Load from the new .jwt_env file
+jwt_env = dotenv_values(".jwt_env")  # Load JWT configurations
 load_dotenv(dotenv_file)
-print(f"Loaded .env from {dotenv_file}")
-print(f"DB_USER: {os.getenv('DB_USER')}, DB_PASSWORD: {os.getenv('DB_PASSWORD')}, DB_NAME: {os.getenv('DB_NAME')}")
 
-# Fetch JWT-related configurations
+# JWT configuration
 SECRET_KEY = jwt_env.get("SECRET_KEY", "default_secret_key")
 ALGORITHM = jwt_env.get("ALGORITHM", "HS256")
-security = HTTPBearer()
 
-# Utility: Generate a QR code
-async def generate_qr_code(content: str) -> str:
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_Q,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(content)
-    qr.make(fit=True)
-
-    buffered = io.BytesIO()
-    img = qr.make_image(fill="black", back_color="white")
-    img.save(buffered, format="PNG")
-    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
-
-# Utility: Create a JWT
-def create_token(data: dict):
-    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
-
-# Utility: Verify a JWT
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    try:
-        token = credentials.credentials
-        decoded = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return decoded  # Return the payload if valid
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-
-
-# Build the DATABASE_URL dynamically
+# Database configuration
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST", "localhost")
@@ -76,65 +36,63 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME")
 DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Log which environment and database are being used
+# Logging environment setup
 print(f"Environment: {app_env}")
+print(f"Loaded dotenv file: {dotenv_file}")
 print(f"Using DATABASE_URL: {DATABASE_URL}")
 
-
+# SQLAlchemy setup
 engine = create_async_engine(DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(
-    bind=engine, class_=AsyncSession, expire_on_commit=False
-)
+SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 Base = declarative_base()
 
 # FastAPI app initialization
 app = FastAPI()
 
-class CodeUpdate(BaseModel):
-    file_path: str
-    content: str
-
 # Middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=["http://localhost:3000"],  # Update with your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Route: Write code securely
-@app.post("/write-code")
-async def write_code(data: dict, user: dict = Depends(verify_token)):
-    file_path = data.get("file_path")
-    content = data.get("content")
-    if not file_path or not content:
-        raise HTTPException(status_code=400, detail="file_path and content are required.")
+# Utility: Generate a QR code
+@router.post("/generate-qr")
+async def generate_qr(data: dict):
+    content = data.get("data")
+    if not content:
+        raise HTTPException(status_code=400, detail="Missing content for QR code generation.")
+    
     try:
-        with open(file_path, "w") as f:
-            f.write(content)
-        return {"status": "success", "message": f"File '{file_path}' written successfully."}
+        qr_code = await generate_qr_code(content)
+        return {"qr_code": qr_code}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error writing file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating QR code: {str(e)}")
 
 
-# Route: Generate a secure token
-@app.post("/token")
-def generate_token(username: str):
-    token = create_token({"sub": username})
-    return {"token": token}
+# Utility: Create a JWT
+def create_token(data: dict) -> str:
+    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
-
+# Utility: Verify a JWT
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        decoded = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return decoded
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 # Dependency for database session
 async def get_db():
     async with SessionLocal() as session:
         yield session
 
-# SQLAlchemy Models
+# SQLAlchemy models
 class Container(Base):
     __tablename__ = "containers"
-
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     parent_container_id = Column(Integer, ForeignKey("containers.id"), nullable=True)
@@ -146,10 +104,8 @@ class Container(Base):
     children = relationship("Container", cascade="all, delete")
     items = relationship("Item", back_populates="storage_container")
 
-
 class Item(Base):
     __tablename__ = "items"
-
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)
@@ -162,15 +118,13 @@ class Item(Base):
 
     storage_container = relationship("Container", back_populates="items")
 
-
 class Category(Base):
     __tablename__ = "categories"
-
     name = Column(String, primary_key=True, index=True)
     color = Column(String, default="#E0E0E0")
     icon = Column(String, default="fa-solid fa-question-circle")
 
-# Pydantic Schema
+# Pydantic schemas
 class ItemBase(BaseModel):
     name: str
     category: str
@@ -183,6 +137,27 @@ class ItemBase(BaseModel):
 
     class Config:
         from_attributes = True
+
+# Route: Write code securely
+@app.post("/write-code")
+async def write_code(data: dict, user: dict = Depends(verify_token)):
+    file_path = data.get("file_path")
+    content = data.get("content")
+    if not file_path or not content:
+        raise HTTPException(status_code=400, detail="file_path and content are required.")
+    try:
+        async with aiofiles.open(file_path, "w") as f:
+            await f.write(content)
+        return {"status": "success", "message": f"File '{file_path}' written successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error writing file: {str(e)}")
+
+# Route: Generate a secure token
+@app.post("/token")
+def generate_token(username: str):
+    token = create_token({"sub": username})
+    return {"token": token}
+
 
 
 
