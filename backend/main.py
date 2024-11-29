@@ -13,8 +13,10 @@ from fastapi.routing import APIRouter
 
 import qrcode
 import io
-import base64
 from dotenv import load_dotenv
+import aiofiles
+import qrcode
+import base64
 
 router = APIRouter()
 
@@ -45,21 +47,37 @@ SessionLocal = sessionmaker(
 )
 Base = declarative_base()
 
-
-
-
 # FastAPI app initialization
 app = FastAPI()
+
+class CodeUpdate(BaseModel):
+    file_path: str
+    content: str
 
 # Middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Allow only your front-end origin
+    allow_origins=["http://localhost:3000"],  # Frontend URL
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+# API for ChatGPT to write code via API to this project
+@app.post("/write-code")
+async def write_code(update: CodeUpdate):
+    try:
+        # Ensure the directory exists
+        directory = os.path.dirname(update.file_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+
+        # Write the file
+        with open(update.file_path, "w") as file:
+            file.write(update.content)
+        return {"status": "success", "message": f"Updated {update.file_path}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Dependency for database session
 async def get_db():
@@ -159,7 +177,7 @@ class CategoryCreate(CategoryBase):
 
 
 # Helper Function
-def generate_qr_code(content: str) -> str:
+async def generate_qr_code(content: str) -> str:
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_Q,
@@ -169,10 +187,20 @@ def generate_qr_code(content: str) -> str:
     qr.add_data(content)
     qr.make(fit=True)
 
+    # Generate QR Code image
     buffered = io.BytesIO()
     img = qr.make_image(fill="black", back_color="white")
-    img.save(buffered, format="PNG")
-    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
+
+    # Use asynchronous I/O to simulate async file saving/processing
+    async with aiofiles.tempfile.NamedTemporaryFile(suffix=".png") as tmp_file:
+        img.save(tmp_file.name, format="PNG")
+        await tmp_file.flush()  # Ensure it's fully written
+
+        # Read the image back asynchronously
+        async with aiofiles.open(tmp_file.name, mode="rb") as f:
+            image_data = await f.read()
+
+    return f"data:image/png;base64,{base64.b64encode(image_data).decode('utf-8')}"
 
 # Add the /generate-qr route
 @router.post("/generate-qr")
@@ -182,9 +210,12 @@ async def generate_qr(data: dict):
         raise HTTPException(status_code=400, detail="Missing content for QR code generation.")
     
     try:
-        qr_code = generate_qr_code(content)
+        # Await the async QR code generation
+        qr_code = await generate_qr_code(content)
         return JSONResponse(content={"qr_code": qr_code})
     except Exception as e:
+        # Log the error and raise a 500 error
+        print(f"Error generating QR code: {str(e)}")  # Replace with proper logging in production
         raise HTTPException(status_code=500, detail=f"Error generating QR code: {str(e)}")
 
 app.include_router(router)
