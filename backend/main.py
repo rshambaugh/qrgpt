@@ -8,11 +8,15 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import text
+from fastapi.routing import APIRouter
+
 
 import qrcode
 import io
 import base64
 from dotenv import load_dotenv
+
+router = APIRouter()
 
 # Determine which .env file to load based on APP_ENV
 app_env = os.getenv("APP_ENV", "development")  # Default to 'development'
@@ -155,7 +159,7 @@ class CategoryCreate(CategoryBase):
 
 
 # Helper Function
-async def generate_qr_code(content: str) -> str:
+def generate_qr_code(content: str) -> str:
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_Q,
@@ -170,6 +174,20 @@ async def generate_qr_code(content: str) -> str:
     img.save(buffered, format="PNG")
     return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
 
+# Add the /generate-qr route
+@router.post("/generate-qr")
+async def generate_qr(data: dict):
+    content = data.get("data")
+    if not content:
+        raise HTTPException(status_code=400, detail="Missing content for QR code generation.")
+    
+    try:
+        qr_code = generate_qr_code(content)
+        return JSONResponse(content={"qr_code": qr_code})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating QR code: {str(e)}")
+
+app.include_router(router)
 
 # Create a new item
 @app.post("/items/", response_model=ItemBase)
