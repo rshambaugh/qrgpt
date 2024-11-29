@@ -1,38 +1,32 @@
 import os
-from fastapi import FastAPI, HTTPException, Depends, APIRouter
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
-from sqlalchemy.sql import text  # Import the 'text' function for raw SQL queries
 from sqlalchemy.orm import relationship
-from jose import jwt, JWTError
-from dotenv import load_dotenv, dotenv_values
+from sqlalchemy.sql import text
+from fastapi.routing import APIRouter
+
+
 import qrcode
 import io
-import aiofiles
 import base64
-from fastapi.responses import JSONResponse
-print(f"text function imported from sqlalchemy: {text}")
+from dotenv import load_dotenv
 
-# Set up security and router
-security = HTTPBearer()
 router = APIRouter()
 
-# Load environment variables
+# Determine which .env file to load based on APP_ENV
 app_env = os.getenv("APP_ENV", "development")  # Default to 'development'
 dotenv_file = ".env" if app_env == "development" else ".env.production"
-jwt_env = dotenv_values(".jwt_env")  # Load JWT configurations
 load_dotenv(dotenv_file)
+print(f"Loaded .env from {dotenv_file}")
+print(f"DB_USER: {os.getenv('DB_USER')}, DB_PASSWORD: {os.getenv('DB_PASSWORD')}, DB_NAME: {os.getenv('DB_NAME')}")
 
-# JWT configuration
-SECRET_KEY = jwt_env.get("SECRET_KEY", "default_secret_key")
-ALGORITHM = jwt_env.get("ALGORITHM", "HS256")
 
-# Database configuration
+# Build the DATABASE_URL dynamically
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST", "localhost")
@@ -40,15 +34,19 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME")
 DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Logging environment setup
+# Log which environment and database are being used
 print(f"Environment: {app_env}")
-print(f"Loaded dotenv file: {dotenv_file}")
 print(f"Using DATABASE_URL: {DATABASE_URL}")
 
-# SQLAlchemy setup
+
 engine = create_async_engine(DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+SessionLocal = sessionmaker(
+    bind=engine, class_=AsyncSession, expire_on_commit=False
+)
 Base = declarative_base()
+
+
+
 
 # FastAPI app initialization
 app = FastAPI()
@@ -56,32 +54,112 @@ app = FastAPI()
 # Middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Update with your frontend URL
+    allow_origins=["http://localhost:3000"],  # Allow only your front-end origin
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
-# Utility: Create a JWT
-def create_token(data: dict) -> str:
-    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
-
-# Utility: Verify a JWT
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    try:
-        token = credentials.credentials
-        decoded = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return decoded
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 # Dependency for database session
 async def get_db():
     async with SessionLocal() as session:
         yield session
 
-# Helper Function: Generate a QR code
-async def generate_qr_code(content: str) -> str:
+# SQLAlchemy Models
+class Container(Base):
+    __tablename__ = "containers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    parent_container_id = Column(Integer, ForeignKey("containers.id"), nullable=True)
+    location = Column(String, nullable=True)
+    tags = Column(String, nullable=True)
+    qr_code = Column(Text, nullable=True)
+
+    parent = relationship("Container", remote_side=[id])
+    children = relationship("Container", cascade="all, delete")
+    items = relationship("Item", back_populates="storage_container")
+
+
+class Item(Base):
+    __tablename__ = "items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    quantity = Column(Integer, default=1)
+    location = Column(String, nullable=False)
+    storage_container_id = Column(Integer, ForeignKey("containers.id"), nullable=True)
+    tags = Column(String, nullable=True)
+    qr_code = Column(Text, nullable=True)
+
+    storage_container = relationship("Container", back_populates="items")
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    name = Column(String, primary_key=True, index=True)
+    color = Column(String, default="#E0E0E0")
+    icon = Column(String, default="fa-solid fa-question-circle")
+
+# Pydantic Schema
+class ItemBase(BaseModel):
+    name: str
+    category: str
+    description: Optional[str] = None
+    quantity: int
+    location: str
+    storage_container_id: Optional[int] = None
+    tags: Optional[List[str]] = []
+    qr_code: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+
+class ItemCreate(ItemBase):
+    pass
+
+
+class ItemUpdate(ItemBase):
+    pass
+
+
+class ContainerBase(BaseModel):
+    name: str
+    parent_container_id: Optional[int] = None
+    location: Optional[str] = None
+    tags: Optional[List[str]] = []
+    qr_code: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+
+class ContainerCreate(ContainerBase):
+    pass
+
+
+class ContainerUpdate(ContainerBase):
+    pass
+
+
+class CategoryBase(BaseModel):
+    name: str
+    color: str
+    icon: str
+
+
+class CategoryCreate(CategoryBase):
+    pass
+
+
+# Helper Function
+def generate_qr_code(content: str) -> str:
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_Q,
@@ -96,8 +174,7 @@ async def generate_qr_code(content: str) -> str:
     img.save(buffered, format="PNG")
     return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
 
-# Route: Generate QR code
-@router.post("/generate-qr")
+# Add the /generate-qr route
 @router.post("/generate-qr")
 async def generate_qr(data: dict):
     content = data.get("data")
@@ -110,107 +187,7 @@ async def generate_qr(data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating QR code: {str(e)}")
 
-# Route: Write code securely
-@app.post("/write-code")
-async def write_code(data: dict, user: dict = Depends(verify_token)):
-    file_path = data.get("file_path")
-    content = data.get("content")
-    if not file_path or not content:
-        raise HTTPException(status_code=400, detail="file_path and content are required.")
-    try:
-        async with aiofiles.open(file_path, "w") as f:
-            await f.write(content)
-        return {"status": "success", "message": f"File '{file_path}' written successfully."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error writing file: {str(e)}")
-
-# Route: Generate a secure token
-@app.post("/token")
-def generate_token(username: str):
-    token = create_token({"sub": username})
-    return {"token": token}
-
-# SQLAlchemy models
-class Container(Base):
-    __tablename__ = "containers"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    parent_container_id = Column(Integer, ForeignKey("containers.id"), nullable=True)
-    location = Column(String, nullable=True)
-    tags = Column(String, nullable=True)
-    qr_code = Column(Text, nullable=True)
-
-    parent = relationship("Container", remote_side=[id])
-    children = relationship("Container", cascade="all, delete")
-    items = relationship("Item", back_populates="storage_container")
-
-class Item(Base):
-    __tablename__ = "items"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    category = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    quantity = Column(Integer, default=1)
-    location = Column(String, nullable=False)
-    storage_container_id = Column(Integer, ForeignKey("containers.id"), nullable=True)
-    tags = Column(String, nullable=True)
-    qr_code = Column(Text, nullable=True)
-
-    storage_container = relationship("Container", back_populates="items")
-
-class Category(Base):
-    __tablename__ = "categories"
-    name = Column(String, primary_key=True, index=True)
-    color = Column(String, default="#E0E0E0")
-    icon = Column(String, default="fa-solid fa-question-circle")
-
-# Pydantic schemas
-class ItemBase(BaseModel):
-    name: str
-    category: str
-    description: Optional[str] = None
-    quantity: int
-    location: str
-    storage_container_id: Optional[int] = None
-    tags: Optional[List[str]] = []
-    qr_code: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-class ItemCreate(ItemBase):
-    pass
-
-class ItemUpdate(ItemBase):
-    pass
-
-class ContainerBase(BaseModel):
-    name: str
-    parent_container_id: Optional[int] = None
-    location: Optional[str] = None
-    tags: Optional[List[str]] = []
-    qr_code: Optional[str] = None
-
-    class Config:
-        orm_mode = True
-
-class ContainerCreate(ContainerBase):
-    pass
-
-class ContainerUpdate(ContainerBase):
-    pass
-
-class CategoryBase(BaseModel):
-    name: str
-    color: str
-    icon: str
-
-class CategoryCreate(CategoryBase):
-    pass
-
-# Include the router
 app.include_router(router)
-
 
 # Create a new item
 @app.post("/items/", response_model=ItemBase)
