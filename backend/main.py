@@ -9,7 +9,9 @@ from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import text
 from fastapi.routing import APIRouter
-
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from dotenv import dotenv_values
+from jose import jwt, JWTError
 
 import qrcode
 import io
@@ -18,14 +20,52 @@ import aiofiles
 import qrcode
 import base64
 
+security = HTTPBearer()
 router = APIRouter()
 
 # Determine which .env file to load based on APP_ENV
 app_env = os.getenv("APP_ENV", "development")  # Default to 'development'
 dotenv_file = ".env" if app_env == "development" else ".env.production"
+# Load environment variables
+jwt_env = dotenv_values(".jwt_env")  # Load from the new .jwt_env file
 load_dotenv(dotenv_file)
 print(f"Loaded .env from {dotenv_file}")
 print(f"DB_USER: {os.getenv('DB_USER')}, DB_PASSWORD: {os.getenv('DB_PASSWORD')}, DB_NAME: {os.getenv('DB_NAME')}")
+
+# Fetch JWT-related configurations
+SECRET_KEY = jwt_env.get("SECRET_KEY", "default_secret_key")
+ALGORITHM = jwt_env.get("ALGORITHM", "HS256")
+security = HTTPBearer()
+
+# Utility: Generate a QR code
+async def generate_qr_code(content: str) -> str:
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_Q,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(content)
+    qr.make(fit=True)
+
+    buffered = io.BytesIO()
+    img = qr.make_image(fill="black", back_color="white")
+    img.save(buffered, format="PNG")
+    return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
+
+# Utility: Create a JWT
+def create_token(data: dict):
+    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+
+# Utility: Verify a JWT
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        decoded = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return decoded  # Return the payload if valid
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
 
 
 # Build the DATABASE_URL dynamically
@@ -63,21 +103,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# API for ChatGPT to write code via API to this project
+# Route: Write code securely
 @app.post("/write-code")
-async def write_code(update: CodeUpdate):
+async def write_code(data: dict, user: dict = Depends(verify_token)):
+    file_path = data.get("file_path")
+    content = data.get("content")
+    if not file_path or not content:
+        raise HTTPException(status_code=400, detail="file_path and content are required.")
     try:
-        # Ensure the directory exists
-        directory = os.path.dirname(update.file_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-
-        # Write the file
-        with open(update.file_path, "w") as file:
-            file.write(update.content)
-        return {"status": "success", "message": f"Updated {update.file_path}"}
+        with open(file_path, "w") as f:
+            f.write(content)
+        return {"status": "success", "message": f"File '{file_path}' written successfully."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error writing file: {str(e)}")
+
+
+# Route: Generate a secure token
+@app.post("/token")
+def generate_token(username: str):
+    token = create_token({"sub": username})
+    return {"token": token}
+
+
 
 # Dependency for database session
 async def get_db():
