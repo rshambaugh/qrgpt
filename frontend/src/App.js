@@ -42,24 +42,27 @@ function App() {
                     apiClient.get('/categories/'),
                     apiClient.get('/containers/'),
                 ]);
-                console.log('Items Response:', itemsResponse.data);
-                console.log('Categories Response:', categoriesResponse.data);
-                console.log('Containers Response:', containersResponse.data);
-                
+    
+                //console.log('Fetched items:', itemsResponse.data);
+                //console.log('Fetched categories:', categoriesResponse.data.categories);
+                //console.log('Fetched containers:', containersResponse.data);
+    
+                // Update state with fetched data
                 setItems(itemsResponse.data || []);
                 setCategories(categoriesResponse.data.categories || {});
                 setContainers(containersResponse.data || []);
+    
+                // Log the state to ensure it's updated correctly
+                console.log('Current editingItem:', editingItem);
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
                 setLoading(false);
             }
         };
-
-        console.log(containers); // Log containers array to check unique ids and structure
-        
+    
         fetchData();
-    }, [currentContainerId, containerDetails]);
+    }, []); // Ensure the dependencies are minimal to avoid unnecessary re-renders
     
     
 
@@ -231,23 +234,22 @@ function App() {
 
     // Edit an item
     const handleEdit = (item) => {
+        console.log("Item to edit:", item);  // Log the item to verify it's being passed correctly
         setEditingItem({
             ...item,
             tags: item.tags.join(', '),
             storage_container_id: item.storage_container_id || '', // Pre-select existing container or leave blank
         });
-
-        // Automatically toggle the 'new container' fields off if editing
         setShowNewContainerFields(false);
     };
-
+    
     // Update an item
     const handleUpdate = async (e) => {
         e.preventDefault();
         try {
             // Step 1: Handle new container creation if applicable
             let containerId = editingItem.storage_container_id;
-
+    
             if (showNewContainerFields && newContainer.name) {
                 const containerResponse = await apiClient.post('/containers/', {
                     name: newContainer.name,
@@ -258,13 +260,13 @@ function App() {
                 });
                 containerId = containerResponse.data.id; // Update containerId with the new container's ID
             }
-
+    
             // Step 2: Generate a new QR code for the updated item
             const qrCodeResponse = await apiClient.post('/generate-qr', {
                 data: editingItem.name, // Pass the item's name or unique identifier
             });
             const qrCode = qrCodeResponse.data.qr_code; // Retrieve the QR code from the API response
-
+    
             // Step 3: Prepare the updated item payload
             const updatedItem = {
                 ...editingItem,
@@ -274,17 +276,20 @@ function App() {
                     : [], // Split and clean tags
                 qr_code: qrCode, // Attach the newly generated QR code
             };
-
+    
+            // Log the updated item to the console to check the payload
+            console.log("Updated Item Payload:", updatedItem); // <-- Add this line
+    
             // Step 4: Send the updated item to the backend
             const response = await apiClient.put(`/items/${editingItem.id}`, updatedItem);
-
+    
             // Step 5: Update the frontend state with the modified item
             setItems(
                 items.map((item) =>
                     item.id === editingItem.id ? response.data : item
                 )
             );
-
+    
             // Step 6: Reset the form and close any edit mode
             resetForm();
         } catch (error) {
@@ -292,7 +297,6 @@ function App() {
             alert('Failed to update the item. Please try again.');
         }
     };
-
     
     // Delete an item
     const handleDelete = async (id) => {
@@ -446,37 +450,30 @@ function App() {
                         <select
                             id="storage_container"
                             name="storage_container"
-                            value={editingItem?.storage_container_id || ""}
-                            onChange={(e) =>
-                                editingItem
-                                    ? setEditingItem({
-                                        ...editingItem,
-                                        storage_container_id: parseInt(e.target.value) || null,
-                                    })
-                                    : setNewItem({
-                                        ...newItem,
-                                        storage_container_id: parseInt(e.target.value) || null,
-                                    })
-                            }
+                            value={editingItem?.storage_container_id ?? ""}
+                            onChange={(e) => {
+                                const selectedValue = e.target.value;
+                                const selectedId = selectedValue ? parseInt(selectedValue, 10) : null;
+
+                                setEditingItem((prevState) => {
+                                    const updatedItem = { ...prevState, storage_container_id: selectedId };
+                                    console.log("Updated editingItem after change:", updatedItem);
+                                    return updatedItem;
+                                });
+
+                                console.log("Selected container ID:", selectedId);
+                            }}
                         >
-                            <option value="" disabled>Select a container</option>
-                            {containers.map((container, index) => {
-                                // Log each container to ensure `id` is present
-                                console.log(container); // Check for container.id
-                                return (
-                                    <option key={container.id || `container-${index}`} value={container.id}>
-                                        {container.name}
-                                    </option>
-                                );
-                            })}
+                            <option value="" disabled>
+                                Select a container
+                            </option>
+                            {containers.map((container) => (
+                                <option key={container.id} value={container.id}>
+                                    {container.name}
+                                </option>
+                            ))}
                         </select>
-
-
-
-
-
                     </div>
-
 
 
                     <div className="form-group">

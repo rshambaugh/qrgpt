@@ -12,11 +12,14 @@ from sqlalchemy.orm import relationship
 from jose import jwt, JWTError
 from dotenv import load_dotenv, dotenv_values
 import qrcode
-import io
+import logging
 import aiofiles
 import base64
+import io
+from pathlib import Path
 from fastapi.responses import JSONResponse
-print(f"text function imported from sqlalchemy: {text}")
+#print(f"Current working directory: {os.getcwd()}")
+
 
 # Set up security and router
 security = HTTPBearer()
@@ -41,10 +44,9 @@ DB_NAME = os.getenv("DB_NAME")
 DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Logging environment setup
-print(f"Environment: {app_env}")
-print(f"Loaded dotenv file: {dotenv_file}")
-print(f"Using DATABASE_URL: {DATABASE_URL}")
-
+#print(f"Environment: {app_env}")
+#print(f"Loaded dotenv file: {dotenv_file}")
+#print(f"Using DATABASE_URL: {DATABASE_URL}")
 # SQLAlchemy setup
 engine = create_async_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
@@ -91,13 +93,13 @@ async def generate_qr_code(content: str) -> str:
     qr.add_data(content)
     qr.make(fit=True)
 
-    buffered = io.BytesIO()
+    buffered = io.BytesIO()  # Use the io.BytesIO() to hold the image data in memory
     img = qr.make_image(fill="black", back_color="white")
     img.save(buffered, format="PNG")
     return f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode('utf-8')}"
 
+
 # Route: Generate QR code
-@router.post("/generate-qr")
 @router.post("/generate-qr")
 async def generate_qr(data: dict):
     content = data.get("data")
@@ -105,24 +107,37 @@ async def generate_qr(data: dict):
         raise HTTPException(status_code=400, detail="Missing content for QR code generation.")
     
     try:
-        qr_code = generate_qr_code(content)
-        return JSONResponse(content={"qr_code": qr_code})
+        # Await the async QR code generation
+        qr_code = await generate_qr_code(content)  # Ensure it's awaited
+        return {"qr_code": qr_code}
     except Exception as e:
+        # Log the error and raise a 500 error
+        print(f"Error generating QR code: {str(e)}")  # Replace with proper logging in production
         raise HTTPException(status_code=500, detail=f"Error generating QR code: {str(e)}")
 
+
 # Route: Write code securely
+BASE_DIRECTORY = "/home/rshambaugh/projects/qrganizer_backup"
+
 @app.post("/write-code")
 async def write_code(data: dict, user: dict = Depends(verify_token)):
     file_path = data.get("file_path")
     content = data.get("content")
     if not file_path or not content:
         raise HTTPException(status_code=400, detail="file_path and content are required.")
+
+    resolved_path = Path(BASE_DIRECTORY) / file_path
+    if not resolved_path.is_relative_to(BASE_DIRECTORY):
+        raise HTTPException(status_code=403, detail="Invalid file path")
+
     try:
-        async with aiofiles.open(file_path, "w") as f:
+        async with aiofiles.open(resolved_path, "w") as f:
             await f.write(content)
-        return {"status": "success", "message": f"File '{file_path}' written successfully."}
+        return {"status": "success", "message": f"File '{resolved_path}' written successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error writing file: {str(e)}")
+
+
 
 # Route: Generate a secure token
 @app.post("/token")
@@ -326,49 +341,58 @@ async def get_item(item_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error fetching item: {str(e)}")
 
 
+from sqlalchemy.future import select
+
 # Update an item
 @app.put("/items/{item_id}", response_model=ItemBase)
 async def update_item(item_id: int, item: ItemUpdate, db: AsyncSession = Depends(get_db)):
+    print(f"Updating item {item_id} with container ID {item.storage_container_id}")
     try:
+        # Fetch the existing item
+        stmt = select(Item).filter(Item.id == item_id)
+        result = await db.execute(stmt)
+        db_item = result.scalars().first()
+
+        # If the item doesn't exist, raise 404
+        if not db_item:
+            raise HTTPException(status_code=404, detail="Item not found")
+
         # Generate updated QR Code
         qr_content = f"Item: {item.name}\nLocation: {item.location}\nContainer: {item.storage_container_id or 'None'}"
         qr_code = await generate_qr_code(qr_content)
 
-        # Update the item in the database
-        query = """
-            UPDATE items
-            SET name = :name, category = :category, description = :description,
-                quantity = :quantity, location = :location, 
-                storage_container_id = :storage_container_id, tags = :tags, qr_code = :qr_code
-            WHERE id = :id
-            RETURNING *;
-        """
-        result = await db.execute(query, {
-            "id": item_id,
-            **item.dict(),
-            "tags": ",".join(item.tags) if item.tags else None,
-            "qr_code": qr_code,
-        })
-        updated_item = result.fetchone()
+        # Update fields on the fetched item
+        db_item.name = item.name
+        db_item.category = item.category
+        db_item.description = item.description
+        db_item.quantity = item.quantity
+        db_item.location = item.location
+        db_item.storage_container_id = item.storage_container_id
+        db_item.tags = item.tags if item.tags else []  # Directly pass the list of tags
+        db_item.qr_code = qr_code
+
+        # Commit the changes
         await db.commit()
 
-        if not updated_item:
-            raise HTTPException(status_code=404, detail="Item not found")
-
+        # Return the updated item as a dictionary
         return {
-            "id": updated_item.id,
-            "name": updated_item.name,
-            "category": updated_item.category,
-            "description": updated_item.description,
-            "quantity": updated_item.quantity,
-            "location": updated_item.location,
-            "storage_container_id": updated_item.storage_container_id,
-            "tags": updated_item.tags.split(",") if updated_item.tags else [],
-            "qr_code": updated_item.qr_code,
+            "id": db_item.id,
+            "name": db_item.name,
+            "category": db_item.category,
+            "description": db_item.description,
+            "quantity": db_item.quantity,
+            "location": db_item.location,
+            "storage_container_id": db_item.storage_container_id,
+            "tags": db_item.tags,  # Already a list, no need to split
+            "qr_code": db_item.qr_code,
         }
+
     except Exception as e:
+        # Rollback in case of error
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating item: {str(e)}")
+
+
 
 
 
