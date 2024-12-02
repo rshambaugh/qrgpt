@@ -7,18 +7,29 @@ import apiClient from './services/api'; // Updated path to match `api.js`
 
 function App() {
     const [newItem, setNewItem] = useState({
-        name: '',
-        category: '',
-        description: '',
+        name: "",
+        category: "",
+        description: "",
         quantity: 1,
-        location: '',
+        location: "",
         storage_container_id: null,
-        tags: '',
+        tags: "",
+        image_url: "",
     });
+    
 
     const [items, setItems] = useState([]);
-    const [editingItem, setEditingItem] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [editingItem, setEditingItem] = useState({
+        id: null,
+        name: "",
+        category: "",
+        description: "",
+        quantity: null,
+        location: "",
+        storage_container_id: null,
+        tags: "",
+        qr_code: "",
+      });    const [loading, setLoading] = useState(true);
     const [showQRCode, setShowQRCode] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [categories, setCategories] = useState({});
@@ -35,36 +46,32 @@ function App() {
     // Fetch items, categories, and containers from backend
     useEffect(() => {
         const fetchData = async () => {
-            setLoading(true);
-            try {
-                const [itemsResponse, categoriesResponse, containersResponse] = await Promise.all([
-                    apiClient.get('/items/'),
-                    apiClient.get('/categories/'),
-                    apiClient.get('/containers/'),
-                ]);
-    
-                //console.log('Fetched items:', itemsResponse.data);
-                //console.log('Fetched categories:', categoriesResponse.data.categories);
-                //console.log('Fetched containers:', containersResponse.data);
-    
-                // Update state with fetched data
-                setItems(itemsResponse.data || []);
-                setCategories(categoriesResponse.data.categories || {});
-                setContainers(containersResponse.data || []);
-    
-                // Log the state to ensure it's updated correctly
-                console.log('Current editingItem:', editingItem);
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            } finally {
-                setLoading(false);
-            }
+          setLoading(true);
+          try {
+            const [itemsResponse, categoriesResponse, containersResponse] = await Promise.all([
+              apiClient.get("/items/"),
+              apiClient.get("/categories/"),
+              apiClient.get("/containers/"),
+            ]);
+      
+            setItems(itemsResponse.data || []);
+            setCategories(categoriesResponse.data.categories || {});
+            setContainers(containersResponse.data || []);
+          } catch (error) {
+            console.error("Error fetching data:", error);
+          } finally {
+            setLoading(false);
+          }
         };
-    
+      
         fetchData();
-    }, []); // Ensure the dependencies are minimal to avoid unnecessary re-renders
-    
-    
+      
+        console.log("Current editingItem:", editingItem);
+      }, [editingItem, currentContainerId, containerDetails]);
+
+
+      const [isEditing, setIsEditing] = useState(false);
+
 
     // Filter items based on search query
     const filteredItems = items.filter((item) => {
@@ -155,17 +162,20 @@ function App() {
 
     // Reset form to default state
     const resetForm = () => {
-        setNewItem({
-            name: '',
-            category: '',
-            description: '',
-            quantity: 1,
-            location: '',
-            storage_container_id: null,
-            tags: '',
-        });
         setEditingItem(null);
+        setIsEditing(false);
+        setNewItem({
+            name: "",
+            category: "",
+            description: "",
+            quantity: 1,
+            location: "",
+            storage_container_id: null,
+            tags: "",
+            image_url: "",
+        });
     };
+    
 
     // Generate QR code
     const generateQRCode = async (data) => {
@@ -234,14 +244,33 @@ function App() {
 
     // Edit an item
     const handleEdit = (item) => {
-        console.log("Item to edit:", item);  // Log the item to verify it's being passed correctly
+        setIsEditing(true);
         setEditingItem({
-            ...item,
-            tags: item.tags.join(', '),
-            storage_container_id: item.storage_container_id || '', // Pre-select existing container or leave blank
+          ...item,
+          storage_container_id: item.storage_container_id || null,
+          tags: item.tags.join(", "),
         });
         setShowNewContainerFields(false);
-    };
+      };
+      
+      const handleAdd = async (e) => {
+        e.preventDefault();
+        try {
+          const newItem = {
+            ...editingItem,
+            tags: editingItem.tags
+              ? editingItem.tags.split(",").map((tag) => tag.trim())
+              : [],
+          };
+          const response = await apiClient.post("/items", newItem);
+          setItems([...items, response.data]);
+          resetForm();
+        } catch (error) {
+          console.error("Error adding new item:", error);
+          alert("Failed to add the item. Please try again.");
+        }
+      };
+      
     
     // Update an item
     const handleUpdate = async (e) => {
@@ -351,7 +380,7 @@ function App() {
             {/* Form and Video Placeholder Container */}
             <div className="form-container">
                 {/* Form Section */}
-                <form className="form" onSubmit={editingItem ? handleUpdate : handleSubmit}>
+                <form className="form" onSubmit={isEditing ? handleUpdate : handleAdd}>
                     {/* Voice Input Button */}
                     <button
                         type="button"
@@ -369,9 +398,9 @@ function App() {
                             id="name"
                             name="name"
                             placeholder="Item Name"
-                            value={editingItem ? editingItem.name : newItem.name}
+                            value={editingItem?.name || newItem.name}
                             onChange={(e) =>
-                                editingItem
+                                isEditing
                                     ? setEditingItem({ ...editingItem, name: e.target.value })
                                     : setNewItem({ ...newItem, name: e.target.value })
                             }
@@ -386,9 +415,9 @@ function App() {
                             id="category"
                             name="category"
                             placeholder="Category"
-                            value={editingItem ? editingItem.category : newItem.category}
+                            value={editingItem?.category || newItem.category}
                             onChange={(e) =>
-                                editingItem
+                                isEditing
                                     ? setEditingItem({ ...editingItem, category: e.target.value })
                                     : setNewItem({ ...newItem, category: e.target.value })
                             }
@@ -402,9 +431,9 @@ function App() {
                             id="description"
                             name="description"
                             placeholder="Description"
-                            value={editingItem ? editingItem.description : newItem.description}
+                            value={editingItem?.description || newItem.description}
                             onChange={(e) =>
-                                editingItem
+                                isEditing
                                     ? setEditingItem({ ...editingItem, description: e.target.value })
                                     : setNewItem({ ...newItem, description: e.target.value })
                             }
@@ -418,9 +447,9 @@ function App() {
                             id="quantity"
                             name="quantity"
                             placeholder="1"
-                            value={editingItem ? editingItem.quantity : newItem.quantity}
+                            value={editingItem?.quantity || newItem.quantity}
                             onChange={(e) =>
-                                editingItem
+                                isEditing
                                     ? setEditingItem({ ...editingItem, quantity: parseInt(e.target.value, 10) })
                                     : setNewItem({ ...newItem, quantity: parseInt(e.target.value, 10) })
                             }
@@ -435,9 +464,9 @@ function App() {
                             id="location"
                             name="location"
                             placeholder="Location"
-                            value={editingItem ? editingItem.location : newItem.location}
+                            value={editingItem?.location || newItem.location}
                             onChange={(e) =>
-                                editingItem
+                                isEditing
                                     ? setEditingItem({ ...editingItem, location: e.target.value })
                                     : setNewItem({ ...newItem, location: e.target.value })
                             }
@@ -445,23 +474,34 @@ function App() {
                         />
                     </div>
 
+                    
                     <div className="form-group">
                         <label htmlFor="storageContainer">Storage Container</label>
                         <select
                             id="storage_container"
                             name="storage_container"
-                            value={editingItem?.storage_container_id ?? ""}
-                            onChange={(e) => {
-                                const selectedValue = e.target.value;
-                                const selectedId = selectedValue ? parseInt(selectedValue, 10) : null;
-
-                                setEditingItem((prevState) => {
-                                    const updatedItem = { ...prevState, storage_container_id: selectedId };
-                                    console.log("Updated editingItem after change:", updatedItem);
-                                    return updatedItem;
-                                });
-
-                                console.log("Selected container ID:", selectedId);
+                            value={
+                                isEditing
+                                    ? editingItem?.storage_container_id || ""
+                                    : newItem.storage_container_id || ""
+                            }
+                            onChange={(event) => {
+                                const selectedId = parseInt(event.target.value, 10);
+                                if (isEditing) {
+                                    setEditingItem((prevItem) => ({
+                                        ...prevItem,
+                                        storage_container_id: isNaN(selectedId) ? null : selectedId,
+                                    }));
+                                } else {
+                                    setNewItem((prevItem) => ({
+                                        ...prevItem,
+                                        storage_container_id: isNaN(selectedId) ? null : selectedId,
+                                    }));
+                                }
+                                console.log(
+                                    "Updated item after container change:",
+                                    isEditing ? editingItem : newItem
+                                );
                             }}
                         >
                             <option value="" disabled>
@@ -483,9 +523,9 @@ function App() {
                             id="tags"
                             name="tags"
                             placeholder="Tags (comma-separated)"
-                            value={editingItem ? editingItem.tags : newItem.tags}
+                            value={editingItem?.tags || newItem.tags}
                             onChange={(e) =>
-                                editingItem
+                                isEditing
                                     ? setEditingItem({ ...editingItem, tags: e.target.value })
                                     : setNewItem({ ...newItem, tags: e.target.value })
                             }
@@ -499,9 +539,9 @@ function App() {
                             id="imageUrl"
                             name="imageUrl"
                             placeholder="Image URL"
-                            value={editingItem ? editingItem.image_url : newItem.image_url}
+                            value={editingItem?.image_url || newItem.image_url}
                             onChange={(e) =>
-                                editingItem
+                                isEditing
                                     ? setEditingItem({ ...editingItem, image_url: e.target.value })
                                     : setNewItem({ ...newItem, image_url: e.target.value })
                             }
@@ -511,9 +551,9 @@ function App() {
                     {/* Form Buttons */}
                     <div className="form-buttons">
                         <button type="submit" className="form-button save-button">
-                            {editingItem ? "Update Item" : "Add Item"}
+                            {isEditing ? "Update Item" : "Add Item"}
                         </button>
-                        {editingItem && (
+                        {isEditing && (
                             <button
                                 type="button"
                                 className="form-button cancel-button"
@@ -537,7 +577,6 @@ function App() {
                     </div>
                 </div>
             </div>
-
 
             {/* Inventory Section */}
             <h2>Inventory</h2>
