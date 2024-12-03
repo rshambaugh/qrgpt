@@ -1,506 +1,86 @@
-/* General app styling */
-body {
+/* App Styles */
+.app {
     font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f8f9fa;
-    color: #333;
-}
-
-.app-container {
+    background-color: #f7f9fc;
     padding: 20px;
-    max-width: 1200px;
-    margin: auto;
 }
 
-h1, h2 {
+h1 {
     text-align: center;
-    color: #007bff;
-}
-
-/* Form and Video Placeholder Container */
-.form-container {
-    display: flex;
-    flex-wrap: nowrap; /* Ensure no wrapping happens on large screens */
-    gap: 30px; /* Space between form and video placeholder */
+    color: #003f8a;
     margin-bottom: 20px;
-    justify-content: space-between;
-    width: 100%;
-    padding: 0 20px; /* Optional padding for spacing */
 }
 
-/* Form Styles */
-.form-container .form {
-    flex: 1 1 60%; /* Adjust width of the form */
+.inventory-grid {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.items-section,
+.containers-section {
+    flex: 1;
+    margin: 0 10px;
+}
+
+.items-list,
+.containers-list {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-.form-container .form input, 
-.form-container .form textarea, 
-.form-container .form button {
-    padding: 10px;
-    font-size: 1rem;
-    border: 1px solid #ccc;
+h2 {
+    color: #003f8a;
+    margin-bottom: 10px;
+}
+
+/* Draggable Items */
+.draggable-item {
+    background-color: #ffb703;
+    color: #333333;
+    padding: 12px;
     border-radius: 5px;
-}
-
-.form-container .form input,
-.form-container .form textarea {
-    width: 70%; /* Ensures that the input field takes up the remaining space */
-}
-
-.form-container .form button {
-    width: 100%; /* Make button the same width as the form fields */
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.form-container .form label {
-    width: 30%; /* Adjust this value to change the label's width */
-    font-weight: bold;
-}
-
-.form-container .form button {
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.form-container .form button:hover {
-    background-color: #0056b3;
-}
-
-.form-input {
-    width: 100%;
-    padding: 10px;
-    margin: 5px 0;
-    box-sizing: border-box;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 16px;
-}
-
-/* Specific styling for the dropdown */
-.form-group select {
-    display: block;
-    width: calc(100% - 20px); /* Adjust width to align with input fields */
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: #fff;
-    outline: none;
-    box-shadow: none;
-    appearance: none;
-    margin-top: 5px; /* Add spacing between the label and the dropdown */
-    box-sizing: border-box; /* Maintain consistent box model */
-}
-
-/* Custom dropdown arrow */
-.form-group select {
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23999999'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 16px;
-    padding-right: 35px; /* Space for the dropdown arrow */
-}
-
-/* Hover and focus effects for better accessibility */
-.form-group select:hover {
-    border-color: #888;
-}
-
-.form-group select:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 4px #007bff;
-}
-
-/* General form field styling (input/textarea consistency) */
-.form-group input,
-.form-group textarea {
-    width: 100%;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    outline: none;
-    box-shadow: none;
-    margin-top: 5px;
-}
-
-/* Ensure spacing and alignment between fields */
-.form-group {
-    margin-bottom: 15px; /* Spacing between fields */
-    width: 100%;
-}
-
-
-
-
-/* Video Placeholder Styles */
-.video-placeholder {
-    flex: 1 1 45%; /* 45% width for video placeholder on larger screens */
-    background-color: #f0f0f0;
-    padding: 20px;
     text-align: center;
-    height: 100%;
-}
-
-.video-container {
-    width: 100%;
-    height: 400px;
-    background-color: #e0e0e0;
-    border: 2px dashed #ccc;
-    margin-top: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.video-feed {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: cover;
-}
-
-/* Inventory List */
-.inventory-list {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    justify-items: center;
-}
-
-/* Card Styling */
-.card {
-    width: 280px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background-color: #fff;
-    overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    position: relative;
-    padding: 15px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s, box-shadow 0.2s;
+    cursor: grab;
 }
 
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+.draggable-item.dragging {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    opacity: 0.8;
 }
 
-.card img {
-    width: 100%;
-    height: 150px;
-    object-fit: cover;
-}
-
-.card-content {
-    padding: 10px;
-}
-
-.card-content h3 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: #333;
-}
-
-.card-content p {
-    margin: 5px 0;
-    color: #666;
-}
-
-/* Action icons */
-.card-actions {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    right: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    pointer-events: none;
-}
-
-.card-actions .fa-pen,
-.card-actions .fa-trash {
-    pointer-events: all;
-    font-size: 1.5rem;
-    cursor: pointer;
-    transition: color 0.2s, transform 0.2s;
-}
-
-.card-actions .fa-pen {
-    color: #28a745;
-}
-
-.card-actions .fa-trash {
-    color: #dc3545;
-}
-
-.card-actions .fa-pen:hover {
-    color: #218838;
-    transform: scale(1.2);
-}
-
-.card-actions .fa-trash:hover {
-    color: #c82333;
-    transform: scale(1.2);
-}
-
-/* QR Code */
-.qr-code {
-    width: 100%;
-    height: auto;
-    object-fit: contain;
-    display: block;
-}
-
-.qr-code-container {
-    width: 180px;
-    height: 180px;
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-    justify-content: center;
-    align-items: center;
-    background: white;
-    border-radius: 10px;
-    margin: auto;
-}
-
-.print-button-container {
-    margin-top: 10px;
-}
-
-.print-button {
-    font-size: 1rem;
-    padding: 8px 12px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.3s ease;
-}
-
-.print-button i {
-    margin-right: 5px;
-}
-
-.print-button:hover {
-    background-color: #0056b3;
-}
-
-.search-bar-container {
-    margin: 20px 0;
-    text-align: center;
-}
-
-.search-bar {
-    width: 80%;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-/* Card Category Section */
-.category-placeholder {
-    background-color: #E0E0E0; /* Default background color */
-    width: 100%;
-    height: 150px; /* Fixed height of 150px */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    text-align: center;
-    padding: 0 10px;
-    border-radius: 8px 8px 0 0; /* Rounded top corners */
-}
-
-.category-placeholder h3 {
-    font-size: 1.5rem;
-    margin: 0;
-    text-transform: uppercase;
-}
-
-.category-placeholder i {
-    font-size: 2rem;
-    margin-bottom: 10px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .form-container {
-        flex-direction: column; /* Stack form and video placeholder vertically */
-        gap: 10px; /* Reduce the gap between stacked items */
-    }
-
-
-    .form-container .form,
-    .form-container .video-placeholder {
-        width: 100%; /* Full width for both form and video placeholder */
-    }
-
-    .inventory-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive card sizing */
-    }
-
-    .card {
-        width: 100%;
-        max-width: 280px;
-    }
-
-    .qr-code-container {
-        width: 140px;
-        height: 140px;
-    }
-
-    .search-bar {
-        width: 90%;
-    }
-}
-
-@media (max-width: 480px) {
-    .inventory-list {
-        grid-template-columns: 1fr;
-    }
-
-    .card {
-        padding: 10px;
-    }
-
-    .qr-code-container {
-        width: 120px;
-        height: 120px;
-    }
-
-    .print-button {
-        font-size: 0.8rem;
-        padding: 5px 8px;
-    }
-
-    .search-bar {
-        font-size: 14px;
-        padding: 8px;
-    }
-}
-
-.voice-input-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px;
-    font-size: 1rem;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin-bottom: 10px;
-}
-
-.voice-input-button:hover {
-    background-color: #218838;
-}
-
-.voice-input-button i {
-    margin-right: 8px;
-}
-
-.form-container {
-    margin: 0 auto;
+/* Droppable Containers */
+.droppable-container {
+    background-color: #eaf4ff;
+    border: 2px dashed #80bfff;
     padding: 20px;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-}
-
-.form-container .form .form-group {
-    display: flex;
-    align-items: center;
-    gap: 10px; /* Add gap between label and input field */
-}
-
-input, textarea {
-    width: 100%;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ddd;
     border-radius: 5px;
+    min-height: 100px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s;
 }
 
-button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+.droppable-container:hover {
+    background-color: #d6ecff;
 }
 
-button:hover {
-    background-color: #0056b3;
+h3 {
+    color: #003f8a;
+    margin-bottom: 10px;
 }
 
-.form-buttons {
-    display: flex;
-    gap: 10px; /* Add spacing between buttons */
-    justify-content: center; /* Center align the buttons */
-    margin-top: 20px;
-}
-
-.form-button {
-    background-color: #007bff;
-    color: #fff;
-    padding: 10px 15px;
-    font-size: 16px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    flex: 1; /* Make buttons equally sized */
-    text-align: center;
-}
-
-.form-button:hover {
-    background-color: #0056b3;
-}
-
-.cancel-button {
-    background-color: #6c757d;
-    color: #fff;
-}
-
-.cancel-button:hover {
-    background-color: #5a6268;
-}
-
-.container-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.container-list .card {
-    border: 1px solid #ccc;
-    padding: 1rem;
-    border-radius: 8px;
-    background: #f9f9f9;
-    width: calc(25% - 1rem);
+/* Contained Items */
+.contained-item {
+    background-color: #ffb703;
+    color: #333333;
+    padding: 8px;
+    border-radius: 3px;
+    margin: 5px 0;
+    font-weight: bold;
     text-align: center;
 }
