@@ -163,18 +163,18 @@ function App() {
     // Reset form to default state
     const resetForm = () => {
         setEditingItem(null);
-        setIsEditing(false);
         setNewItem({
-            name: "",
-            category: "",
-            description: "",
+            name: '',
+            category: '',
+            description: '',
             quantity: 1,
-            location: "",
+            location: '',
             storage_container_id: null,
-            tags: "",
-            image_url: "",
+            tags: '',
+            image_url: ''
         });
     };
+    
     
 
     // Generate QR code
@@ -380,7 +380,7 @@ function App() {
             {/* Form and Video Placeholder Container */}
             <div className="form-container">
                 {/* Form Section */}
-                <form className="form" onSubmit={isEditing ? handleUpdate : handleAdd}>
+                <form className="form" onSubmit={editingItem ? handleUpdate : handleSubmit}>
                     {/* Voice Input Button */}
                     <button
                         type="button"
@@ -398,9 +398,9 @@ function App() {
                             id="name"
                             name="name"
                             placeholder="Item Name"
-                            value={editingItem?.name || newItem.name}
+                            value={editingItem ? editingItem.name : newItem.name}
                             onChange={(e) =>
-                                isEditing
+                                editingItem
                                     ? setEditingItem({ ...editingItem, name: e.target.value })
                                     : setNewItem({ ...newItem, name: e.target.value })
                             }
@@ -415,9 +415,9 @@ function App() {
                             id="category"
                             name="category"
                             placeholder="Category"
-                            value={editingItem?.category || newItem.category}
+                            value={editingItem ? editingItem.category : newItem.category}
                             onChange={(e) =>
-                                isEditing
+                                editingItem
                                     ? setEditingItem({ ...editingItem, category: e.target.value })
                                     : setNewItem({ ...newItem, category: e.target.value })
                             }
@@ -431,9 +431,9 @@ function App() {
                             id="description"
                             name="description"
                             placeholder="Description"
-                            value={editingItem?.description || newItem.description}
+                            value={editingItem ? editingItem.description : newItem.description}
                             onChange={(e) =>
-                                isEditing
+                                editingItem
                                     ? setEditingItem({ ...editingItem, description: e.target.value })
                                     : setNewItem({ ...newItem, description: e.target.value })
                             }
@@ -447,9 +447,9 @@ function App() {
                             id="quantity"
                             name="quantity"
                             placeholder="1"
-                            value={editingItem?.quantity || newItem.quantity}
+                            value={editingItem ? editingItem.quantity : newItem.quantity}
                             onChange={(e) =>
-                                isEditing
+                                editingItem
                                     ? setEditingItem({ ...editingItem, quantity: parseInt(e.target.value, 10) })
                                     : setNewItem({ ...newItem, quantity: parseInt(e.target.value, 10) })
                             }
@@ -464,9 +464,9 @@ function App() {
                             id="location"
                             name="location"
                             placeholder="Location"
-                            value={editingItem?.location || newItem.location}
+                            value={editingItem ? editingItem.location : newItem.location}
                             onChange={(e) =>
-                                isEditing
+                                editingItem
                                     ? setEditingItem({ ...editingItem, location: e.target.value })
                                     : setNewItem({ ...newItem, location: e.target.value })
                             }
@@ -474,20 +474,19 @@ function App() {
                         />
                     </div>
 
-                    
                     <div className="form-group">
                         <label htmlFor="storageContainer">Storage Container</label>
                         <select
                             id="storage_container"
                             name="storage_container"
                             value={
-                                isEditing
-                                    ? editingItem?.storage_container_id || ""
-                                    : newItem.storage_container_id || ""
+                                editingItem
+                                    ? editingItem.storage_container_id || ''
+                                    : newItem.storage_container_id || ''
                             }
-                            onChange={(event) => {
-                                const selectedId = parseInt(event.target.value, 10);
-                                if (isEditing) {
+                            onChange={(e) => {
+                                const selectedId = parseInt(e.target.value, 10);
+                                if (editingItem) {
                                     setEditingItem((prevItem) => ({
                                         ...prevItem,
                                         storage_container_id: isNaN(selectedId) ? null : selectedId,
@@ -498,10 +497,6 @@ function App() {
                                         storage_container_id: isNaN(selectedId) ? null : selectedId,
                                     }));
                                 }
-                                console.log(
-                                    "Updated item after container change:",
-                                    isEditing ? editingItem : newItem
-                                );
                             }}
                         >
                             <option value="" disabled>
@@ -515,7 +510,6 @@ function App() {
                         </select>
                     </div>
 
-
                     <div className="form-group">
                         <label htmlFor="tags">Tags</label>
                         <input
@@ -523,9 +517,9 @@ function App() {
                             id="tags"
                             name="tags"
                             placeholder="Tags (comma-separated)"
-                            value={editingItem?.tags || newItem.tags}
+                            value={editingItem ? editingItem.tags : newItem.tags}
                             onChange={(e) =>
-                                isEditing
+                                editingItem
                                     ? setEditingItem({ ...editingItem, tags: e.target.value })
                                     : setNewItem({ ...newItem, tags: e.target.value })
                             }
@@ -539,9 +533,9 @@ function App() {
                             id="imageUrl"
                             name="imageUrl"
                             placeholder="Image URL"
-                            value={editingItem?.image_url || newItem.image_url}
+                            value={editingItem ? editingItem.image_url : newItem.image_url}
                             onChange={(e) =>
-                                isEditing
+                                editingItem
                                     ? setEditingItem({ ...editingItem, image_url: e.target.value })
                                     : setNewItem({ ...newItem, image_url: e.target.value })
                             }
@@ -551,9 +545,9 @@ function App() {
                     {/* Form Buttons */}
                     <div className="form-buttons">
                         <button type="submit" className="form-button save-button">
-                            {isEditing ? "Update Item" : "Add Item"}
+                            {editingItem ? 'Update Item' : 'Add Item'}
                         </button>
-                        {isEditing && (
+                        {editingItem && (
                             <button
                                 type="button"
                                 className="form-button cancel-button"
@@ -577,6 +571,7 @@ function App() {
                     </div>
                 </div>
             </div>
+
 
             {/* Inventory Section */}
             <h2>Inventory</h2>
