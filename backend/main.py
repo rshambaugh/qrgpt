@@ -226,6 +226,18 @@ class CategoryCreate(CategoryBase):
 # Include the router
 app.include_router(router)
 
+# START DRAGGABLE INTERFACE #
+@app.patch("/items/{item_id}/move")
+def move_item(item_id: int, container_id: int, db: Session = Depends(get_db)):
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    item.container_id = container_id
+    db.commit()
+    return {"success": True, "item": item}
+
+# END DRAGGABLE INTERFACE #
 
 # Create a new item
 @app.post("/items/", response_model=ItemBase)
