@@ -37,15 +37,15 @@ h2 {
 
 /* Draggable Items */
 .draggable-item {
-    background-color: #ffb703;
-    color: #333333;
-    padding: 12px;
-    border-radius: 5px;
-    text-align: center;
+    display: inline-block;
+    font-size: 14px;
     font-weight: bold;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-    cursor: grab;
+    transition: all 0.3s ease;
+}
+
+.draggable-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .draggable-item.dragging {
@@ -83,4 +83,8 @@ h3 {
     margin: 5px 0;
     font-weight: bold;
     text-align: center;
+}
+
+.space-box {
+    transition: all 0.3s ease;
 }
