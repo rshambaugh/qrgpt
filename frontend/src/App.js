@@ -1,128 +1,76 @@
-
-import React, { useEffect, useState } from "react";
-import "./App.css"; // Add appropriate styles for drag-and-drop
-import { DndProvider } from "react-dnd";
-import { useDrag, useDrop } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
-import axios from "axios";
-import "./styles.css";
-
-const ItemType = {
-    ITEM: "item",
-};
-
-const DraggableItem = ({ item }) => {
-    const [{ isDragging }, drag] = useDrag(() => ({
-        type: ItemType.ITEM,
-        item: { id: item.id },
-        collect: (monitor) => ({
-            isDragging: monitor.isDragging(),
-        }),
-    }));
-
-    return (
-        <div
-            ref={drag}
-            className={`draggable-item ${isDragging ? "dragging" : ""}`}
-        >
-            {item.name}
-        </div>
-    );
-};
-
-const DroppableContainer = ({ container, items, onDrop }) => {
-    const [, drop] = useDrop(() => ({
-        accept: ItemType.ITEM,
-        drop: (droppedItem) => onDrop(droppedItem.id, container.id),
-    }));
-
-    return (
-        <div ref={drop} className="droppable-container">
-            <h3>{container.name}</h3>
-            {items.map((item) => (
-                <div key={item.id} className="contained-item">
-                    {item.name}
-                </div>
-            ))}
-        </div>
-    );
-};
+import React, { useState, useEffect } from 'react';
+import AddItemForm from './components/AddItemForm';
+import AddSpaceForm from './components/AddSpaceForm';
+import ItemList from './components/ItemList';
+import SpaceList from './components/SpaceList';
+import axios from 'axios';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 
 const App = () => {
     const [items, setItems] = useState([]);
-    const [containers, setContainers] = useState([]);
+    const [spaces, setSpaces] = useState([]);
 
     useEffect(() => {
-        // Fetch items and containers from the backend
         const fetchData = async () => {
             try {
-                const itemsResponse = await axios.get(
-                    "http://localhost:8000/items/"
-                );
-                const containersResponse = await axios.get(
-                    "http://localhost:8000/containers/"
-                );
-                setItems(itemsResponse.data.items);
-                setContainers(containersResponse.data.containers);
+                const itemsResponse = await axios.get('http://localhost:8000/items/');
+                const spacesResponse = await axios.get('http://localhost:8000/spaces/');
+                setItems(itemsResponse.data);
+                setSpaces(spacesResponse.data);
             } catch (error) {
-                console.error("Error fetching data:", error);
+                console.error('Error fetching data:', error);
             }
         };
 
         fetchData();
     }, []);
 
-    const handleDrop = async (itemId, containerId) => {
+    const addItem = async (newItem) => {
         try {
-            await axios.put(`http://localhost:8000/items/${itemId}/container`, {
-                storage_container_id: containerId,
-            });
+            const response = await axios.post('http://localhost:8000/items/', newItem);
+            setItems((prev) => [...prev, response.data]);
+        } catch (error) {
+            console.error('Error adding item:', error);
+        }
+    };
 
+    const addSpace = async (newSpace) => {
+        try {
+            const response = await axios.post('http://localhost:8000/spaces/', newSpace);
+            setSpaces((prev) => [...prev, response.data]);
+        } catch (error) {
+            console.error('Error adding space:', error);
+        }
+    };
+
+    const handleDrop = async (itemId, spaceId) => {
+        try {
+            await axios.put(`http://localhost:8000/items/${itemId}/space`, { space_id: spaceId });
             setItems((prevItems) =>
                 prevItems.map((item) =>
-                    item.id === itemId
-                        ? { ...item, storage_container_id: containerId }
-                        : item
+                    item.id === itemId ? { ...item, storage_space_id: spaceId } : item
                 )
             );
         } catch (error) {
-            console.error("Failed to update item container:", error);
+            console.error('Error updating item:', error);
         }
     };
 
     return (
         <DndProvider backend={HTML5Backend}>
-            <div className="app">
-                <h1>Inventory Management</h1>
-                <div className="inventory-grid">
-                    <div className="items-section">
-                        <h2>Unassigned Items</h2>
-                        <div className="items-list">
-                            {items
-                                .filter((item) => !item.storage_container_id)
-                                .map((item) => (
-                                    <DraggableItem key={item.id} item={item} />
-                                ))}
-                        </div>
-                    </div>
-                    <div className="containers-section">
-                        <h2>Containers</h2>
-                        <div className="containers-list">
-                            {containers.map((container) => (
-                                <DroppableContainer
-                                    key={container.id}
-                                    container={container}
-                                    items={items.filter(
-                                        (item) =>
-                                            item.storage_container_id ===
-                                            container.id
-                                    )}
-                                    onDrop={handleDrop}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                </div>
+            <div>
+                <h1>QRganizer</h1>
+                <AddItemForm onAddItem={addItem} />
+                <AddSpaceForm onAddSpace={addSpace} />
+                <section>
+                    <h2>Unassigned Items</h2>
+                    <ItemList items={items.filter((item) => !item.storage_space_id)} />
+                </section>
+                <section>
+                    <h2>Spaces</h2>
+                    <SpaceList spaces={spaces} items={items} onDrop={handleDrop} />
+                </section>
             </div>
         </DndProvider>
     );
