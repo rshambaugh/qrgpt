@@ -1,82 +1,205 @@
-/* General Styles */
+/* Global styles */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f8f9fa;
+    background-color: #f9f9f9;
 }
 
 .app-container {
     max-width: 900px;
-    margin: 0 auto;
+    margin: 20px auto;
     padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .app-title {
     text-align: center;
     font-size: 2.5rem;
     margin-bottom: 20px;
+    color: #333;
 }
 
-/* Form Section */
+/* Form container styles */
 .form-container {
     display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 20px;
+    margin-bottom: 30px;
 }
 
 form {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-/* Content Section */
-.content-container {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
+form input[type="text"],
+form textarea {
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
 
+form button {
+    padding: 10px;
+    font-size: 1rem;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+form button.add-item {
+    background-color: #28a745;
+}
+
+form button.add-item:hover {
+    background-color: #218838;
+}
+
+form button.add-space {
+    background-color: #007bff;
+}
+
+form button.add-space:hover {
+    background-color: #0056b3;
+}
+
+/* Content section styles */
+.content-container {
+    margin-top: 20px;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #ccc;
+    padding-bottom: 5px;
+}
+
+/* Sections for items and spaces */
 .item-section,
 .space-section {
-    padding: 15px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #fff;
+    margin-bottom: 30px;
 }
 
-/* Item and Space List */
-.list-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+/* List styling for items and spaces */
+.item-list,
+.space-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
 }
 
-.list-item {
+/* Shared styling for items and spaces */
+.item,
+.space {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f1f1f1;
+    margin-bottom: 10px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    transition: box-shadow 0.2s, background-color 0.2s;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.05); /* Subtle shadow for elevation */
 }
 
-.list-item:hover {
-    background-color: #e9ecef;
+/* Hover effects for items and spaces */
+.item:hover,
+.space:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: #f9f9f9;
 }
 
-button.delete {
-    background-color: #dc3545;
-    color: white;
+/* Specific background for unassigned items */
+.item {
+    background-color: #ffe082; /* Light orange for unassigned items */
+    font-weight: bold; /* Emphasize item names */
+}
+
+/* Delete button styling */
+.delete-button {
+    padding: 6px 12px; /* Slightly larger for better clickability */
+    font-size: 0.9rem;
+    color: #fff;
+    background-color: #dc3545; /* Bootstrap danger color */
     border: none;
-    border-radius: 5px;
-    padding: 5px 10px;
+    border-radius: 4px;
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
-button.delete:hover {
-    background-color: #c82333;
+/* Hover effect for delete button */
+.delete-button:hover {
+    background-color: #c82333; /* Slightly darker shade on hover */
+    transform: scale(1.05); /* Slight zoom effect */
+}
+
+/* Space-specific styles */
+.space {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    background-color: #e3f2fd; /* Light blue for spaces */
+    color: #1e88e5; /* Darker blue for text */
+    font-weight: bold;
+    border: 1px solid #90caf9; /* Slightly darker border */
+    border-radius: 4px;
+    transition: box-shadow 0.2s ease, background-color 0.2s ease;
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Hover effects for spaces */
+.space:hover {
+    background-color: #bbdefb; /* Slightly darker blue on hover */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    cursor: pointer; /* Pointer cursor for better UX */
+}
+
+/* Space delete button styling */
+.space .delete-button {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    color: #fff;
+    background-color: #dc3545; /* Bootstrap danger color */
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* Hover effect for space delete button */
+.space .delete-button:hover {
+    background-color: #c82333; /* Slightly darker shade on hover */
+    transform: scale(1.05); /* Subtle zoom effect */
+}
+
+/* Space section container styling */
+.space-section {
+    margin-bottom: 30px;
+    padding: 15px;
+    background-color: #f7f9fc; /* Very light grayish-blue background */
+    border-radius: 6px;
+    border: 1px solid #e0e0e0; /* Soft border for structure */
+}
+
+/* Feedback for draggable spaces */
+.space-hover {
+    background-color: #d9f2d9; /* Light green hover effect */
+    border-color: #66bb6a; /* Green border for feedback */
+}
+
+/* Feedback for draggable items */
+.item-dragging {
+    opacity: 0.7; /* Slightly transparent when dragging */
+    transform: scale(1.1); /* Slightly larger for visual feedback */
+    z-index: 10; /* Ensure it appears above other elements */
 }

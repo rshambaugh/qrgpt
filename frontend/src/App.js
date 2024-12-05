@@ -6,11 +6,13 @@ import SpaceList from './components/SpaceList';
 import axios from 'axios';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import './styles.css';
 
 const App = () => {
     const [items, setItems] = useState([]);
     const [spaces, setSpaces] = useState([]);
 
+    // Fetch items and spaces from the backend
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -26,6 +28,7 @@ const App = () => {
         fetchData();
     }, []);
 
+    // Add item
     const addItem = async (newItem) => {
         try {
             const response = await axios.post('http://localhost:8000/items/', newItem);
@@ -35,6 +38,7 @@ const App = () => {
         }
     };
 
+    // Add space
     const addSpace = async (newSpace) => {
         try {
             const response = await axios.post('http://localhost:8000/spaces/', newSpace);
@@ -44,6 +48,7 @@ const App = () => {
         }
     };
 
+    // Delete item
     const handleDeleteItem = async (itemId) => {
         try {
             await axios.delete(`http://localhost:8000/items/${itemId}`);
@@ -53,6 +58,7 @@ const App = () => {
         }
     };
 
+    // Delete space
     const handleDeleteSpace = async (spaceId) => {
         try {
             await axios.delete(`http://localhost:8000/spaces/${spaceId}`);
@@ -62,6 +68,7 @@ const App = () => {
         }
     };
 
+    // Handle drag-and-drop
     const handleDrop = async (itemId, spaceId) => {
         try {
             await axios.put(`http://localhost:8000/items/${itemId}/space`, { space_id: spaceId });
@@ -74,17 +81,6 @@ const App = () => {
             console.error('Error updating item:', error);
         }
     };
-
-    const deleteItem = async (itemId) => {
-        try {
-            await axios.delete(`http://localhost:8000/items/${itemId}`);
-            setItems((prevItems) => prevItems.filter((item) => item.id !== itemId)); // Remove from state
-        } catch (error) {
-            console.error('Error deleting item:', error);
-        }
-    };
-    
-    <ItemList items={items.filter((item) => !item.space_id)} onDelete={deleteItem} />
     
 
     return (
@@ -96,21 +92,27 @@ const App = () => {
                     <AddSpaceForm onAddSpace={addSpace} />
                 </div>
                 <div className="content-container">
-                    <section className="item-section">
-                        <h2>Unassigned Items</h2>
+                <section className="item-section">
+                    <h2 className="section-title">Unassigned Items</h2>
+                    <ul className="item-list">
                         <ItemList
                             items={items.filter((item) => !item.space_id)}
                             onDelete={handleDeleteItem}
                         />
-                    </section>
+                    </ul>
+                </section>
                     <section className="space-section">
-                        <h2>Spaces</h2>
-                        <SpaceList
-                            spaces={spaces}
-                            items={items}
-                            onDrop={handleDrop}
-                            onDelete={handleDeleteSpace}
+                        <h2 className="section-title">Spaces</h2>
+                        <ul className="space-list">
+                        <Space
+                            key={space.id}
+                            space={space}
+                            items={items} // Make sure `items` is passed here
+                            onDrop={onDrop}
                         />
+
+
+                        </ul>
                     </section>
                 </div>
             </div>
