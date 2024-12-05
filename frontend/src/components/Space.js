@@ -2,25 +2,41 @@ import React from 'react';
 import { useDrop } from 'react-dnd';
 
 const Space = ({ space, items, onDrop }) => {
-    const [, drop] = useDrop(() => ({
-        accept: 'item',
-        drop: (droppedItem) => onDrop(droppedItem.id, space.id),
+    const [{ isOver }, drop] = useDrop(() => ({
+        accept: 'ITEM',
+        drop: (item) => onDrop(item.id, space.id),
+        collect: (monitor) => ({
+            isOver: monitor.isOver(),
+        }),
     }));
+
+    const spaceItems = items.filter((item) => item.storage_space_id === space.id);
 
     return (
         <div
             ref={drop}
             style={{
+                backgroundColor: isOver ? '#76c893' : '#e0f7fa',
                 padding: '10px',
                 margin: '10px',
-                backgroundColor: '#90CAF9',
-                minHeight: '100px',
-                border: '1px solid #2196F3',
+                border: '2px dashed #00796b',
+                borderRadius: '5px',
             }}
         >
-            <h4>{space.name}</h4>
-            {items.map((item) => (
-                <div key={item.id}>{item.name}</div>
+            <h3>{space.name}</h3>
+            {spaceItems.map((item) => (
+                <div
+                    key={item.id}
+                    style={{
+                        padding: '5px',
+                        margin: '5px',
+                        backgroundColor: '#fff59d',
+                        border: '1px solid #000',
+                        borderRadius: '3px',
+                    }}
+                >
+                    {item.name}
+                </div>
             ))}
         </div>
     );

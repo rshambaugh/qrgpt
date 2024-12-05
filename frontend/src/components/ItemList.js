@@ -1,17 +1,18 @@
 import React from 'react';
 import DraggableItem from './DraggableItem';
 
-const ItemList = ({ items }) => {
+const ItemList = ({ items, onDelete }) => {
     return (
-        <div className="item-list">
+        <div>
             {items.map((item) => (
-                <div key={item.id} className="item-box">
-                    {item.name || "Unnamed Item"} - {item.description || "No Description"}
-                </div>
+                <DraggableItem
+                    key={item.id}
+                    item={item}
+                    onDelete={onDelete} // Pass onDelete handler
+                />
             ))}
         </div>
     );
 };
-
 
 export default ItemList;

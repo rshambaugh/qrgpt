@@ -1,90 +1,82 @@
-/* App Styles */
-.app {
+/* General Styles */
+body {
     font-family: Arial, sans-serif;
-    background-color: #f7f9fc;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa;
+}
+
+.app-container {
+    max-width: 900px;
+    margin: 0 auto;
     padding: 20px;
 }
 
-h1 {
+.app-title {
     text-align: center;
-    color: #003f8a;
+    font-size: 2.5rem;
     margin-bottom: 20px;
 }
 
-.inventory-grid {
+/* Form Section */
+.form-container {
     display: flex;
     justify-content: space-between;
-    gap: 20px;
+    gap: 10px;
+    margin-bottom: 20px;
 }
 
-.items-section,
-.containers-section {
-    flex: 1;
-    margin: 0 10px;
-}
-
-.items-list,
-.containers-list {
+form {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-h2 {
-    color: #003f8a;
-    margin-bottom: 10px;
+/* Content Section */
+.content-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
 }
 
-/* Draggable Items */
-.draggable-item {
-    display: inline-block;
-    font-size: 14px;
-    font-weight: bold;
-    transition: all 0.3s ease;
-}
-
-.draggable-item:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.draggable-item.dragging {
-    transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    opacity: 0.8;
-}
-
-/* Droppable Containers */
-.droppable-container {
-    background-color: #eaf4ff;
-    border: 2px dashed #80bfff;
-    padding: 20px;
+.item-section,
+.space-section {
+    padding: 15px;
+    border: 1px solid #ccc;
     border-radius: 5px;
-    min-height: 100px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    transition: background-color 0.3s;
+    background-color: #fff;
 }
 
-.droppable-container:hover {
-    background-color: #d6ecff;
+/* Item and Space List */
+.list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-h3 {
-    color: #003f8a;
-    margin-bottom: 10px;
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f1f1f1;
 }
 
-/* Contained Items */
-.contained-item {
-    background-color: #ffb703;
-    color: #333333;
-    padding: 8px;
-    border-radius: 3px;
-    margin: 5px 0;
-    font-weight: bold;
-    text-align: center;
+.list-item:hover {
+    background-color: #e9ecef;
 }
 
-.space-box {
-    transition: all 0.3s ease;
+button.delete {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+button.delete:hover {
+    background-color: #c82333;
 }

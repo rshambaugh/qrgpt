@@ -29,7 +29,7 @@ const App = () => {
     const addItem = async (newItem) => {
         try {
             const response = await axios.post('http://localhost:8000/items/', newItem);
-            setItems((prev) => [...prev, response.data]);
+            setItems((prevItems) => [...prevItems, response.data]);
         } catch (error) {
             console.error('Error adding item:', error);
         }
@@ -38,9 +38,27 @@ const App = () => {
     const addSpace = async (newSpace) => {
         try {
             const response = await axios.post('http://localhost:8000/spaces/', newSpace);
-            setSpaces((prev) => [...prev, response.data]);
+            setSpaces((prevSpaces) => [...prevSpaces, response.data]);
         } catch (error) {
             console.error('Error adding space:', error);
+        }
+    };
+
+    const handleDeleteItem = async (itemId) => {
+        try {
+            await axios.delete(`http://localhost:8000/items/${itemId}`);
+            setItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+        } catch (error) {
+            console.error('Error deleting item:', error);
+        }
+    };
+
+    const handleDeleteSpace = async (spaceId) => {
+        try {
+            await axios.delete(`http://localhost:8000/spaces/${spaceId}`);
+            setSpaces((prevSpaces) => prevSpaces.filter((space) => space.id !== spaceId));
+        } catch (error) {
+            console.error('Error deleting space:', error);
         }
     };
 
@@ -49,7 +67,7 @@ const App = () => {
             await axios.put(`http://localhost:8000/items/${itemId}/space`, { space_id: spaceId });
             setItems((prevItems) =>
                 prevItems.map((item) =>
-                    item.id === itemId ? { ...item, storage_space_id: spaceId } : item
+                    item.id === itemId ? { ...item, space_id: spaceId } : item
                 )
             );
         } catch (error) {
@@ -57,20 +75,44 @@ const App = () => {
         }
     };
 
+    const deleteItem = async (itemId) => {
+        try {
+            await axios.delete(`http://localhost:8000/items/${itemId}`);
+            setItems((prevItems) => prevItems.filter((item) => item.id !== itemId)); // Remove from state
+        } catch (error) {
+            console.error('Error deleting item:', error);
+        }
+    };
+    
+    <ItemList items={items.filter((item) => !item.space_id)} onDelete={deleteItem} />
+    
+
     return (
         <DndProvider backend={HTML5Backend}>
-            <div>
-                <h1>QRganizer</h1>
-                <AddItemForm onAddItem={addItem} />
-                <AddSpaceForm onAddSpace={addSpace} />
-                <section>
-                    <h2>Unassigned Items</h2>
-                    <ItemList items={items.filter((item) => !item.storage_space_id)} />
-                </section>
-                <section>
-                    <h2>Spaces</h2>
-                    <SpaceList spaces={spaces} items={items} onDrop={handleDrop} />
-                </section>
+            <div className="app-container">
+                <h1 className="app-title">QRganizer</h1>
+                <div className="form-container">
+                    <AddItemForm onAddItem={addItem} />
+                    <AddSpaceForm onAddSpace={addSpace} />
+                </div>
+                <div className="content-container">
+                    <section className="item-section">
+                        <h2>Unassigned Items</h2>
+                        <ItemList
+                            items={items.filter((item) => !item.space_id)}
+                            onDelete={handleDeleteItem}
+                        />
+                    </section>
+                    <section className="space-section">
+                        <h2>Spaces</h2>
+                        <SpaceList
+                            spaces={spaces}
+                            items={items}
+                            onDrop={handleDrop}
+                            onDelete={handleDeleteSpace}
+                        />
+                    </section>
+                </div>
             </div>
         </DndProvider>
     );

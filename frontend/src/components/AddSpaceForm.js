@@ -10,15 +10,20 @@ const AddSpaceForm = ({ onAddSpace }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <h3>Add New Space</h3>
-            <input
-                type="text"
-                placeholder="Space Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-            />
-            <button type="submit">Add Space</button>
+        <form onSubmit={handleSubmit} className="mb-3">
+            <div className="mb-3">
+                <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Space Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                />
+            </div>
+            <button type="submit" className="btn btn-primary w-100">
+                Add Space
+            </button>
         </form>
     );
 };
