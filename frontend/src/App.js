@@ -30,6 +30,7 @@ const App = () => {
 };
 
 
+
   // Fetch spaces and items on component mount
   useEffect(() => {
     fetchSpacesAndItems();
@@ -78,31 +79,48 @@ const App = () => {
     fetchSpacesAndItems(); // Refresh data
   };
 
-  const handleDrop = async (draggedItemId, targetSpaceId) => {
-    console.log("Preparing to move item:", { draggedItemId, targetSpaceId });
+  const handleDrop = async (draggedItemId, targetSpaceId, type) => {
+    console.log("Preparing to move:", { draggedItemId, targetSpaceId, type });
     try {
-        const response = await fetch(
-            `http://localhost:8000/items/${draggedItemId}/space`,
-            {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ new_space_id: targetSpaceId }),
-            }
-        );
+        if (type === "item") {
+            // Update item space
+            const response = await fetch(
+                `http://localhost:8000/items/${draggedItemId}/space`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ new_space_id: targetSpaceId }),
+                }
+            );
 
-        if (!response.ok) {
-            console.error("API Error:", await response.text());
-            throw new Error(`Failed to move item: ${response.statusText}`);
+            if (!response.ok) {
+                throw new Error(`Failed to move item: ${response.statusText}`);
+            }
+            console.log("Item moved successfully:", await response.json());
+        } else if (type === "space") {
+            // Update space parent
+            const response = await fetch(
+                `http://localhost:8000/spaces/${draggedItemId}/parent`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ new_parent_id: targetSpaceId }),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`Failed to move space: ${response.statusText}`);
+            }
+            console.log("Space moved successfully:", await response.json());
         }
 
-        console.log("Item moved successfully:", await response.json());
-
-        // Refresh UI with updated data
+        // Refresh UI
         fetchSpacesAndItems();
     } catch (error) {
-        console.error("Error during item move:", error);
+        console.error("Error during move:", error);
     }
 };
+
 
   return (
     <DndProvider backend={HTML5Backend}>

@@ -3,16 +3,18 @@ import { useDrop } from "react-dnd";
 
 const Space = ({ space, items, children, onDrop }) => {
     const [{ isOver }, drop] = useDrop({
-        accept: ["ITEM"],
+        accept: ["ITEM", "SPACE"],
         drop: (draggedItem) => {
-            console.log("Dropped item:", draggedItem);
-            onDrop(draggedItem.id, space.id); // Pass item ID and target space ID
+            if (draggedItem.type === "ITEM") {
+                onDrop(draggedItem.id, space.id, "item");
+            } else if (draggedItem.type === "SPACE") {
+                onDrop(draggedItem.id, space.id, "space");
+            }
         },
         collect: (monitor) => ({
             isOver: monitor.isOver(),
         }),
     });
-        
 
     return (
         <div ref={drop} className={`space ${isOver ? "space-hover" : ""}`}>
@@ -37,5 +39,4 @@ const Space = ({ space, items, children, onDrop }) => {
     );
 };
 
-// Export must be outside any other block or code
 export default Space;
