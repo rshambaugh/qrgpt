@@ -73,7 +73,7 @@ const App = () => {
                     <div className="section">
                         <h2 className="section-title">Spaces</h2>
                         <SpaceList
-                            spaces={spaces.filter((space) => space.parent_id === null)}
+                            spaces={spaces}
                             items={items}
                             onDropItem={handleDropItem}
                             onDropSpace={handleDropSpace}
