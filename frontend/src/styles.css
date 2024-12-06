@@ -1,4 +1,3 @@
-/* Global Styles */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -7,7 +6,7 @@ body {
 }
 
 .app-container {
-    max-width: 900px;
+    max-width: 1000px;
     margin: 20px auto;
     padding: 20px;
     background-color: #fff;
@@ -17,73 +16,85 @@ body {
 
 .app-title {
     text-align: center;
-    font-size: 2.5rem;
+    font-size: 2rem;
     margin-bottom: 20px;
     color: #333;
 }
 
-/* Section Styling */
+/* Form Styling */
+.form-container {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f7f7f7;
+}
+
+.form-container h3 {
+    margin-bottom: 10px;
+    color: #555;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.form-container input,
+.form-container textarea,
+.form-container select {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.form-container button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.form-container button:hover {
+    background-color: #0056b3;
+}
+
+/* Content Layout */
 .content-container {
-    margin-top: 20px;
     display: flex;
-    flex-wrap: wrap;
     gap: 20px;
 }
 
-.section {
+.space-section,
+.item-section {
     flex: 1;
-    min-width: 300px;
-    max-width: 450px;
-    background-color: #f7f9fc;
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    overflow-y: auto; /* Enable scrolling */
-    max-height: 400px; /* Set a reasonable height */
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.05);
 }
 
-/* Section Titles */
 .section-title {
     font-size: 1.5rem;
     margin-bottom: 10px;
-    border-bottom: 2px solid #ccc;
-    padding-bottom: 5px;
     color: #333;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 5px;
 }
 
-/* Shared Item and Space Styling */
-.item,
+/* Spaces Styling */
 .space {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
     padding: 10px;
     margin-bottom: 10px;
     border-radius: 8px;
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.05);
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
-    cursor: pointer;
-}
-
-/* Item-Specific Styling */
-.item {
-    background-color: #ffe082;
-    font-weight: bold;
-    border: 1px solid #ffca28;
-}
-
-.item:hover {
-    background-color: #ffd54f;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Space-Specific Styling */
-.space {
-    background-color: #e3f2fd;
+    font-size: 1rem;
     color: #1e88e5;
     font-weight: bold;
-    border: 1px solid #90caf9;
+    position: relative;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .space:hover {
@@ -91,59 +102,58 @@ body {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
 }
 
-/* Hover State for Droppable Spaces */
-.space-hover {
-    background-color: #76c893;
-    border-color: #66bb6a;
-}
-
-/* Delete Button Styling */
-.delete-button {
-    margin-left: 10px;
-    padding: 8px 12px;
-    font-size: 0.85rem;
-    color: #fff;
+.space .delete-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
     background-color: #dc3545;
+    color: #fff;
     border: none;
     border-radius: 4px;
+    font-size: 0.9rem;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
-.delete-button:hover {
+.space .delete-button:hover {
     background-color: #c82333;
     transform: scale(1.05);
 }
 
-/* Scrollable Lists */
-.item-list,
-.space-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    overflow-y: auto;
-    max-height: 300px;
-}
-
-/* Section Spacing */
-.item-section,
-.space-section {
-    margin-bottom: 30px;
-}
-
-/* Scrollbars */
-.section::-webkit-scrollbar {
-    width: 8px;
-}
-
-.section::-webkit-scrollbar-thumb {
-    background-color: #90caf9;
+/* Items Styling */
+.item {
+    background-color: #ffe082;
+    border: 1px solid #ffca28;
+    padding: 8px;
+    margin-bottom: 8px;
     border-radius: 8px;
-}
-.nested-spaces {
-    padding-left: 20px;
+    font-size: 1rem;
+    color: #f57c00;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.space.hover {
-    background-color: #f0f8ff; /* Light blue for hover effect */
+.item:hover {
+    background-color: #ffd54f;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.item .delete-button {
+    padding: 5px 8px;
+    background-color: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.item .delete-button:hover {
+    background-color: #c82333;
+    transform: scale(1.05);
 }
