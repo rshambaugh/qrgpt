@@ -1,15 +1,16 @@
 import React from 'react';
-import Space from './Space'; // Ensure Space is correctly imported
+import Space from './Space';
 
-const SpaceList = ({ spaces, items, onDrop }) => {
+const SpaceList = ({ spaces, items, onDrop, onDelete }) => {
     return (
-        <div>
+        <div className="space-list">
             {spaces.map((space) => (
                 <Space
                     key={space.id}
                     space={space}
                     items={items}
                     onDrop={onDrop}
+                    onDelete={onDelete}
                 />
             ))}
         </div>
