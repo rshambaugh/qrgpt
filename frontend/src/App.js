@@ -1,64 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import AddItemForm from './components/AddItemForm';
-import AddSpaceForm from './components/AddSpaceForm';
-import ItemList from './components/ItemList';
-import SpaceList from './components/SpaceList';
-import axios from 'axios';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import './styles.css';
+import axios from 'axios';
+import SpaceList from './components/SpaceList';
+import ItemList from './components/ItemList';
 
 const App = () => {
-    const [items, setItems] = useState([]);
     const [spaces, setSpaces] = useState([]);
+    const [items, setItems] = useState([]);
 
-    // Fetch items and spaces from the backend
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const itemsResponse = await axios.get('http://localhost:8000/items/');
                 const spacesResponse = await axios.get('http://localhost:8000/spaces/');
-                setItems(itemsResponse.data);
+                const itemsResponse = await axios.get('http://localhost:8000/items/');
                 setSpaces(spacesResponse.data);
+                setItems(itemsResponse.data);
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
         };
-
         fetchData();
     }, []);
 
-    // Add item
-    const addItem = async (newItem) => {
+    const handleDropItem = async (itemId, spaceId) => {
         try {
-            const response = await axios.post('http://localhost:8000/items/', newItem);
-            setItems((prevItems) => [...prevItems, response.data]);
+            await axios.put(`http://localhost:8000/items/${itemId}/space`, { new_space_id: spaceId });
+            setItems((prevItems) =>
+                prevItems.map((item) => (item.id === itemId ? { ...item, space_id: spaceId } : item))
+            );
         } catch (error) {
-            console.error('Error adding item:', error);
+            console.error('Error updating item space:', error);
         }
     };
 
-    // Add space
-    const addSpace = async (newSpace) => {
+    const handleDropSpace = async (spaceId, parentId) => {
         try {
-            const response = await axios.post('http://localhost:8000/spaces/', newSpace);
-            setSpaces((prevSpaces) => [...prevSpaces, response.data]);
+            await axios.put(`http://localhost:8000/spaces/${spaceId}/parent`, { new_parent_id: parentId });
+            setSpaces((prevSpaces) =>
+                prevSpaces.map((space) =>
+                    space.id === spaceId ? { ...space, parent_id: parentId } : space
+                )
+            );
         } catch (error) {
-            console.error('Error adding space:', error);
+            console.error('Error updating space parent:', error);
         }
     };
 
-    // Delete item
-    const handleDeleteItem = async (itemId) => {
-        try {
-            await axios.delete(`http://localhost:8000/items/${itemId}`);
-            setItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
-        } catch (error) {
-            console.error('Error deleting item:', error);
-        }
-    };
-
-    // Delete space
     const handleDeleteSpace = async (spaceId) => {
         try {
             await axios.delete(`http://localhost:8000/spaces/${spaceId}`);
@@ -68,52 +56,37 @@ const App = () => {
         }
     };
 
-    // Handle drag-and-drop
-    const handleDrop = async (itemId, spaceId) => {
+    const handleDeleteItem = async (itemId) => {
         try {
-            await axios.put(`http://localhost:8000/items/${itemId}/space`, { space_id: spaceId });
-            setItems((prevItems) =>
-                prevItems.map((item) =>
-                    item.id === itemId ? { ...item, space_id: spaceId } : item
-                )
-            );
+            await axios.delete(`http://localhost:8000/items/${itemId}`);
+            setItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
         } catch (error) {
-            console.error('Error updating item:', error);
+            console.error('Error deleting item:', error);
         }
     };
-    
 
     return (
         <DndProvider backend={HTML5Backend}>
             <div className="app-container">
-                <h1 className="app-title">QRganizer</h1>
-                <div className="form-container">
-                    <AddItemForm onAddItem={addItem} />
-                    <AddSpaceForm onAddSpace={addSpace} />
-                </div>
+                <h1 className="app-title">Nested Spaces and Items</h1>
                 <div className="content-container">
-                <section className="item-section">
-                    <h2 className="section-title">Unassigned Items</h2>
-                    <ul className="item-list">
+                    <div className="section">
+                        <h2 className="section-title">Spaces</h2>
+                        <SpaceList
+                            spaces={spaces.filter((space) => space.parent_id === null)}
+                            items={items}
+                            onDropItem={handleDropItem}
+                            onDropSpace={handleDropSpace}
+                            onDelete={handleDeleteSpace}
+                        />
+                    </div>
+                    <div className="section">
+                        <h2 className="section-title">Unassigned Items</h2>
                         <ItemList
                             items={items.filter((item) => !item.space_id)}
                             onDelete={handleDeleteItem}
                         />
-                    </ul>
-                </section>
-                    <section className="space-section">
-                        <h2 className="section-title">Spaces</h2>
-                        <ul className="space-list">
-                        <Space
-                            key={space.id}
-                            space={space}
-                            items={items} // Make sure `items` is passed here
-                            onDrop={onDrop}
-                        />
-
-
-                        </ul>
-                    </section>
+                    </div>
                 </div>
             </div>
         </DndProvider>
