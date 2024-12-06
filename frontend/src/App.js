@@ -12,22 +12,27 @@ const App = () => {
   const [newSpaceName, setNewSpaceName] = useState("");
   const [newSpaceParentId, setNewSpaceParentId] = useState(null);
 
-  // Fetch spaces and items from the backend
+  // Function to fetch spaces and items
+  const fetchSpacesAndItems = async () => {
+    console.log("Refreshing spaces and items...");
+    try {
+        const responseSpaces = await fetch("http://localhost:8000/spaces-recursive/");
+        const responseItems = await fetch("http://localhost:8000/items/");
+        const spacesData = await responseSpaces.json();
+        const itemsData = await responseItems.json();
+        console.log("Spaces refreshed:", spacesData);
+        console.log("Items refreshed:", itemsData);
+        setSpaces(spacesData);
+        setItems(itemsData);
+    } catch (error) {
+        console.error("Error fetching spaces and items:", error);
+    }
+};
+
+
+  // Fetch spaces and items on component mount
   useEffect(() => {
-    const fetchSpaces = async () => {
-      const response = await fetch("http://localhost:8000/spaces-recursive/");
-      const data = await response.json();
-      setSpaces(data);
-    };
-
-    const fetchItems = async () => {
-      const response = await fetch("http://localhost:8000/items/");
-      const data = await response.json();
-      setItems(data);
-    };
-
-    fetchSpaces();
-    fetchItems();
+    fetchSpacesAndItems();
   }, []);
 
   // Handle adding a new item
@@ -49,10 +54,7 @@ const App = () => {
 
     setNewItemName("");
     setNewItemDescription("");
-
-    // Refresh items
-    const responseItems = await fetch("http://localhost:8000/items/");
-    setItems(await responseItems.json());
+    fetchSpacesAndItems(); // Refresh data
   };
 
   // Handle adding a new space
@@ -73,34 +75,34 @@ const App = () => {
 
     setNewSpaceName("");
     setNewSpaceParentId(null);
-
-    // Refresh spaces
-    const responseSpaces = await fetch("http://localhost:8000/spaces-recursive/");
-    setSpaces(await responseSpaces.json());
+    fetchSpacesAndItems(); // Refresh data
   };
 
-  // Handle drag-and-drop functionality
-  const handleDrop = async (draggedId, targetId, type) => {
-    if (type === "item") {
-      await fetch(`http://localhost:8000/items/${draggedId}/space`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ new_space_id: targetId }),
-      });
-    } else if (type === "space") {
-      await fetch(`http://localhost:8000/spaces/${draggedId}/parent`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ new_parent_id: targetId }),
-      });
+  const handleDrop = async (draggedItemId, targetSpaceId) => {
+    console.log("Preparing to move item:", { draggedItemId, targetSpaceId });
+    try {
+        const response = await fetch(
+            `http://localhost:8000/items/${draggedItemId}/space`,
+            {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ new_space_id: targetSpaceId }),
+            }
+        );
+
+        if (!response.ok) {
+            console.error("API Error:", await response.text());
+            throw new Error(`Failed to move item: ${response.statusText}`);
+        }
+
+        console.log("Item moved successfully:", await response.json());
+
+        // Refresh UI with updated data
+        fetchSpacesAndItems();
+    } catch (error) {
+        console.error("Error during item move:", error);
     }
-
-    // Refresh data after drop
-    const responseSpaces = await fetch("http://localhost:8000/spaces-recursive/");
-    const responseItems = await fetch("http://localhost:8000/items/");
-    setSpaces(await responseSpaces.json());
-    setItems(await responseItems.json());
-  };
+};
 
   return (
     <DndProvider backend={HTML5Backend}>

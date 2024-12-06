@@ -2,13 +2,13 @@ import React from 'react';
 import { useDrag } from 'react-dnd';
 
 const Item = ({ item, onDelete }) => {
-    const [{ isDragging }, drag] = useDrag(() => ({
-        type: 'ITEM',
-        item: { id: item.id },
+    const [{ isDragging }, drag] = useDrag({
+        type: "ITEM", // This must match "accept" in Space.js
+        item: { id: item.id, type: "ITEM" },
         collect: (monitor) => ({
             isDragging: monitor.isDragging(),
         }),
-    }));
+    });    
 
     return (
         <div

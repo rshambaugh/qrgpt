@@ -84,6 +84,9 @@ class Space(BaseModel):
     class Config:
         orm_mode = True
 
+class UpdateSpaceRequest(BaseModel):
+    new_space_id: int
+
 # Dependency to get DB session
 async def get_db():
     async with async_session() as session:
@@ -187,11 +190,21 @@ async def create_item(item: ItemCreate, db: AsyncSession = Depends(get_db)):
     return result.fetchone()
 
 @app.put("/items/{item_id}/space", response_model=dict)
-async def update_item_space(item_id: int, space_id: int, db: AsyncSession = Depends(get_db)):
-    stmt = items_table.update().where(items_table.c.id == item_id).values(space_id=space_id)
-    await db.execute(stmt)
+async def update_item_space(
+    item_id: int,
+    update_request: UpdateSpaceRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    print(f"Received move request for item {item_id} to space {update_request.new_space_id}")
+    stmt = items_table.update().where(items_table.c.id == item_id).values(space_id=update_request.new_space_id)
+    result = await db.execute(stmt)
     await db.commit()
-    return {"message": f"Item moved to space {space_id}"}
+    if result.rowcount == 0:
+        print("Item not found in database")
+        raise HTTPException(status_code=404, detail="Item not found")
+    print(f"Item {item_id} successfully moved")
+    return {"message": f"Item {item_id} moved to space {update_request.new_space_id}"}
+
 
 @app.delete("/items/{item_id}", response_model=dict)
 async def delete_item(item_id: int, db: AsyncSession = Depends(get_db)):
