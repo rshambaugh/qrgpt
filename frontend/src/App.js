@@ -179,9 +179,10 @@ const App = () => {
           <div className="item-section">
             <h2 className="section-title">Unassigned Items</h2>
             <ItemList
-              items={items.filter((item) => !item.space_id)}
-              onDrop={(id, spaceId) => handleDrop(id, spaceId, "item")}
-            />
+                items={items.filter((item) => item.space_id === null)} // Ensure correct filtering for unassigned items
+                onDrop={(id, spaceId) => handleDrop(id, spaceId, "item")}
+        />
+
           </div>
         </div>
       </div>
