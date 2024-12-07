@@ -14,27 +14,30 @@ const App = () => {
 
   // Function to fetch spaces and items
   const fetchSpacesAndItems = async () => {
-    console.log("Refreshing spaces and items...");
     try {
-        const responseSpaces = await fetch("http://localhost:8000/spaces-recursive/");
-        const responseItems = await fetch("http://localhost:8000/items/");
-        const spacesData = await responseSpaces.json();
-        const itemsData = await responseItems.json();
-        console.log("Spaces refreshed:", spacesData);
-        console.log("Items refreshed:", itemsData);
-        setSpaces(spacesData);
-        setItems(itemsData);
+      const responseSpaces = await fetch("http://localhost:8000/spaces-recursive/");
+      const responseItems = await fetch("http://localhost:8000/items/");
+      const spacesData = await responseSpaces.json();
+      const itemsData = await responseItems.json();
+  
+      console.log("Spaces data fetched:", spacesData);
+      console.log("Items data fetched:", itemsData);
+  
+      setSpaces(spacesData);
+      setItems(itemsData);
     } catch (error) {
-        console.error("Error fetching spaces and items:", error);
+      console.error("Error fetching spaces and items:", error);
     }
-};
-
-
-
-  // Fetch spaces and items on component mount
+  };  
+  
   useEffect(() => {
     fetchSpacesAndItems();
   }, []);
+
+  useEffect(() => {
+    console.log("Spaces data:", spaces);
+}, [spaces]);
+  
 
   // Handle adding a new item
   const handleAddItem = async () => {
@@ -80,46 +83,47 @@ const App = () => {
   };
 
   const handleDrop = async (draggedItemId, targetSpaceId, type) => {
-    console.log("Preparing to move:", { draggedItemId, targetSpaceId, type });
     try {
-        if (type === "item") {
-            // Update item space
-            const response = await fetch(
-                `http://localhost:8000/items/${draggedItemId}/space`,
-                {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ new_space_id: targetSpaceId }),
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(`Failed to move item: ${response.statusText}`);
-            }
-            console.log("Item moved successfully:", await response.json());
-        } else if (type === "space") {
-            // Update space parent
-            const response = await fetch(
-                `http://localhost:8000/spaces/${draggedItemId}/parent`,
-                {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ new_parent_id: targetSpaceId }),
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(`Failed to move space: ${response.statusText}`);
-            }
-            console.log("Space moved successfully:", await response.json());
+      if (type === "item") {
+        const response = await fetch(
+          `http://localhost:8000/items/${draggedItemId}/space`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ new_space_id: targetSpaceId }),
+          }
+        );
+  
+        if (!response.ok) {
+          throw new Error("Failed to move item.");
         }
-
-        // Refresh UI
-        fetchSpacesAndItems();
+      } else if (type === "space") {
+        if (draggedItemId === targetSpaceId) {
+          console.error("Cannot drop a space into itself.");
+          return;
+        }
+  
+        const response = await fetch(
+          `http://localhost:8000/spaces/${draggedItemId}/parent`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ new_parent_id: targetSpaceId }),
+          }
+        );
+  
+        if (!response.ok) {
+          throw new Error("Failed to move space.");
+        }
+      }
+  
+      // Refresh data after drop
+      fetchSpacesAndItems();
     } catch (error) {
-        console.error("Error during move:", error);
+      console.error("Error during drop:", error);
     }
-};
+  };
+  
 
 
   return (

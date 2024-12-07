@@ -90,18 +90,6 @@ textarea::placeholder {
 }
 
 /* Spaces Styling */
-.space {
-    background-color: #e3f2fd;
-    border: 1px solid #90caf9;
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 8px;
-    font-size: 1rem;
-    color: #1e88e5;
-    font-weight: bold;
-    position: relative;
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
 
 .space:hover {
     background-color: #bbdefb;
@@ -139,6 +127,11 @@ textarea::placeholder {
     border-left: 2px dashed #90caf9; /* Visual indication of nesting */
     padding-left: 10px; /* Spacing for nested content */
 }
+
+.space:active {
+    cursor: grabbing; /* While dragging */
+}
+
 
 /* Items Styling */
 .item {
@@ -192,3 +185,17 @@ textarea::placeholder {
         font-size: 0.9rem; /* Adjust button size */
     }
 }
+
+.space {
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #1e88e5;
+    font-weight: bold;
+    position: relative;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  
