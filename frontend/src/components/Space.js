@@ -10,58 +10,29 @@ const Space = ({ space, items, children, onDrop }) => {
 
   // Drag functionality for spaces
   const [{ isDragging }, drag] = useDrag({
-    type: 'SPACE', // Matches the "accept" in useDrop
+    type: 'SPACE',
     item: { id: space.id, type: 'SPACE' },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   });
 
-// Drop functionality for spaces and items
-const [{ isOver, canDrop }, drop] = useDrop({
-  accept: ['ITEM', 'SPACE'], // Accept both items and spaces
-
-  drop: (draggedItem) => {
-    console.log('Drop detected:', draggedItem, 'Target space:', space.id);
-
-    // Handle item drop
-    if (draggedItem.type === 'ITEM') {
-      onDrop(draggedItem.id, space.id, 'item');
-    }
-
-    // Handle space drop (ensure no self-referencing)
-    else if (draggedItem.type === 'SPACE') {
-      if (draggedItem.id !== space.id) {
+  // Drop functionality for spaces and items
+  const [{ isOver, canDrop }, drop] = useDrop({
+    accept: ['ITEM', 'SPACE'],
+    drop: (draggedItem) => {
+      if (draggedItem.type === 'ITEM') {
+        onDrop(draggedItem.id, space.id, 'item');
+      } else if (draggedItem.type === 'SPACE' && draggedItem.id !== space.id) {
         onDrop(draggedItem.id, space.id, 'space');
-      } else {
-        console.warn('Cannot drop a space onto itself.');
       }
-    }
-  },
-
-  canDrop: (draggedItem) => {
-    // Prevent dropping a space onto itself
-    if (draggedItem.type === 'SPACE' && draggedItem.id === space.id) {
-      return false;
-    }
-    return true; // Allow other drops
-  },
-
-  collect: (monitor) => ({
-    isOver: monitor.isOver(),
-    canDrop: monitor.canDrop(),
-  }),
-});
-
-// Additional styling for debugging
-const dropStyle = {
-  border: isOver
-    ? canDrop
-      ? '2px dashed green' // Valid drop target
-      : '2px dashed red' // Invalid drop target
-    : '1px solid transparent',
-};
-
+    },
+    canDrop: (draggedItem) => draggedItem.type !== 'SPACE' || draggedItem.id !== space.id,
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+      canDrop: monitor.canDrop(),
+    }),
+  });
 
   return (
     <div
@@ -70,41 +41,25 @@ const dropStyle = {
       style={{
         opacity: isDragging ? 0.5 : 1,
         cursor: 'move',
-        marginBottom: '10px',
-        border: isOver && canDrop ? '2px dashed #007bff' : '1px solid #ddd', // Highlight when valid
+        border: isOver && canDrop ? '2px dashed #007bff' : '1px solid #ddd',
         padding: '10px',
         backgroundColor: '#f9f9f9',
+        marginBottom: '10px',
       }}
     >
       <div className="space-header">
-        {/* Toggle Collapse Button */}
         <span
+          onClick={toggleCollapse}
           style={{
             cursor: 'pointer',
             fontWeight: 'bold',
             marginRight: '5px',
             color: '#007bff',
           }}
-          onClick={toggleCollapse}
         >
           {collapsed ? '+ ' : '- '}
         </span>
         <span style={{ fontWeight: 'bold' }}>{space.name}</span>
-        <button
-          className="delete-button"
-          style={{
-            marginLeft: 'auto',
-            backgroundColor: '#dc3545',
-            color: 'white',
-            border: 'none',
-            padding: '5px 10px',
-            cursor: 'pointer',
-            borderRadius: '3px',
-          }}
-          onClick={() => onDrop(space.id, null, 'delete-space')}
-        >
-          Delete
-        </button>
       </div>
 
       {/* Render children and items if not collapsed */}
