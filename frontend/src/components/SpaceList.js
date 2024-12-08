@@ -1,5 +1,5 @@
-import React from "react";
-import Space from "./Space";
+import React from 'react';
+import Space from './Space';
 
 const SpaceList = ({ spaces, items, onDrop }) => {
   const renderSpaces = (parentId) =>
