@@ -1,11 +1,11 @@
 const Item = ({ item, onDelete }) => {
     const [{ isDragging }, drag] = useDrag({
-        type: "ITEM", // Must match "accept" in Space.js
-        item: { id: item.id, type: "item" },
+        type: 'ITEM', // Matches the "accept" in useDrop
+        item: { id: item.id, type: 'ITEM' },
         collect: (monitor) => ({
-            isDragging: monitor.isDragging(),
+          isDragging: monitor.isDragging(),
         }),
-    });
+      });
 
     return (
         <div

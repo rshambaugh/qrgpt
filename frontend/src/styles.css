@@ -199,3 +199,26 @@ textarea::placeholder {
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
   }
   
+  .space {
+    margin-left: 20px; /* Indent for hierarchy */
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #f8f9fa;
+  }
+  
+  .space-hover {
+    border: 2px dashed #007bff;
+  }
+  
+  .space-title {
+    font-weight: bold;
+    color: #0056b3;
+  }
+  
+  .item {
+    background-color: #ffeb3b;
+    padding: 5px;
+    margin: 5px 0;
+    border-radius: 4px;
+  }
+  
