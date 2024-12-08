@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import SpaceList from "./components/SpaceList";
 import ItemList from "./components/ItemList";
+import { DndProvider, useDrop } from "react-dnd"; // Added `useDrop` here
+import ParentContainer from './components/ParentContainer'; // Adjust path if needed
+
+
 
 const App = () => {
   const [spaces, setSpaces] = useState([]);
@@ -85,9 +87,52 @@ const App = () => {
       console.error("Error adding space:", error);
     }
   };
+  
+  // Test Drop Zone for verifying drag-and-drop functionality
+  const TestDropZone = () => {
+    const [droppedItems, setDroppedItems] = useState([]); // State to store dropped items
+  
+    const [, drop] = useDrop({
+      accept: "ITEM",
+      drop: (item) => {
+        console.log("Item dropped into test zone:", item);
+        setDroppedItems((prev) => [...prev, item]); // Add dropped item to the list
+      },
+    });
+  
+    return (
+      <div
+        ref={drop}
+        style={{
+          border: "2px dashed red",
+          height: "150px",
+          margin: "20px 0",
+          textAlign: "center",
+          padding: "10px",
+          backgroundColor: "#f0f0f0",
+          overflow: "auto",
+        }}
+      >
+        <div style={{ marginBottom: "10px", fontWeight: "bold" }}>Drop here</div>
+        {droppedItems.length === 0 ? (
+          <div style={{ color: "#999" }}>No items dropped yet</div>
+        ) : (
+          <ul style={{ listStyleType: "none", padding: 0 }}>
+            {droppedItems.map((item, index) => (
+              <li key={index} style={{ padding: "5px", backgroundColor: "#ffd", marginBottom: "5px" }}>
+                {`Item ID: ${item.id}`}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  };
+  
 
   // Handle dragging and dropping
   const handleDrop = async (draggedItemId, targetSpaceId, type) => {
+    console.log(`handleDrop triggered: itemId=${draggedItemId}, spaceId=${targetSpaceId}, type=${type}`);
     try {
       if (type === "item") {
         const response = await fetch(
@@ -98,14 +143,14 @@ const App = () => {
             body: JSON.stringify({ new_space_id: targetSpaceId }),
           }
         );
-
+  
         if (!response.ok) throw new Error("Failed to move item.");
       } else if (type === "space") {
         if (draggedItemId === targetSpaceId) {
           console.error("Cannot drop a space into itself.");
           return;
         }
-
+  
         const response = await fetch(
           `http://localhost:8000/spaces/${draggedItemId}/parent`,
           {
@@ -114,10 +159,10 @@ const App = () => {
             body: JSON.stringify({ new_parent_id: targetSpaceId }),
           }
         );
-
+  
         if (!response.ok) throw new Error("Failed to move space.");
       }
-
+  
       // Refresh spaces and items after a successful drop
       fetchSpacesAndItems();
       console.log(`Dragged: ${draggedItemId}, Target: ${targetSpaceId}, Type: ${type}`);
@@ -125,12 +170,13 @@ const App = () => {
       console.error("Error during drop:", error);
     }
   };
+  
 
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="app-container">
         <h1 className="app-title">Spaces and Items</h1>
-
+  
         {/* Form to add a new item */}
         <div className="form-container">
           <h3>Add a New Item</h3>
@@ -147,7 +193,7 @@ const App = () => {
           />
           <button onClick={handleAddItem}>Add Item</button>
         </div>
-
+  
         {/* Form to add a new space */}
         <div className="form-container">
           <h3>Add a New Space</h3>
@@ -170,11 +216,18 @@ const App = () => {
           </select>
           <button onClick={handleAddSpace}>Add Space</button>
         </div>
-
+  
+        {/* Test Drop Zone */}
+        <TestDropZone />
+  
         {/* Main content */}
         <div className="content-container">
           <div className="space-section">
-            <SpaceList spaces={spaces} items={items} onDrop={handleDrop} />
+            <ParentContainer
+              spaces={spaces}
+              items={items}
+              onDrop={handleDrop}
+            />
           </div>
           <div className="item-section">
             <h2 className="section-title">Unassigned Items</h2>
@@ -184,9 +237,10 @@ const App = () => {
             />
           </div>
         </div>
+
       </div>
     </DndProvider>
   );
-};
+};  
 
 export default App;
