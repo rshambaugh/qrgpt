@@ -19,25 +19,21 @@ const App = () => {
       const responseItems = await fetch("http://localhost:8000/items/");
       const spacesData = await responseSpaces.json();
       const itemsData = await responseItems.json();
-  
-      console.log("Spaces data fetched:", spacesData);
+
+      console.log("Spaces data fetched:", spacesData.spaces || []);
       console.log("Items data fetched:", itemsData);
-  
-      setSpaces(spacesData);
+
+      setSpaces(spacesData.spaces || []); // Adjust to match API response
       setItems(itemsData);
     } catch (error) {
       console.error("Error fetching spaces and items:", error);
     }
-  };  
-  
+  };
+
+  // Fetch data on component mount
   useEffect(() => {
     fetchSpacesAndItems();
   }, []);
-
-  useEffect(() => {
-    console.log("Spaces data:", spaces);
-}, [spaces]);
-  
 
   // Handle adding a new item
   const handleAddItem = async () => {
@@ -46,19 +42,23 @@ const App = () => {
       return;
     }
 
-    await fetch("http://localhost:8000/items/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: newItemName,
-        description: newItemDescription,
-        space_id: null, // Unassigned by default
-      }),
-    });
+    try {
+      await fetch("http://localhost:8000/items/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newItemName,
+          description: newItemDescription,
+          space_id: null, // Unassigned by default
+        }),
+      });
 
-    setNewItemName("");
-    setNewItemDescription("");
-    fetchSpacesAndItems(); // Refresh data
+      setNewItemName("");
+      setNewItemDescription("");
+      fetchSpacesAndItems(); // Refresh data
+    } catch (error) {
+      console.error("Error adding item:", error);
+    }
   };
 
   // Handle adding a new space
@@ -68,64 +68,65 @@ const App = () => {
       return;
     }
 
-    await fetch("http://localhost:8000/spaces/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: newSpaceName,
-        parent_id: newSpaceParentId,
-      }),
-    });
+    try {
+      await fetch("http://localhost:8000/spaces/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newSpaceName,
+          parent_id: newSpaceParentId,
+        }),
+      });
 
-    setNewSpaceName("");
-    setNewSpaceParentId(null);
-    fetchSpacesAndItems(); // Refresh data
+      setNewSpaceName("");
+      setNewSpaceParentId(null);
+      fetchSpacesAndItems(); // Refresh data
+    } catch (error) {
+      console.error("Error adding space:", error);
+    }
   };
 
+  // Handle dragging and dropping
   const handleDrop = async (draggedItemId, targetSpaceId, type) => {
     try {
-      if (type === "item") {
+      if (type === 'item') {
         const response = await fetch(
           `http://localhost:8000/items/${draggedItemId}/space`,
           {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ new_space_id: targetSpaceId }),
           }
         );
   
-        if (!response.ok) {
-          throw new Error("Failed to move item.");
-        }
-      } else if (type === "space") {
+        if (!response.ok) throw new Error('Failed to move item.');
+      } else if (type === 'space') {
         if (draggedItemId === targetSpaceId) {
-          console.error("Cannot drop a space into itself.");
+          console.error('Cannot drop a space into itself.');
           return;
         }
   
         const response = await fetch(
           `http://localhost:8000/spaces/${draggedItemId}/parent`,
           {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ new_parent_id: targetSpaceId }),
           }
         );
   
-        if (!response.ok) {
-          throw new Error("Failed to move space.");
-        }
+        if (!response.ok) throw new Error('Failed to move space.');
       }
   
-      // Refresh data after drop
+      // Refresh spaces and items after a successful drop
       fetchSpacesAndItems();
     } catch (error) {
-      console.error("Error during drop:", error);
+      console.error('Error during drop:', error);
     }
   };
   
-
-
+  <SpaceList spaces={spaces} items={items} onDrop={handleDrop} />;
+  
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="app-container">
@@ -179,10 +180,9 @@ const App = () => {
           <div className="item-section">
             <h2 className="section-title">Unassigned Items</h2>
             <ItemList
-                items={items.filter((item) => item.space_id === null)} // Ensure correct filtering for unassigned items
-                onDrop={(id, spaceId) => handleDrop(id, spaceId, "item")}
-        />
-
+              items={items.filter((item) => item.space_id === null)} // Ensure correct filtering for unassigned items
+              onDrop={(id, spaceId) => handleDrop(id, spaceId, "item")}
+            />
           </div>
         </div>
       </div>

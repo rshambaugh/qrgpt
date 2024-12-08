@@ -5,9 +5,11 @@ from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import MetaData, Table, Column, Integer, String, ForeignKey, select
-from sqlalchemy.sql import func
+from sqlalchemy.sql import text
+from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
 import os
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +28,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize logging
+logger = logging.getLogger("uvicorn.error")
 
 # Database setup
 metadata = MetaData()
@@ -51,6 +56,7 @@ items_table = Table(
 engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
+# Models
 class ItemCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -61,7 +67,7 @@ class SpaceCreate(BaseModel):
     parent_id: Optional[int] = None
 
 class UpdateParentRequest(BaseModel):
-    new_parent_id: int
+    new_parent_id: Optional[int]  # Allow None (null) values
 
 class UpdateSpaceRequest(BaseModel):
     new_space_id: int
@@ -86,6 +92,7 @@ class Space(BaseModel):
     class Config:
         orm_mode = True
 
+# Dependency for database session
 async def get_db():
     async with async_session() as session:
         yield session
@@ -104,33 +111,30 @@ async def get_spaces(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(spaces_table))
     return result.mappings().all()
 
-@app.get("/spaces-recursive/", response_model=List[Space])
+@app.get("/spaces-recursive")
 async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
-    async def fetch_recursive(parent_id=None):
-        result = await db.execute(
-            select(spaces_table).where(spaces_table.c.parent_id == parent_id)
-        )
-        spaces = result.fetchall()
-        space_data = []
-        for space in spaces:
-            children = await fetch_recursive(space.id)  # Recursive call
-            items_result = await db.execute(
-                select(items_table).where(items_table.c.space_id == space.id)
-            )
-            items = items_result.fetchall()
-            space_data.append({
-                "id": space.id,
-                "name": space.name,
-                "parent_id": space.parent_id,
-                "depth": space.depth,
-                "children": children,
-                "items": [{"id": item.id, "name": item.name, "description": item.description} for item in items],
-            })
-        return space_data
-
-    return await fetch_recursive()
-
-
+    query = text("""
+    WITH RECURSIVE space_hierarchy AS (
+        SELECT id, name, parent_id, depth
+        FROM spaces
+        WHERE parent_id IS NULL
+        UNION ALL
+        SELECT s.id, s.name, s.parent_id, s.depth
+        FROM spaces s
+        INNER JOIN space_hierarchy sh ON s.parent_id = sh.id
+    )
+    SELECT * FROM space_hierarchy ORDER BY depth, id;
+    """)
+    try:
+        result = await db.execute(query)
+        rows = result.mappings().all()
+        if not rows:
+            logger.info("No spaces found in recursive query.")
+            return {"spaces": []}
+        return {"spaces": rows}
+    except Exception as e:
+        logger.error(f"Error executing recursive query for spaces: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch spaces. Please try again later.")
 
 @app.post("/spaces/", response_model=Space)
 async def create_space(space: SpaceCreate, db: AsyncSession = Depends(get_db)):
@@ -145,34 +149,42 @@ async def update_space_parent(
     update_request: UpdateParentRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    stmt = spaces_table.update().where(spaces_table.c.id == space_id).values(parent_id=update_request.new_parent_id)
-    result = await db.execute(stmt)
-    await db.commit()
-
-    if result.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Space not found")
-
-    # Update depths for all descendants
-    await db.execute(
-        """
-        WITH RECURSIVE updated_spaces AS (
-            SELECT id, parent_id, depth
-            FROM spaces
-            WHERE id = :space_id
-            UNION ALL
-            SELECT s.id, s.parent_id, us.depth + 1
-            FROM spaces s
-            JOIN updated_spaces us ON s.parent_id = us.id
+    try:
+        # Allow parent_id to be set to None
+        stmt = spaces_table.update().where(spaces_table.c.id == space_id).values(
+            parent_id=update_request.new_parent_id
         )
-        UPDATE spaces
-        SET depth = updated_spaces.depth
-        FROM updated_spaces
-        WHERE spaces.id = updated_spaces.id
-        """,
-        {"space_id": space_id}
-    )
-    await db.commit()
-    return {"message": "Space parent updated"}
+        result = await db.execute(stmt)
+        await db.commit()
+
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Space not found")
+
+        # Update depths for all descendants
+        await db.execute(
+            text("""
+                WITH RECURSIVE updated_spaces AS (
+                    SELECT id, parent_id, depth
+                    FROM spaces
+                    WHERE id = :space_id
+                    UNION ALL
+                    SELECT s.id, s.parent_id, us.depth + 1
+                    FROM spaces s
+                    JOIN updated_spaces us ON s.parent_id = us.id
+                )
+                UPDATE spaces
+                SET depth = updated_spaces.depth
+                FROM updated_spaces
+                WHERE spaces.id = updated_spaces.id
+            """),
+            {"space_id": space_id}
+        )
+        await db.commit()
+        return {"message": "Space parent updated"}
+    except Exception as e:
+        logger.error(f"Error updating space parent: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update space parent.")
+
 
 
 @app.delete("/spaces/{space_id}", response_model=dict)
@@ -207,35 +219,3 @@ async def delete_item(item_id: int, db: AsyncSession = Depends(get_db)):
     await db.execute(stmt)
     await db.commit()
     return {"message": f"Item with ID {item_id} deleted"}
-
-@app.put("/spaces/{space_id}/parent", response_model=dict)
-async def update_space_parent(
-    space_id: int,
-    update_request: UpdateSpaceRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    stmt = spaces_table.update().where(spaces_table.c.id == space_id).values(parent_id=update_request.new_parent_id)
-    await db.execute(stmt)
-    await db.commit()
-
-    # Update depths for all descendants
-    await db.execute(
-        """
-        WITH RECURSIVE updated_spaces AS (
-            SELECT id, parent_id, depth
-            FROM spaces
-            WHERE id = :space_id
-            UNION ALL
-            SELECT s.id, s.parent_id, us.depth + 1
-            FROM spaces s
-            JOIN updated_spaces us ON s.parent_id = us.id
-        )
-        UPDATE spaces
-        SET depth = updated_spaces.depth
-        FROM updated_spaces
-        WHERE spaces.id = updated_spaces.id
-        """,
-        {"space_id": space_id},
-    )
-    await db.commit()
-    return {"message": "Space parent updated and depths recalculated"}
