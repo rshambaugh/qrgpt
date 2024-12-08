@@ -1,33 +1,21 @@
-import React, { useState } from 'react';
-import { useDrag, useDrop } from 'react-dnd';
+import React, { useState } from "react";
+import { useDrop } from "react-dnd";
+import Item from "./Item"; // Import the Item component
 
-const Space = ({ space, items, children, onDrop }) => {
-  const [collapsed, setCollapsed] = useState(false); // State to manage collapsing
+const Space = ({ space, items, onDrop }) => {
+  const [collapsed, setCollapsed] = useState(false);
 
-  const toggleCollapse = () => {
-    setCollapsed(!collapsed);
-  };
+  const toggleCollapse = () => setCollapsed(!collapsed);
 
-  // Drag functionality for spaces
-  const [{ isDragging }, drag] = useDrag({
-    type: 'SPACE',
-    item: { id: space.id, type: 'SPACE' },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  // Drop functionality for spaces and items
   const [{ isOver, canDrop }, drop] = useDrop({
-    accept: ['ITEM', 'SPACE'],
-    drop: (draggedItem) => {
-      if (draggedItem.type === 'ITEM') {
-        onDrop(draggedItem.id, space.id, 'item');
-      } else if (draggedItem.type === 'SPACE' && draggedItem.id !== space.id) {
-        onDrop(draggedItem.id, space.id, 'space');
+    accept: "ITEM",
+    canDrop: (draggedItem) => draggedItem.space_id !== space.id, // Prevent dropping into the same space
+    drop: (draggedItem, monitor) => {
+      if (!monitor.didDrop()) {
+        console.log(`Item dropped: ${draggedItem.id} on space: ${space.id}`);
+        onDrop(draggedItem.id, space.id, "item");
       }
     },
-    canDrop: (draggedItem) => draggedItem.type !== 'SPACE' || draggedItem.id !== space.id,
     collect: (monitor) => ({
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
@@ -36,56 +24,30 @@ const Space = ({ space, items, children, onDrop }) => {
 
   return (
     <div
-      ref={drag(drop())} // Combine drag and drop refs
-      className={`space ${isOver && canDrop ? 'space-hover' : ''}`}
+      ref={drop}
+      className="space"
       style={{
-        opacity: isDragging ? 0.5 : 1,
-        cursor: 'move',
-        border: isOver && canDrop ? '2px dashed #007bff' : '1px solid #ddd',
-        padding: '10px',
-        backgroundColor: '#f9f9f9',
-        marginBottom: '10px',
+        border: isOver ? "2px dashed green" : "1px solid gray",
+        backgroundColor: isOver && canDrop ? "#e0ffe0" : "#f9f9f9",
+        marginBottom: "10px",
+        padding: "10px",
+        transition: "background-color 0.3s ease",
       }}
     >
       <div className="space-header">
         <span
           onClick={toggleCollapse}
-          style={{
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            marginRight: '5px',
-            color: '#007bff',
-          }}
+          style={{ cursor: "pointer", fontWeight: "bold" }}
         >
-          {collapsed ? '+ ' : '- '}
+          {collapsed ? "+" : "-"} {space.name}
         </span>
-        <span style={{ fontWeight: 'bold' }}>{space.name}</span>
       </div>
-
-      {/* Render children and items if not collapsed */}
       {!collapsed && (
-        <>
-          <div className="space-children" style={{ marginTop: '10px' }}>
-            {children}
-          </div>
-          <div className="space-items" style={{ marginTop: '10px' }}>
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="item"
-                style={{
-                  padding: '8px',
-                  backgroundColor: '#ffc107',
-                  marginBottom: '5px',
-                  borderRadius: '5px',
-                  cursor: 'move',
-                }}
-              >
-                {item.name}
-              </div>
-            ))}
-          </div>
-        </>
+        <div>
+          {items.map((item) => (
+            <Item key={item.id} item={item} />
+          ))}
+        </div>
       )}
     </div>
   );

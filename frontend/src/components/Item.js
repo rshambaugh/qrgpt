@@ -1,10 +1,10 @@
-import React from 'react';
-import { useDrag } from 'react-dnd';
+import React from "react";
+import { useDrag } from "react-dnd";
 
 const Item = ({ item }) => {
   const [{ isDragging }, drag] = useDrag({
-    type: 'ITEM',
-    item: { id: item.id, type: 'ITEM' },
+    type: "ITEM",
+    item: { id: item.id, space_id: item.space_id }, // Ensure space_id is included
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -13,14 +13,14 @@ const Item = ({ item }) => {
   return (
     <div
       ref={drag}
-      className="item"
       style={{
         opacity: isDragging ? 0.5 : 1,
-        cursor: 'move',
-        padding: '8px',
-        backgroundColor: '#ffc107',
-        marginBottom: '5px',
-        borderRadius: '5px',
+        padding: "8px",
+        margin: "5px",
+        backgroundColor: "#fff",
+        border: "1px solid #ddd",
+        borderRadius: "4px",
+        cursor: "move",
       }}
     >
       {item.name}
