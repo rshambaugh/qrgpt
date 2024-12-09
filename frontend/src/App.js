@@ -3,7 +3,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { DndProvider } from "react-dnd";
 import ItemList from "./components/ItemList";
 import ParentContainer from "./components/ParentContainer";
-import Space from './components/Space'; // Adjust the path if needed
+import Space from './components/Space';
 
 
 const App = () => {
