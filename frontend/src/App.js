@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { HTML5Backend } from "react-dnd-html5-backend";
+import { DndProvider } from "react-dnd";
 import ItemList from "./components/ItemList";
-import { DndProvider, useDrop } from "react-dnd"; // Added `useDrop` here
-import ParentContainer from './components/ParentContainer'; // Adjust path if needed
-
+import ParentContainer from "./components/ParentContainer";
+import Space from './components/Space'; // Adjust the path if needed
 
 
 const App = () => {
-  const [spaces, setSpaces] = useState([]);
-  const [items, setItems] = useState([]);
+  const [spaces, setSpaces] = useState([]); // Holds top-level spaces
+  const [items, setItems] = useState([]); // Unassigned items or for search
+  const [filteredSpaces, setFilteredSpaces] = useState([]); // Filtered spaces by search term
+  const [searchTerm, setSearchTerm] = useState(""); // User's search input
   const [newItemName, setNewItemName] = useState("");
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newSpaceName, setNewSpaceName] = useState("");
   const [newSpaceParentId, setNewSpaceParentId] = useState(null);
 
-  // Function to fetch spaces and items
+  // Function to fetch top-level spaces and unassigned items
   const fetchSpacesAndItems = async () => {
     try {
       const responseSpaces = await fetch("http://localhost:8000/spaces-recursive/");
@@ -25,7 +27,8 @@ const App = () => {
       console.log("Spaces data fetched:", spacesData.spaces || []);
       console.log("Items data fetched:", itemsData);
 
-      setSpaces(spacesData.spaces || []); // Adjust to match API response
+      setSpaces(spacesData.spaces || []);
+      setFilteredSpaces(spacesData.spaces || []); // Start with all spaces visible
       setItems(itemsData);
     } catch (error) {
       console.error("Error fetching spaces and items:", error);
@@ -36,6 +39,19 @@ const App = () => {
   useEffect(() => {
     fetchSpacesAndItems();
   }, []);
+
+  // Filter spaces based on search term
+  useEffect(() => {
+    if (searchTerm.trim() === "") {
+      setFilteredSpaces(spaces); // Reset to all spaces if no search term
+    } else {
+      const lowercasedTerm = searchTerm.toLowerCase();
+      const filtered = spaces.filter((space) => 
+        space.name.toLowerCase().includes(lowercasedTerm)
+      );
+      setFilteredSpaces(filtered);
+    }
+  }, [searchTerm, spaces]);
 
   // Handle adding a new item
   const handleAddItem = async () => {
@@ -87,96 +103,70 @@ const App = () => {
       console.error("Error adding space:", error);
     }
   };
-  
-  // Test Drop Zone for verifying drag-and-drop functionality
-  const TestDropZone = () => {
-    const [droppedItems, setDroppedItems] = useState([]); // State to store dropped items
-  
-    const [, drop] = useDrop({
-      accept: "ITEM",
-      drop: (item) => {
-        console.log("Item dropped into test zone:", item);
-        setDroppedItems((prev) => [...prev, item]); // Add dropped item to the list
-      },
-    });
-  
-    return (
-      <div
-        ref={drop}
-        style={{
-          border: "2px dashed red",
-          height: "150px",
-          margin: "20px 0",
-          textAlign: "center",
-          padding: "10px",
-          backgroundColor: "#f0f0f0",
-          overflow: "auto",
-        }}
-      >
-        <div style={{ marginBottom: "10px", fontWeight: "bold" }}>Drop here</div>
-        {droppedItems.length === 0 ? (
-          <div style={{ color: "#999" }}>No items dropped yet</div>
-        ) : (
-          <ul style={{ listStyleType: "none", padding: 0 }}>
-            {droppedItems.map((item, index) => (
-              <li key={index} style={{ padding: "5px", backgroundColor: "#ffd", marginBottom: "5px" }}>
-                {`Item ID: ${item.id}`}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    );
-  };
-  
 
   // Handle dragging and dropping
   const handleDrop = async (draggedItemId, targetSpaceId, type) => {
-    console.log(`handleDrop triggered: itemId=${draggedItemId}, spaceId=${targetSpaceId}, type=${type}`);
+    console.log(
+      `handleDrop triggered: itemId=${draggedItemId}, spaceId=${targetSpaceId}, type=${type}`
+    );
     try {
-      if (type === "item") {
+      if (type === 'item') {
         const response = await fetch(
           `http://localhost:8000/items/${draggedItemId}/space`,
           {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ new_space_id: targetSpaceId }),
           }
         );
   
-        if (!response.ok) throw new Error("Failed to move item.");
-      } else if (type === "space") {
+        if (!response.ok) throw new Error('Failed to move item.');
+      } else if (type === 'space') {
         if (draggedItemId === targetSpaceId) {
-          console.error("Cannot drop a space into itself.");
+          console.error('Cannot drop a space into itself.');
           return;
         }
   
         const response = await fetch(
           `http://localhost:8000/spaces/${draggedItemId}/parent`,
           {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ new_parent_id: targetSpaceId }),
           }
         );
   
-        if (!response.ok) throw new Error("Failed to move space.");
+        if (!response.ok) throw new Error('Failed to move space.');
       }
   
       // Refresh spaces and items after a successful drop
       fetchSpacesAndItems();
-      console.log(`Dragged: ${draggedItemId}, Target: ${targetSpaceId}, Type: ${type}`);
+      console.log(
+        `Dragged: ${draggedItemId}, Target: ${targetSpaceId}, Type: ${type}`
+      );
     } catch (error) {
-      console.error("Error during drop:", error);
+      console.error('Error during drop:', error);
     }
   };
   
-
+  
+  
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="app-container">
         <h1 className="app-title">Spaces and Items</h1>
-  
+
+        {/* Search Bar */}
+        <div className="search-bar-container">
+          <input
+            type="text"
+            placeholder="Search for spaces..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: "100%", padding: "10px", marginBottom: "20px" }}
+          />
+        </div>
+
         {/* Form to add a new item */}
         <div className="form-container">
           <h3>Add a New Item</h3>
@@ -193,7 +183,7 @@ const App = () => {
           />
           <button onClick={handleAddItem}>Add Item</button>
         </div>
-  
+
         {/* Form to add a new space */}
         <div className="form-container">
           <h3>Add a New Space</h3>
@@ -209,22 +199,22 @@ const App = () => {
           >
             <option value="">No Parent</option>
             {spaces.map((space) => (
-              <option key={space.id} value={space.id}>
-                {space.name}
-              </option>
+              <Space
+                key={space.id} // Ensure `key` is unique
+                space={space}
+                items={items.filter((item) => item.space_id === space.id)}
+                onDrop={onDrop}
+              />
             ))}
           </select>
           <button onClick={handleAddSpace}>Add Space</button>
         </div>
-  
-        {/* Test Drop Zone */}
-        <TestDropZone />
-  
+
         {/* Main content */}
         <div className="content-container">
           <div className="space-section">
             <ParentContainer
-              spaces={spaces}
+              spaces={filteredSpaces} // Use filtered spaces for search functionality
               items={items}
               onDrop={handleDrop}
             />
@@ -237,10 +227,9 @@ const App = () => {
             />
           </div>
         </div>
-
       </div>
     </DndProvider>
   );
-};  
+};
 
 export default App;

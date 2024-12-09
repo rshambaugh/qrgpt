@@ -106,10 +106,18 @@ async def startup():
 async def shutdown():
     await engine.dispose()
 
-@app.get("/spaces/", response_model=List[Space])
-async def get_spaces(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(spaces_table))
-    return result.mappings().all()
+@app.get("/spaces/{space_id}")
+async def get_space(space_id: int):
+    # Replace this with actual database call
+    space_data = {
+        "id": space_id,
+        "name": f"Space {space_id}",
+        "children": [{"id": space_id + 1, "name": f"Child Space {space_id + 1}"}],
+        "items": [{"id": 101, "name": "Item A"}, {"id": 102, "name": "Item B"}],
+    }
+    return space_data
+
+
 
 @app.get("/spaces-recursive")
 async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
