@@ -4,11 +4,12 @@ import { useDrag } from "react-dnd";
 const Item = ({ item }) => {
   const [{ isDragging }, drag] = useDrag({
     type: "ITEM",
-    item: { id: item.id, space_id: item.space_id }, // Ensure space_id is included
+    item: { id: item.id }, // Ensure this is accurate
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   });
+
 
   return (
     <div

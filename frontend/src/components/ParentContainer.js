@@ -1,6 +1,6 @@
 import React from "react";
 import { useDrop } from "react-dnd";
-import Space from "./Space"; // Adjust this import if needed
+import Space from "./Space";
 
 const ParentContainer = ({ spaces, items, onDrop }) => {
   const [{ isOver }, drop] = useDrop({
@@ -26,8 +26,10 @@ const ParentContainer = ({ spaces, items, onDrop }) => {
           space={space}
           items={items.filter((item) => item.space_id === space.id)}
           onDrop={onDrop}
+          children={space.children || []} // Pass children to the Space component
         />
       ))}
+
     </div>
   );
 };
