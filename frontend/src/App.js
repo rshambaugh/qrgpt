@@ -27,16 +27,18 @@ const App = () => {
   
       console.log("Fetched spaces:", spacesData.spaces);
       console.log("Fetched items:", itemsData);
-  
+
       setSpaces(spacesData.spaces || []);
       setItems(itemsData || []);
+      console.log("Updated spaces after fetch:", spacesData.spaces);
+
     } catch (error) {
       console.error("Error fetching spaces and items:", error);
     } finally {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     fetchSpacesAndItems();
   }, []);
@@ -94,27 +96,32 @@ const App = () => {
     }
   };
 
-  const handleDrop = async (draggedItemId, targetSpaceId, type) => {
-    console.log("Handling drop:", { draggedItemId, targetSpaceId, type });
-    try {
-      if (type === "item") {
-        await fetch(`http://localhost:8000/items/${draggedItemId}/space`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ new_space_id: targetSpaceId }),
-        });
-      } else if (type === "space") {
-        await fetch(`http://localhost:8000/spaces/${draggedItemId}/parent`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ new_parent_id: targetSpaceId }),
-        });
-      }
-      fetchSpacesAndItems();
-    } catch (error) {
-      console.error("Error during drop:", error);
-    }
-  };
+  function handleDrop(draggedItemId, targetSpaceId) {
+    console.log("Handling drop:", { draggedItemId, targetSpaceId });
+    
+    fetch(`http://localhost:8000/spaces/${draggedItemId}/parent`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        new_parent_id: targetSpaceId,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Drop successful:", data);
+      })
+      .catch((error) => {
+        console.error("Error during drop:", error);
+      });
+  }
+  
   
 
   return (

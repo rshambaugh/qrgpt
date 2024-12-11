@@ -218,6 +218,13 @@ async def update_space_parent(
     db: AsyncSession = Depends(get_db)
 ):
     try:
+        # Validate new_parent_id exists
+        if update_request.new_parent_id is not None:
+            validate_parent_query = select(spaces_table.c.id).where(spaces_table.c.id == update_request.new_parent_id)
+            validate_parent_result = await db.execute(validate_parent_query)
+            if not validate_parent_result.fetchone():
+                raise HTTPException(status_code=404, detail="New parent space not found")
+
         stmt = spaces_table.update().where(spaces_table.c.id == space_id).values(
             parent_id=update_request.new_parent_id
         )
