@@ -1,7 +1,7 @@
 import React from "react";
-import { useDrag, useDrop } from "react-dnd";
+import { useDrag, useDrop } from "react-dnd"; // Import useDrag and useDrop from react-dnd
 
-const Space = ({ space, items, onDrop }) => {
+const Space = ({ space, items, onDrop, viewSpace }) => {
   const [{ isDragging }, drag] = useDrag({
     type: "SPACE",
     item: { id: space.id },
@@ -17,7 +17,7 @@ const Space = ({ space, items, onDrop }) => {
         onDrop(draggedItem.id, space.id, monitor.getItemType());
       }
     },
-    canDrop: (draggedItem) => draggedItem.id !== space.id, // Prevent dropping on itself
+    canDrop: (draggedItem) => draggedItem.id !== space.id,
     collect: (monitor) => ({
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
@@ -37,11 +37,12 @@ const Space = ({ space, items, onDrop }) => {
         width: "200px",
         marginBottom: "10px",
         textAlign: "center",
+        cursor: "pointer",
       }}
+      onClick={() => viewSpace(space.id)} // Trigger viewSpace on click
     >
       <h4>{space.name}</h4>
 
-      {/* Render items directly under this space */}
       <div style={{ marginTop: "10px" }}>
         {items.map((item) => (
           <div
@@ -58,20 +59,6 @@ const Space = ({ space, items, onDrop }) => {
           </div>
         ))}
       </div>
-
-      {/* Render child spaces recursively */}
-      {space.children && space.children.length > 0 && (
-        <div style={{ marginTop: "15px", paddingLeft: "20px" }}>
-          {space.children.map((childSpace) => (
-            <Space
-              key={childSpace.id}
-              space={childSpace}
-              items={items.filter((item) => item.space_id === childSpace.id)}
-              onDrop={onDrop}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 };
