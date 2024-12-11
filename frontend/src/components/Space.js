@@ -1,7 +1,7 @@
 import React from "react";
 import { useDrag, useDrop } from "react-dnd";
 
-const Space = ({ space, items, onDrop, children = [] }) => {
+const Space = ({ space, items, onDrop }) => {
   const [{ isDragging }, drag] = useDrag({
     type: "SPACE",
     item: { id: space.id },
@@ -41,7 +41,7 @@ const Space = ({ space, items, onDrop, children = [] }) => {
     >
       <h4>{space.name}</h4>
 
-      {/* Render items in this space */}
+      {/* Render items directly under this space */}
       <div style={{ marginTop: "10px" }}>
         {items.map((item) => (
           <div
@@ -50,6 +50,7 @@ const Space = ({ space, items, onDrop, children = [] }) => {
               margin: "5px 0",
               padding: "5px",
               backgroundColor: "#ffc",
+              borderRadius: "4px",
               cursor: "grab",
             }}
           >
@@ -58,16 +59,15 @@ const Space = ({ space, items, onDrop, children = [] }) => {
         ))}
       </div>
 
-      {/* Render child spaces */}
-      {children.length > 0 && (
-        <div style={{ marginTop: "15px" }}>
-          {children.map((childSpace) => (
+      {/* Render child spaces recursively */}
+      {space.children && space.children.length > 0 && (
+        <div style={{ marginTop: "15px", paddingLeft: "20px" }}>
+          {space.children.map((childSpace) => (
             <Space
               key={childSpace.id}
               space={childSpace}
               items={items.filter((item) => item.space_id === childSpace.id)}
               onDrop={onDrop}
-              children={childSpace.children || []} // Pass down children recursively
             />
           ))}
         </div>
