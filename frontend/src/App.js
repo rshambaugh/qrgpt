@@ -1,61 +1,52 @@
 import React, { useState, useEffect } from "react";
-import { HTML5Backend } from "react-dnd-html5-backend";
 import { DndProvider } from "react-dnd";
-import ItemList from "./components/ItemList";
-import ParentContainer from "./components/ParentContainer";
-import Space from './components/Space';
-
+import { HTML5Backend } from "react-dnd-html5-backend";
+import ParentContainer from "./components/ParentContainer"; 
+import ItemList from "./components/ItemList"; 
 
 const App = () => {
-  const [spaces, setSpaces] = useState([]); // Holds top-level spaces
-  const [items, setItems] = useState([]); // Unassigned items or for search
-  const [filteredSpaces, setFilteredSpaces] = useState([]); // Filtered spaces by search term
-  const [searchTerm, setSearchTerm] = useState(""); // User's search input
+  const [spaces, setSpaces] = useState([]); 
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [newItemName, setNewItemName] = useState("");
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newSpaceName, setNewSpaceName] = useState("");
   const [newSpaceParentId, setNewSpaceParentId] = useState(null);
 
-  // Function to fetch top-level spaces and unassigned items
   const fetchSpacesAndItems = async () => {
     try {
+      setLoading(true);
       const responseSpaces = await fetch("http://localhost:8000/spaces-recursive/");
       const responseItems = await fetch("http://localhost:8000/items/");
+      
+      if (!responseSpaces.ok) throw new Error(`Spaces fetch failed: ${responseSpaces.statusText}`);
+      if (!responseItems.ok) throw new Error(`Items fetch failed: ${responseItems.statusText}`);
+  
       const spacesData = await responseSpaces.json();
       const itemsData = await responseItems.json();
-
-      console.log("Spaces data fetched:", spacesData.spaces || []);
-      console.log("Items data fetched:", itemsData);
-
+  
+      console.log("Fetched spaces:", spacesData.spaces);
+      console.log("Fetched items:", itemsData);
+  
       setSpaces(spacesData.spaces || []);
-      setFilteredSpaces(spacesData.spaces || []); // Start with all spaces visible
-      setItems(itemsData);
+      setItems(itemsData || []);
     } catch (error) {
       console.error("Error fetching spaces and items:", error);
+    } finally {
+      setLoading(false);
     }
   };
-
-  // Fetch data on component mount
+  
   useEffect(() => {
     fetchSpacesAndItems();
   }, []);
 
-  // Filter spaces based on search term
-  useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setFilteredSpaces(spaces); // Reset to all spaces if no search term
-    } else {
-      const lowercasedTerm = searchTerm.toLowerCase();
-      const filtered = spaces.filter((space) => 
-        space.name.toLowerCase().includes(lowercasedTerm)
-      );
-      setFilteredSpaces(filtered);
-    }
-  }, [searchTerm, spaces]);
+  if (loading) {
+    return <div>Loading...</div>; // Show loading spinner or message
+  }
 
-  // Handle adding a new item
   const handleAddItem = async () => {
-    if (newItemName.trim() === "") {
+    if (!newItemName.trim()) {
       alert("Item name cannot be empty!");
       return;
     }
@@ -67,21 +58,20 @@ const App = () => {
         body: JSON.stringify({
           name: newItemName,
           description: newItemDescription,
-          space_id: null, // Unassigned by default
+          space_id: null,
         }),
       });
 
       setNewItemName("");
       setNewItemDescription("");
-      fetchSpacesAndItems(); // Refresh data
+      fetchSpacesAndItems();
     } catch (error) {
       console.error("Error adding item:", error);
     }
   };
 
-  // Handle adding a new space
   const handleAddSpace = async () => {
-    if (newSpaceName.trim() === "") {
+    if (!newSpaceName.trim()) {
       alert("Space name cannot be empty!");
       return;
     }
@@ -98,76 +88,39 @@ const App = () => {
 
       setNewSpaceName("");
       setNewSpaceParentId(null);
-      fetchSpacesAndItems(); // Refresh data
+      fetchSpacesAndItems();
     } catch (error) {
       console.error("Error adding space:", error);
     }
   };
 
-  // Handle dragging and dropping
   const handleDrop = async (draggedItemId, targetSpaceId, type) => {
-    console.log(
-      `handleDrop triggered: itemId=${draggedItemId}, spaceId=${targetSpaceId}, type=${type}`
-    );
+    console.log("Handling drop:", { draggedItemId, targetSpaceId, type });
     try {
-      if (type === 'item') {
-        const response = await fetch(
-          `http://localhost:8000/items/${draggedItemId}/space`,
-          {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ new_space_id: targetSpaceId }),
-          }
-        );
-  
-        if (!response.ok) throw new Error('Failed to move item.');
-      } else if (type === 'space') {
-        if (draggedItemId === targetSpaceId) {
-          console.error('Cannot drop a space into itself.');
-          return;
-        }
-  
-        const response = await fetch(
-          `http://localhost:8000/spaces/${draggedItemId}/parent`,
-          {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ new_parent_id: targetSpaceId }),
-          }
-        );
-  
-        if (!response.ok) throw new Error('Failed to move space.');
+      if (type === "item") {
+        await fetch(`http://localhost:8000/items/${draggedItemId}/space`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ new_space_id: targetSpaceId }),
+        });
+      } else if (type === "space") {
+        await fetch(`http://localhost:8000/spaces/${draggedItemId}/parent`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ new_parent_id: targetSpaceId }),
+        });
       }
-  
-      // Refresh spaces and items after a successful drop
       fetchSpacesAndItems();
-      console.log(
-        `Dragged: ${draggedItemId}, Target: ${targetSpaceId}, Type: ${type}`
-      );
     } catch (error) {
-      console.error('Error during drop:', error);
+      console.error("Error during drop:", error);
     }
   };
   
-  
-  
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="app-container">
         <h1 className="app-title">Spaces and Items</h1>
-
-        {/* Search Bar */}
-        <div className="search-bar-container">
-          <input
-            type="text"
-            placeholder="Search for spaces..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: "100%", padding: "10px", marginBottom: "20px" }}
-          />
-        </div>
-
-        {/* Form to add a new item */}
         <div className="form-container">
           <h3>Add a New Item</h3>
           <input
@@ -184,7 +137,6 @@ const App = () => {
           <button onClick={handleAddItem}>Add Item</button>
         </div>
 
-        {/* Form to add a new space */}
         <div className="form-container">
           <h3>Add a New Space</h3>
           <input
@@ -199,33 +151,24 @@ const App = () => {
           >
             <option value="">No Parent</option>
             {spaces.map((space) => (
-              <Space
-                key={space.id} // Ensure `key` is unique
-                space={space}
-                items={items.filter((item) => item.space_id === space.id)}
-                onDrop={onDrop}
-              />
+              <option key={space.id} value={space.id}>
+                {space.name}
+              </option>
             ))}
           </select>
           <button onClick={handleAddSpace}>Add Space</button>
         </div>
 
-        {/* Main content */}
         <div className="content-container">
-          <div className="space-section">
-            <ParentContainer
-              spaces={filteredSpaces} // Use filtered spaces for search functionality
-              items={items}
-              onDrop={handleDrop}
-            />
-          </div>
-          <div className="item-section">
-            <h2 className="section-title">Unassigned Items</h2>
-            <ItemList
-              items={items.filter((item) => item.space_id === null)} // Ensure correct filtering for unassigned items
-              onDrop={(id, spaceId) => handleDrop(id, spaceId, "item")}
-            />
-          </div>
+          <ParentContainer
+            spaces={spaces}
+            items={items}
+            onDrop={handleDrop}
+          />
+          <ItemList
+            items={items.filter((item) => item.space_id === null)}
+            onDrop={(id, spaceId) => handleDrop(id, spaceId, "item")}
+          />
         </div>
       </div>
     </DndProvider>

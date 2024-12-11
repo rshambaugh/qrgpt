@@ -67,7 +67,7 @@ class SpaceCreate(BaseModel):
     parent_id: Optional[int] = None
 
 class UpdateParentRequest(BaseModel):
-    new_parent_id: Optional[int]  # Allow None (null) values
+    new_parent_id: Optional[int]
 
 class UpdateSpaceRequest(BaseModel):
     new_space_id: int
@@ -106,18 +106,83 @@ async def startup():
 async def shutdown():
     await engine.dispose()
 
-@app.get("/spaces/{space_id}")
-async def get_space(space_id: int):
-    # Replace this with actual database call
-    space_data = {
-        "id": space_id,
-        "name": f"Space {space_id}",
-        "children": [{"id": space_id + 1, "name": f"Child Space {space_id + 1}"}],
-        "items": [{"id": 101, "name": "Item A"}, {"id": 102, "name": "Item B"}],
-    }
-    return space_data
+@app.get("/items/", response_model=List[Item])
+async def get_items(db: AsyncSession = Depends(get_db)):
+    try:
+        logger.info("Fetching items from database")
+        result = await db.execute(select(items_table))
+        items = result.mappings().all()
+        logger.info(f"Fetched items: {items}")
+        return items
+    except Exception as e:
+        logger.error(f"Error fetching items: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch items.")
+
+@app.post("/items/", response_model=Item)
+async def create_item(item: ItemCreate, db: AsyncSession = Depends(get_db)):
+    try:
+        stmt = items_table.insert().values(
+            name=item.name,
+            description=item.description,
+            space_id=item.space_id
+        ).returning(items_table)
+        result = await db.execute(stmt)
+        await db.commit()
+        created_item = result.fetchone()
+        if not created_item:
+            raise HTTPException(status_code=500, detail="Failed to create item")
+        return created_item
+    except Exception as e:
+        logger.error(f"Error creating item: {e}")
+        raise HTTPException(status_code=500, detail="Error creating item.")
 
 
+@app.post("/spaces/", response_model=Space)
+async def create_space(space: SpaceCreate, db: AsyncSession = Depends(get_db)):
+    try:
+        stmt = spaces_table.insert().values(
+            name=space.name,
+            parent_id=space.parent_id
+        ).returning(spaces_table)
+        result = await db.execute(stmt)
+        await db.commit()
+        created_space = result.fetchone()
+        if not created_space:
+            raise HTTPException(status_code=500, detail="Failed to create space")
+        return created_space
+    except Exception as e:
+        logger.error(f"Error creating space: {e}")
+        raise HTTPException(status_code=500, detail="Error creating space")
+
+
+@app.get("/spaces/{space_id}", response_model=Space)
+async def get_space(space_id: int, db: AsyncSession = Depends(get_db)):
+    try:
+        space_query = select(spaces_table).where(spaces_table.c.id == space_id)
+        space_result = await db.execute(space_query)
+        space = space_result.fetchone()
+        if not space:
+            raise HTTPException(status_code=404, detail="Space not found")
+
+        item_query = select(items_table).where(items_table.c.space_id == space_id)
+        item_result = await db.execute(item_query)
+        items = item_result.mappings().all()
+
+        child_query = select(spaces_table).where(spaces_table.c.parent_id == space_id)
+        child_result = await db.execute(child_query)
+        children = child_result.mappings().all()
+
+        return {
+            "id": space.id,
+            "name": space.name,
+            "parent_id": space.parent_id,
+            "depth": space.depth,
+            "items": items,
+            "children": children,
+        }
+    except SQLAlchemyError as e:
+        logger.error(f"Database error fetching space: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching space.")
 
 @app.get("/spaces-recursive")
 async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
@@ -134,22 +199,17 @@ async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
     SELECT * FROM space_hierarchy ORDER BY depth, id;
     """)
     try:
+        logger.info("Executing recursive spaces query")
         result = await db.execute(query)
         rows = result.mappings().all()
+        logger.info(f"Fetched spaces: {rows}")
         if not rows:
-            logger.info("No spaces found in recursive query.")
             return {"spaces": []}
         return {"spaces": rows}
     except Exception as e:
-        logger.error(f"Error executing recursive query for spaces: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch spaces. Please try again later.")
+        logger.error(f"Error in recursive query: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch spaces.")
 
-@app.post("/spaces/", response_model=Space)
-async def create_space(space: SpaceCreate, db: AsyncSession = Depends(get_db)):
-    stmt = spaces_table.insert().values(name=space.name, parent_id=space.parent_id).returning(spaces_table)
-    result = await db.execute(stmt)
-    await db.commit()
-    return result.fetchone()
 
 @app.put("/spaces/{space_id}/parent", response_model=dict)
 async def update_space_parent(
@@ -158,17 +218,15 @@ async def update_space_parent(
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        # Allow parent_id to be set to None
         stmt = spaces_table.update().where(spaces_table.c.id == space_id).values(
             parent_id=update_request.new_parent_id
         )
         result = await db.execute(stmt)
         await db.commit()
-
         if result.rowcount == 0:
             raise HTTPException(status_code=404, detail="Space not found")
 
-        # Update depths for all descendants
+        # Adjust depth
         await db.execute(
             text("""
                 WITH RECURSIVE updated_spaces AS (
@@ -188,42 +246,7 @@ async def update_space_parent(
             {"space_id": space_id}
         )
         await db.commit()
-        return {"message": "Space parent updated"}
-    except Exception as e:
+        return {"message": "Space parent updated successfully"}
+    except SQLAlchemyError as e:
         logger.error(f"Error updating space parent: {e}")
         raise HTTPException(status_code=500, detail="Failed to update space parent.")
-
-
-
-@app.delete("/spaces/{space_id}", response_model=dict)
-async def delete_space(space_id: int, db: AsyncSession = Depends(get_db)):
-    stmt = spaces_table.delete().where(spaces_table.c.id == space_id)
-    await db.execute(stmt)
-    await db.commit()
-    return {"message": f"Space with ID {space_id} deleted"}
-
-@app.get("/items/", response_model=List[Item])
-async def get_items(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(items_table))
-    return result.mappings().all()
-
-@app.post("/items/", response_model=Item)
-async def create_item(item: ItemCreate, db: AsyncSession = Depends(get_db)):
-    stmt = items_table.insert().values(name=item.name, description=item.description, space_id=item.space_id).returning(items_table)
-    result = await db.execute(stmt)
-    await db.commit()
-    return result.fetchone()
-
-@app.put("/items/{item_id}/space", response_model=dict)
-async def update_item_space(item_id: int, update_request: UpdateSpaceRequest, db: AsyncSession = Depends(get_db)):
-    stmt = items_table.update().where(items_table.c.id == item_id).values(space_id=update_request.new_space_id)
-    await db.execute(stmt)
-    await db.commit()
-    return {"message": "Item moved to new space"}
-
-@app.delete("/items/{item_id}", response_model=dict)
-async def delete_item(item_id: int, db: AsyncSession = Depends(get_db)):
-    stmt = items_table.delete().where(items_table.c.id == item_id)
-    await db.execute(stmt)
-    await db.commit()
-    return {"message": f"Item with ID {item_id} deleted"}
