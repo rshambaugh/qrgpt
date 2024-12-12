@@ -1,10 +1,10 @@
 import React from "react";
-import { useDrag, useDrop } from "react-dnd"; // Import useDrag and useDrop from react-dnd
+import { useDrag, useDrop } from "react-dnd";
 
-const Space = ({ space, items, onDrop, viewSpace }) => {
+function Space({ space, items, onDrop, onSpaceClick, onDeleteItem, onDeleteSpace }) {
   const [{ isDragging }, drag] = useDrag({
     type: "SPACE",
-    item: { id: space.id },
+    item: { id: space.id, type: "SPACE" },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -14,10 +14,19 @@ const Space = ({ space, items, onDrop, viewSpace }) => {
     accept: ["ITEM", "SPACE"],
     drop: (draggedItem, monitor) => {
       if (!monitor.didDrop()) {
-        onDrop(draggedItem.id, space.id, monitor.getItemType());
+        if (draggedItem.type === "item") {
+          onDrop(draggedItem.id, space.id, "item");
+        } else if (draggedItem.type === "SPACE") {
+          onDrop(draggedItem.id, space.id, "space");
+        }
       }
     },
-    canDrop: (draggedItem) => draggedItem.id !== space.id,
+    canDrop: (draggedItem) => {
+      if (draggedItem.type === "SPACE" && draggedItem.id === space.id) {
+        return false;
+      }
+      return true;
+    },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
@@ -37,11 +46,21 @@ const Space = ({ space, items, onDrop, viewSpace }) => {
         width: "200px",
         marginBottom: "10px",
         textAlign: "center",
-        cursor: "pointer",
       }}
-      onClick={() => viewSpace(space.id)} // Trigger viewSpace on click
     >
-      <h4>{space.name}</h4>
+      <h4
+        onClick={() => onSpaceClick && onSpaceClick(space.id)}
+        style={{ cursor: "pointer", margin: 0 }}
+      >
+        {space.name}
+      </h4>
+
+      <button
+        onClick={() => onDeleteSpace && onDeleteSpace(space.id)}
+        style={{ marginTop: "5px", marginBottom: "10px" }}
+      >
+        Delete Space
+      </button>
 
       <div style={{ marginTop: "10px" }}>
         {items.map((item) => (
@@ -52,15 +71,19 @@ const Space = ({ space, items, onDrop, viewSpace }) => {
               padding: "5px",
               backgroundColor: "#ffc",
               borderRadius: "4px",
-              cursor: "grab",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              cursor: "move",
             }}
           >
-            {item.name}
+            <span>{item.name}</span>
+            <button onClick={() => onDeleteItem && onDeleteItem(item.id)}>X</button>
           </div>
         ))}
       </div>
     </div>
   );
-};
+}
 
 export default Space;

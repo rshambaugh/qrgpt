@@ -257,3 +257,18 @@ async def update_space_parent(
     except SQLAlchemyError as e:
         logger.error(f"Error updating space parent: {e}")
         raise HTTPException(status_code=500, detail="Failed to update space parent.")
+
+@app.put("/items/{item_id}/space", response_model=dict)
+async def update_item_space(item_id: int, update_request: UpdateSpaceRequest, db: AsyncSession = Depends(get_db)):
+    # Validate the new space ID if it's not null (optional)
+    validate_space_query = select(spaces_table.c.id).where(spaces_table.c.id == update_request.new_space_id)
+    validate_space_result = await db.execute(validate_space_query)
+    if not validate_space_result.fetchone():
+        raise HTTPException(status_code=404, detail="Target space not found")
+
+    stmt = items_table.update().where(items_table.c.id == item_id).values(space_id=update_request.new_space_id)
+    result = await db.execute(stmt)
+    await db.commit()
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"message": "Item moved to new space"}

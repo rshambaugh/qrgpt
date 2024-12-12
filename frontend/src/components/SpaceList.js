@@ -1,7 +1,4 @@
-import React from 'react';
-import Space from './Space';
-
-const SpaceList = ({ spaces, items, onDrop }) => {
+function SpaceList({ spaces, items, onDrop, onSpaceClick, currentSpaceId }) {
   const renderSpaces = (parentId) =>
     spaces
       .filter((space) => space.parent_id === parentId)
@@ -11,48 +8,30 @@ const SpaceList = ({ spaces, items, onDrop }) => {
           space={space}
           items={items.filter((item) => item.space_id === space.id)}
           onDrop={onDrop}
-        >
-          {renderSpaces(space.id)}
-        </Space>
-      ));
-
-  return <div className="space-list">{renderSpaces(null)}</div>;
-};
-
-export default SpaceList;
-import React, { useState } from 'react';
-import Space from './Space';
-import SpaceView from './SpaceView';
-
-const SpaceList = ({ spaces, items, onDrop }) => {
-  const [currentSpaceId, setCurrentSpaceId] = useState(null);
-
-  const handleViewSpace = (spaceId) => {
-    setCurrentSpaceId(spaceId);
-  };
-
-  const handleBack = () => {
-    setCurrentSpaceId(null);
-  };
-
-  if (currentSpaceId) {
-    return <SpaceView spaceId={currentSpaceId} onBack={handleBack} />;
-  }
-
-  const renderSpaces = (parentId) =>
-    spaces
-      .filter((space) => space.parent_id === parentId)
-      .map((space) => (
-        <Space
-          key={space.id}
-          space={space}
-          items={items.filter((item) => item.space_id === space.id)}
-          onDrop={onDrop}
-          viewSpace={handleViewSpace}
+          onSpaceClick={onSpaceClick}
         />
       ));
 
-  return <div className="space-list">{renderSpaces(null)}</div>;
-};
+  if (currentSpaceId) {
+    // detail mode: show just current space and its children
+    const currentSpace = spaces.find(s => s.id === currentSpaceId);
+    if (!currentSpace) return <div>Space not found</div>;
 
-export default SpaceList;
+    return (
+      <div>
+        <Space
+          space={currentSpace}
+          items={items.filter(i => i.space_id === currentSpaceId)}
+          onDrop={onDrop}
+          onSpaceClick={onSpaceClick}
+        />
+        <div style={{ paddingLeft: "20px" }}>
+          {renderSpaces(currentSpaceId)}
+        </div>
+      </div>
+    );
+  } else {
+    // list mode: show top-level spaces
+    return <div>{renderSpaces(null)}</div>;
+  }
+}
