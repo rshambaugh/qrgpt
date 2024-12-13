@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
+import { FaTrash, FaEdit } from "react-icons/fa";
 
-function Space({ space, items, onDrop, onSpaceClick, onDeleteItem, onDeleteSpace }) {
+function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onSpaceHover }) {
+  const hoverTimeoutRef = useRef(null);
+
   const [{ isDragging }, drag] = useDrag({
     type: "SPACE",
     item: { id: space.id, type: "SPACE" },
@@ -12,9 +15,25 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteItem, onDeleteSpace
 
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: ["ITEM", "SPACE"],
+    hover: (draggedItem, monitor) => {
+      // If we can drop here and not currently pressing mouse button
+      // and we have a hover callback:
+      if (canDrop && monitor.isOver({ shallow: true }) && draggedItem && onSpaceHover) {
+        if (!hoverTimeoutRef.current) {
+          // Set a timer to navigate after delay
+          hoverTimeoutRef.current = setTimeout(() => {
+            onSpaceHover(space.id);
+          }, 1000);
+        }
+      }
+    },
     drop: (draggedItem, monitor) => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
       if (!monitor.didDrop()) {
-        if (draggedItem.type === "item") {
+        if (draggedItem.type === "ITEM") {
           onDrop(draggedItem.id, space.id, "item");
         } else if (draggedItem.type === "SPACE") {
           onDrop(draggedItem.id, space.id, "space");
@@ -31,7 +50,26 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteItem, onDeleteSpace
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
     }),
-  });
+  },
+  );
+
+  // Clear timer if user moves away
+  if (!isOver && hoverTimeoutRef.current) {
+    clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = null;
+  }
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    if (onDeleteSpace) {
+      onDeleteSpace(space.id);
+    }
+  };
+
+  const handleEditClick = (e) => {
+    e.stopPropagation();
+    alert("Edit space not implemented yet!");
+  };
 
   return (
     <div
@@ -46,21 +84,16 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteItem, onDeleteSpace
         width: "200px",
         marginBottom: "10px",
         textAlign: "center",
+        position: "relative"
       }}
+      onClick={() => onSpaceClick && onSpaceClick(space.id)}
     >
-      <h4
-        onClick={() => onSpaceClick && onSpaceClick(space.id)}
-        style={{ cursor: "pointer", margin: 0 }}
-      >
-        {space.name}
-      </h4>
+      <div style={{ position: "absolute", top: "5px", right: "5px", display: "flex", gap: "5px" }}>
+        <FaEdit style={{ cursor: "pointer" }} onClick={handleEditClick} />
+        <FaTrash style={{ cursor: "pointer" }} onClick={handleDeleteClick} />
+      </div>
 
-      <button
-        onClick={() => onDeleteSpace && onDeleteSpace(space.id)}
-        style={{ marginTop: "5px", marginBottom: "10px" }}
-      >
-        Delete Space
-      </button>
+      <h4 style={{ margin: 0, cursor: "pointer" }}>{space.name}</h4>
 
       <div style={{ marginTop: "10px" }}>
         {items.map((item) => (
@@ -71,14 +104,10 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteItem, onDeleteSpace
               padding: "5px",
               backgroundColor: "#ffc",
               borderRadius: "4px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
               cursor: "move",
             }}
           >
-            <span>{item.name}</span>
-            <button onClick={() => onDeleteItem && onDeleteItem(item.id)}>X</button>
+            {item.name}
           </div>
         ))}
       </div>
