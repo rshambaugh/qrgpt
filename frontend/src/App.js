@@ -10,16 +10,17 @@ const App = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fields for creating items/spaces
+  // Fields for new item/space creation
   const [newItemName, setNewItemName] = useState("");
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newSpaceName, setNewSpaceName] = useState("");
   const [newSpaceParentId, setNewSpaceParentId] = useState(null);
 
   // Navigation state
-  const [viewMode, setViewMode] = useState("list"); // "list" or "detail"
+  const [viewMode, setViewMode] = useState("list");
   const [currentSpaceId, setCurrentSpaceId] = useState(null);
 
+  // Search state
   const [searchTerm, setSearchTerm] = useState("");
 
   const fetchSpacesAndItems = async () => {
@@ -39,6 +40,7 @@ const App = () => {
 
       setSpaces(spacesData.spaces || []);
       setItems(itemsData || []);
+      console.log("Updated spaces after fetch:", spacesData.spaces);
     } catch (error) {
       console.error("Error fetching spaces and items:", error);
     } finally {
@@ -49,10 +51,6 @@ const App = () => {
   useEffect(() => {
     fetchSpacesAndItems();
   }, []);
-
-  if (loading) {
-    return <div style={{ textAlign: "center", padding: "20px" }}>Loading...</div>;
-  }
 
   const handleAddItem = async () => {
     if (!newItemName.trim()) {
@@ -141,17 +139,9 @@ const App = () => {
     setViewMode("detail");
   };
 
-  // Define handleSpaceHover here at top-level
-  const handleSpaceHover = useCallback((spaceId) => {
-    // If dragging an item and hovering over a space, navigate into it
-    if (spaceId !== currentSpaceId) {
-      setCurrentSpaceId(spaceId);
-      setViewMode("detail");
-    }
-  }, [currentSpaceId]);
-
   const handleBack = () => {
     if (!currentSpaceId) {
+      // Already at top level
       return;
     }
 
@@ -164,16 +154,12 @@ const App = () => {
     }
   };
 
-  // Filtering logic based on search term
-  const lowerSearch = searchTerm.toLowerCase();
-  const filteredSpaces = spaces.filter(
-    (space) => space.name.toLowerCase().includes(lowerSearch)
-  );
-
+  const lowerTerm = searchTerm.toLowerCase();
+  const filteredSpaces = spaces.filter((s) => s.name.toLowerCase().includes(lowerTerm));
   const filteredItems = items.filter(
-    (item) =>
-      item.name.toLowerCase().includes(lowerSearch) ||
-      (item.description && item.description.toLowerCase().includes(lowerSearch))
+    (i) =>
+      i.name.toLowerCase().includes(lowerTerm) ||
+      (i.description && i.description.toLowerCase().includes(lowerTerm))
   );
 
   let displayedSpaces = [];
@@ -185,19 +171,17 @@ const App = () => {
   } else {
     const currentSpace = spaces.find((s) => s.id === currentSpaceId);
     if (currentSpace) {
-      const subtreeSpaces = [currentSpace, ...spaces.filter((s) => s.parent_id === currentSpace.id)];
-      displayedSpaces = subtreeSpaces.filter((s) => filteredSpaces.some((fs) => fs.id === s.id));
+      displayedSpaces = filteredSpaces.filter(
+        (s) => s.id === currentSpace.id || s.parent_id === currentSpace.id
+      );
       displayedItems = filteredItems.filter((item) => item.space_id === currentSpaceId);
     }
   }
 
-  const confirmDeletion = (message) => {
-    return window.confirm(message);
-  };
-
+  // Confirm and delete item
   const handleDeleteItem = async (itemId) => {
-    if (!confirmDeletion("Are you sure you want to delete this item?")) return;
-
+    const confirmed = window.confirm("Are you sure you want to delete this item?");
+    if (!confirmed) return;
     try {
       const response = await fetch(`http://localhost:8000/items/${itemId}`, {
         method: "DELETE",
@@ -209,91 +193,92 @@ const App = () => {
     }
   };
 
-  const handleEditItem = (itemId) => {
-    alert("Editing items is not implemented yet.");
-  };
-
+  // Confirm and delete space
   const handleDeleteSpace = async (spaceId) => {
-    if (!confirmDeletion("Are you sure you want to delete this space and all its items?")) return;
-
+    const confirmed = window.confirm(
+      "Deleting this space will delete all nested spaces and items. Are you sure?"
+    );
+    if (!confirmed) return;
     try {
       const response = await fetch(`http://localhost:8000/spaces/${spaceId}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete space");
-      if (currentSpaceId === spaceId) {
-        setCurrentSpaceId(null);
-        setViewMode("list");
-      }
       fetchSpacesAndItems();
     } catch (error) {
       console.error("Error deleting space:", error);
     }
   };
 
-  const handleEditSpace = (spaceId) => {
-    alert("Editing spaces is not implemented yet.");
+  // Edit item (inline)
+  const handleEditItem = async (itemId, newName, newDesc) => {
+    try {
+      const response = await fetch(`http://localhost:8000/items/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, description: newDesc }),
+      });
+      if (!response.ok) throw new Error("Failed to edit item");
+      fetchSpacesAndItems();
+    } catch (error) {
+      console.error("Error editing item:", error);
+    }
   };
 
-  const getItemPath = (item) => {
-    if (!item.space_id) return "Top-level (Unassigned)";
-    let path = [];
-    let currentId = item.space_id;
-    while (currentId) {
-      const sp = spaces.find((x) => x.id === currentId);
-      if (!sp) break;
-      path.unshift(sp.name);
-      currentId = sp.parent_id;
+  // Edit space (inline)
+  const handleEditSpace = async (spaceId, newName) => {
+    try {
+      const response = await fetch(`http://localhost:8000/spaces/${spaceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      });
+      if (!response.ok) throw new Error("Failed to edit space");
+      fetchSpacesAndItems();
+    } catch (error) {
+      console.error("Error editing space:", error);
     }
-    return path.join(" > ");
   };
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "20px", fontFamily: "Arial, sans-serif" }}>
-        <h1 style={{ textAlign: "center" }}>Spaces and Items</h1>
+      <div className="app-container" style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "20px" }}>
+        <h1 className="app-title">Spaces and Items</h1>
 
         <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 
-        <div style={{ display: "flex", gap: "20px", marginBottom: "20px" }}>
-          {/* Item Form */}
-          <div style={{ flex: 1, border: "1px solid #ccc", padding: "10px", borderRadius: "5px" }}>
+        <div className="form-container" style={{ display: "flex", gap: "20px" }}>
+          <div style={{ flex: "1" }}>
             <h3>Add a New Item</h3>
             <input
               type="text"
               placeholder="Item Name"
               value={newItemName}
               onChange={(e) => setNewItemName(e.target.value)}
-              style={{ width: "100%", marginBottom: "10px", padding: "5px" }}
+              style={{ width: "100%", marginBottom: "5px" }}
             />
             <textarea
               placeholder="Item Description"
               value={newItemDescription}
               onChange={(e) => setNewItemDescription(e.target.value)}
-              style={{ width: "100%", marginBottom: "10px", padding: "5px" }}
+              style={{ width: "100%", marginBottom: "5px" }}
             />
-            <button
-              onClick={handleAddItem}
-              style={{ width: "100%", padding: "10px", background: "#007bff", color: "#fff", border: "none", borderRadius: "5px" }}
-            >
-              Add Item
-            </button>
+            <button onClick={handleAddItem}>Add Item</button>
           </div>
 
-          {/* Space Form */}
-          <div style={{ flex: 1, border: "1px solid #ccc", padding: "10px", borderRadius: "5px" }}>
+          <div style={{ flex: "1" }}>
             <h3>Add a New Space</h3>
             <input
               type="text"
               placeholder="Space Name"
               value={newSpaceName}
               onChange={(e) => setNewSpaceName(e.target.value)}
-              style={{ width: "100%", marginBottom: "10px", padding: "5px" }}
+              style={{ width: "100%", marginBottom: "5px" }}
             />
             <select
               value={newSpaceParentId || ""}
               onChange={(e) => setNewSpaceParentId(e.target.value || null)}
-              style={{ width: "100%", marginBottom: "10px", padding: "5px" }}
+              style={{ width: "100%", marginBottom: "5px" }}
             >
               <option value="">No Parent</option>
               {spaces.map((space) => (
@@ -302,40 +287,36 @@ const App = () => {
                 </option>
               ))}
             </select>
-            <button
-              onClick={handleAddSpace}
-              style={{ width: "100%", padding: "10px", background: "#007bff", color: "#fff", border: "none", borderRadius: "5px" }}
-            >
-              Add Space
-            </button>
+            <button onClick={handleAddSpace}>Add Space</button>
           </div>
         </div>
 
         {viewMode === "detail" && (
-          <button onClick={handleBack} style={{ marginBottom: "10px", padding: "5px 10px" }}>
+          <button onClick={handleBack} style={{ alignSelf: "flex-start" }}>
             Back
           </button>
         )}
 
-        <ParentContainer
-          spaces={displayedSpaces}
-          items={displayedItems}
-          onDrop={handleDrop}
-          onSpaceClick={handleSpaceClick}
-          onSpaceHover={handleSpaceHover}
-          currentSpaceId={currentSpaceId}
-          viewMode={viewMode}
-          onEditSpace={handleEditSpace}
-          onDeleteSpace={handleDeleteSpace}
-        />
+        <div className="content-container" style={{ display: "flex", gap: "20px" }}>
+          <ParentContainer
+            spaces={displayedSpaces}
+            items={displayedItems}
+            onDrop={handleDrop}
+            onSpaceClick={handleSpaceClick}
+            currentSpaceId={currentSpaceId}
+            viewMode={viewMode}
+            onDeleteSpace={handleDeleteSpace}
+            onEditSpace={handleEditSpace}
+          />
 
-        <ItemList
-          items={filteredItems} // show all items that match search
-          onDrop={(id, spaceId) => handleDrop(id, spaceId, "item")}
-          onEditItem={handleEditItem}
-          onDeleteItem={handleDeleteItem}
-          getItemPath={getItemPath}
-        />
+          <ItemList
+            items={filteredItems}
+            onDrop={(id, spaceId) => handleDrop(id, spaceId, "item")}
+            currentSpaceId={currentSpaceId}
+            onDeleteItem={handleDeleteItem}
+            onEditItem={handleEditItem}
+          />
+        </div>
       </div>
     </DndProvider>
   );
