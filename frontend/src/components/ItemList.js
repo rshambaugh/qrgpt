@@ -1,43 +1,94 @@
-import React from "react";
-import { useDrop } from "react-dnd";
-import Item from "./Item";
+import React, { useState } from 'react';
+import { useDrag } from 'react-dnd';
 
-const ItemList = ({ items, onDrop, onItemClick, onDeleteItem }) => {
-  const [{ isOver }, drop] = useDrop({
-    accept: ["ITEM"],
-    drop: (draggedItem, monitor) => {
-      if (!monitor.didDrop()) {
-        // Dropping on ItemList (not in a space) means top-level
-        onDrop(draggedItem.id, null);
-      }
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-    }),
-  });
+const ItemList = ({ items, onDrop, currentSpaceId, onDeleteItem, onEditItem }) => {
+  // Inline edit states per item
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editedItemName, setEditedItemName] = useState("");
+  const [editedItemDesc, setEditedItemDesc] = useState("");
+
+  const handleItemEditStart = (item) => {
+    setEditingItemId(item.id);
+    setEditedItemName(item.name);
+    setEditedItemDesc(item.description || "");
+  };
+
+  const handleItemEditSubmit = (e, itemId) => {
+    e.preventDefault();
+    onEditItem(itemId, editedItemName, editedItemDesc);
+    setEditingItemId(null);
+  };
 
   return (
-    <div
-      ref={drop}
-      style={{
-        border: isOver ? "2px dashed #007bff" : "1px solid #ccc",
-        padding: "10px",
-        borderRadius: "4px",
-        backgroundColor: "#f9f9f9",
-        marginTop: "20px"
-      }}
-    >
-      <h2 style={{ marginTop: 0 }}>Items (drop here to move to top-level)</h2>
-      <div style={{ display: "flex", flexWrap: "wrap" }}>
-        {items.map((item) => (
-          <Item
+    <div style={{ flex: 1, border: "1px solid #ccc", padding: "20px", overflowY: "auto" }}>
+      <h2>Items</h2>
+      {items.map(item => {
+        const [{ isDragging }, drag] = useDrag({
+          type: "ITEM",
+          item: { id: item.id, type: "ITEM" },
+          collect: (monitor) => ({
+            isDragging: monitor.isDragging(),
+          }),
+        });
+
+        return (
+          <div
             key={item.id}
-            item={item}
-            onItemClick={onItemClick}
-            onDeleteItem={onDeleteItem}
-          />
-        ))}
-      </div>
+            ref={drag}
+            style={{
+              margin: "10px 0",
+              padding: "10px",
+              backgroundColor: "#f9f9a9",
+              borderRadius: "4px",
+              opacity: isDragging ? 0.5 : 1,
+              position: "relative"
+            }}
+          >
+            {editingItemId === item.id ? (
+              <form onSubmit={(e) => handleItemEditSubmit(e, item.id)}>
+                <input
+                  type="text"
+                  value={editedItemName}
+                  onChange={(e) => setEditedItemName(e.target.value)}
+                  style={{ width: "100%", marginBottom: "5px" }}
+                />
+                <textarea
+                  value={editedItemDesc}
+                  onChange={(e) => setEditedItemDesc(e.target.value)}
+                  style={{ width: "100%", marginBottom: "5px" }}
+                />
+                <button type="submit">Save</button>
+                <button type="button" onClick={() => setEditingItemId(null)}>
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <>
+                <div><strong>{item.name}</strong></div>
+                {item.description && <div>{item.description}</div>}
+                <div style={{ position: "absolute", top: "5px", right: "5px", display: "flex", gap: "5px" }}>
+                  <i
+                    className="fas fa-edit"
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleItemEditStart(item);
+                    }}
+                  ></i>
+                  <i
+                    className="fas fa-trash"
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteItem(item.id);
+                    }}
+                  ></i>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

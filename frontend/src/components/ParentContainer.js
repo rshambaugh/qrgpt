@@ -1,56 +1,114 @@
-import React, { useEffect } from "react";
-import { useDrop } from "react-dnd";
-import Space from "./Space";
+import React, { useState } from 'react';
+import { useDrag } from 'react-dnd';
 
-const ParentContainer = ({ spaces, items, onDrop, onSpaceClick, onSpaceHover, currentSpaceId, viewMode, onDeleteSpace, onDeleteItem }) => {
-  useEffect(() => {
-    console.log("Updated spaces in ParentContainer:", spaces);
-  }, [spaces]);
-
-  const [{ isOver }, drop] = useDrop({
-    accept: ["ITEM", "SPACE"],
-    drop: (draggedItem, monitor) => {
-      if (!monitor.didDrop()) {
-        onDrop(draggedItem.id, null, draggedItem.type);
-      }
-    },
+function DraggableItem({ item, onDeleteItem, onEditItem }) {
+  const [{ isDragging }, drag] = useDrag({
+    type: "ITEM",
+    item: { id: item.id, type: "ITEM" },
     collect: (monitor) => ({
-      isOver: monitor.isOver(),
+      isDragging: monitor.isDragging(),
     }),
   });
 
-  const startingParentId = viewMode === "list" ? null : currentSpaceId;
+  const [editing, setEditing] = useState(false);
+  const [editedName, setEditedName] = useState(item.name);
+  const [editedDesc, setEditedDesc] = useState(item.description || "");
 
-  const renderSpaces = (parentId) => {
-    return spaces
-      .filter((space) => space.parent_id === parentId)
-      .map((space) => (
-        <Space
-          key={space.id}
-          space={space}
-          items={items.filter((item) => item.space_id === space.id)}
-          onDrop={onDrop}
-          onSpaceClick={onSpaceClick}
-          onDeleteSpace={onDeleteSpace}
-          onSpaceHover={onSpaceHover} // Pass down to Space
-        />
-      ));
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    onEditItem(item.id, editedName, editedDesc);
+    setEditing(false);
   };
 
   return (
     <div
-      ref={drop}
+      ref={drag}
       style={{
-        padding: "20px",
-        border: isOver ? "2px dashed #007bff" : "1px solid #ccc",
-        backgroundColor: isOver ? "#f0f8ff" : "#f9f9f9",
-        marginBottom: "20px"
+        margin: "10px 0",
+        padding: "10px",
+        backgroundColor: "#f9f9a9",
+        borderRadius: "4px",
+        opacity: isDragging ? 0.5 : 1,
+        position: "relative"
       }}
     >
-      <h2 style={{ marginTop: 0 }}>Spaces (drop space here for top-level)</h2>
-      {renderSpaces(startingParentId)}
+      {editing ? (
+        <form onSubmit={handleEditSubmit}>
+          <input
+            type="text"
+            value={editedName}
+            onChange={(e) => setEditedName(e.target.value)}
+            style={{ width: "100%", marginBottom: "5px" }}
+          />
+          <textarea
+            value={editedDesc}
+            onChange={(e) => setEditedDesc(e.target.value)}
+            style={{ width: "100%", marginBottom: "5px" }}
+          />
+          <button type="submit">Save</button>
+          <button type="button" onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <>
+          <div><strong>{item.name}</strong></div>
+          {item.description && <div>{item.description}</div>}
+          <div
+            style={{
+              position: "absolute",
+              top: "5px",
+              right: "5px",
+              display: "flex",
+              gap: "5px"
+            }}
+          >
+            <span
+              style={{ cursor: "pointer" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(true);
+              }}
+            >
+              ✏️
+            </span>
+            <span
+              style={{ cursor: "pointer" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteItem(item.id);
+              }}
+            >
+              🗑️
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const ItemList = ({ items, onDeleteItem, onEditItem }) => {
+  return (
+    <div
+      style={{
+        flex: 1,
+        border: "1px solid #ccc",
+        padding: "20px",
+        overflowY: "auto"
+      }}
+    >
+      <h2>Items</h2>
+      {items.map((item) => (
+        <DraggableItem
+          key={item.id}
+          item={item}
+          onDeleteItem={onDeleteItem}
+          onEditItem={onEditItem}
+        />
+      ))}
     </div>
   );
 };
 
-export default ParentContainer;
+export default ItemList;
