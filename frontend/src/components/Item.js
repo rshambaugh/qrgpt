@@ -1,8 +1,9 @@
-import React from 'react';
-import { useDrag } from 'react-dnd';
+import React from "react";
+import { useDrag } from "react-dnd";
+import { FaTrash, FaEdit } from "react-icons/fa";
 
-const Item = ({ item }) => {
-  const [{ isDragging }, dragRef] = useDrag({
+const Item = ({ item, onItemClick, onDeleteItem }) => {
+  const [{ isDragging }, drag] = useDrag({
     type: "ITEM",
     item: { id: item.id, type: "ITEM" },
     collect: (monitor) => ({
@@ -10,18 +11,35 @@ const Item = ({ item }) => {
     }),
   });
 
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    onDeleteItem(item.id);
+  };
+
+  const handleEditClick = (e) => {
+    e.stopPropagation();
+    alert("Edit item not implemented yet!");
+  };
+
   return (
     <div
-      ref={dragRef}
+      ref={drag}
       style={{
         opacity: isDragging ? 0.5 : 1,
-        backgroundColor: '#ffc',
-        margin: '5px',
-        padding: '5px',
-        cursor: 'move',
-        borderRadius: '4px',
+        backgroundColor: "#fff",
+        border: "1px solid #ddd",
+        borderRadius: "4px",
+        padding: "5px",
+        margin: "5px",
+        cursor: "move",
+        position: "relative"
       }}
+      onClick={() => onItemClick && onItemClick(item)}
     >
+      <div style={{ position: "absolute", top: "5px", right: "5px", display: "flex", gap: "5px" }}>
+        <FaEdit style={{ cursor: "pointer" }} onClick={handleEditClick} />
+        <FaTrash style={{ cursor: "pointer" }} onClick={handleDeleteClick} />
+      </div>
       {item.name}
     </div>
   );
