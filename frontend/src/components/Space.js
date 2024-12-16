@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useDrag, useDrop } from "react-dnd";
 
 function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace, children }) {
+  // Drag logic
   const [{ isDragging }, drag] = useDrag({
     type: "SPACE",
     item: { id: space.id, type: "SPACE" },
@@ -10,23 +11,16 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace,
     }),
   });
 
+  // Drop logic
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: ["ITEM", "SPACE"],
     drop: (draggedItem, monitor) => {
       if (!monitor.didDrop()) {
-        if (draggedItem.type === "ITEM") {
-          onDrop(draggedItem.id, space.id, "item");
-        } else if (draggedItem.type === "SPACE") {
-          onDrop(draggedItem.id, space.id, "space");
-        }
+        const dropType = draggedItem.type === "ITEM" ? "item" : "space";
+        onDrop(draggedItem.id, space.id, dropType);
       }
     },
-    canDrop: (draggedItem) => {
-      if (draggedItem.type === "SPACE" && draggedItem.id === space.id) {
-        return false;
-      }
-      return true;
-    },
+    canDrop: (draggedItem) => draggedItem.type !== "SPACE" || draggedItem.id !== space.id,
     collect: (monitor) => ({
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
@@ -37,16 +31,19 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace,
   const [editingSpace, setEditingSpace] = useState(false);
   const [editedSpaceName, setEditedSpaceName] = useState(space.name);
 
-  const handleSpaceEditSubmit = (e) => {
-    e.preventDefault();
-    onEditSpace(space.id, editedSpaceName);
-    setEditingSpace(false);
-  };
+  const handleSpaceEditSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+      onEditSpace(space.id, editedSpaceName);
+      setEditingSpace(false);
+    },
+    [onEditSpace, space.id, editedSpaceName]
+  );
 
   const [hoverTimer, setHoverTimer] = useState(null);
   const [draggingOver, setDraggingOver] = useState(false);
 
-  // Hover logic: If we are dragging something over this space for >1s, open it
+  // Hover logic for opening spaces
   useEffect(() => {
     if (draggingOver && !hoverTimer) {
       const timer = setTimeout(() => {
@@ -63,22 +60,31 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace,
     };
   }, [draggingOver, hoverTimer, onSpaceClick, space.id]);
 
+  // Memoized styles for performance
+  const spaceStyle = useMemo(
+    () => ({
+      border: isOver ? "2px dashed green" : "1px solid gray",
+      backgroundColor: isOver && canDrop ? "#e0ffe0" : "white",
+      opacity: isDragging ? 0.5 : 1,
+      padding: "10px",
+      borderRadius: "8px",
+      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+      marginBottom: "10px",
+      position: "relative",
+    }),
+    [isOver, canDrop, isDragging]
+  );
+
+  const handleDragEnter = useCallback(() => setDraggingOver(true), []);
+  const handleDragLeave = useCallback(() => setDraggingOver(false), []);
+
   return (
     <div
       ref={(node) => drag(drop(node))}
-      style={{
-        border: isOver ? "2px dashed green" : "1px solid gray",
-        backgroundColor: isOver && canDrop ? "#e0ffe0" : "white",
-        opacity: isDragging ? 0.5 : 1,
-        padding: "10px",
-        borderRadius: "8px",
-        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-        marginBottom: "10px",
-        position: "relative"
-      }}
-      onDragEnter={() => setDraggingOver(true)}
-      onDragLeave={() => setDraggingOver(false)}
-      onMouseLeave={() => setDraggingOver(false)}
+      style={spaceStyle}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onMouseLeave={handleDragLeave}
     >
       {editingSpace ? (
         <form onSubmit={handleSpaceEditSubmit} style={{ marginBottom: "10px" }}>
@@ -134,11 +140,10 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace,
               backgroundColor: "#ffc",
               borderRadius: "4px",
               cursor: "move",
-              position: "relative"
+              position: "relative",
             }}
           >
             {item.name}
-            {/* No icons here because items might be handled in ItemList, but you could add them if desired */}
           </div>
         ))}
       </div>
