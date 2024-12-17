@@ -1,0 +1,65 @@
+[4.0K]  src
+├── [   0]  App - Copy.js:Zone.Identifier
+├── [ 564]  App.css
+├── [4.8K]  App.js
+├── [ 29K]  App.js.bak
+├── [ 24K]  App2.js
+├── [ 701]  ContainerDropZone.js
+├── [1.8K]  DragAndDropGrid.js
+├── [ 657]  ItemCard.js
+├── [4.0K]  components
+│   ├── [1.2K]  AddItemForm.js
+│   ├── [ 864]  AddSpaceForm.js
+│   ├── [ 865]  DraggableItem.js
+│   ├── [ 766]  DroppableSpace.js
+│   ├── [1.3K]  Item.js
+│   ├── [ 10K]  ItemList.js
+│   ├── [2.9K]  ParentContainer.js
+│   ├── [ 428]  SearchBar.js
+│   ├── [ 705]  Space.Stories.js
+│   ├── [4.6K]  Space.js
+│   ├── [   0]  Space.stories.js
+│   ├── [1.1K]  SpaceList.js
+│   └── [4.0K]  forms
+│       └── [1.8K]  AddForm.js
+├── [4.0K]  hooks
+│   └── [1.0K]  useFetchSpacesAndItems.js
+├── [ 366]  index.css
+├── [ 492]  index.js
+├── [4.0K]  services
+│   ├── [ 302]  api.js
+│   └── [ 191]  utils.js
+├── [  49]  src-structure.txt
+├── [4.0K]  stories
+│   ├── [1.0K]  Button.jsx
+│   ├── [1.2K]  Button.stories.js
+│   ├── [ 11K]  Configure.mdx
+│   ├── [1.6K]  Header.jsx
+│   ├── [ 632]  Header.stories.js
+│   ├── [2.5K]  Page.jsx
+│   ├── [ 890]  Page.stories.js
+│   ├── [4.0K]  assets
+│   │   ├── [ 41K]  accessibility.png
+│   │   ├── [1.5K]  accessibility.svg
+│   │   ├── [456K]  addon-library.png
+│   │   ├── [3.8K]  assets.png
+│   │   ├── [ 829]  avif-test-image.avif
+│   │   ├── [6.0K]  context.png
+│   │   ├── [2.3K]  discord.svg
+│   │   ├── [ 27K]  docs.png
+│   │   ├── [ 43K]  figma-plugin.png
+│   │   ├── [2.7K]  github.svg
+│   │   ├── [ 40K]  share.png
+│   │   ├── [7.1K]  styling.png
+│   │   ├── [ 48K]  testing.png
+│   │   ├── [ 43K]  theming.png
+│   │   ├── [1.2K]  tutorials.svg
+│   │   └── [ 716]  youtube.svg
+│   ├── [ 642]  button.css
+│   ├── [ 623]  header.css
+│   └── [1.1K]  page.css
+├── [5.9K]  styles.css
+└── [4.0K]  utils
+    └── [4.6K]  actions.js
+
+8 directories, 55 files

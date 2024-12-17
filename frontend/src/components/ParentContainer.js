@@ -1,114 +1,64 @@
-import React, { useState } from 'react';
-import { useDrag } from 'react-dnd';
+import React from "react";
+import DroppableSpace from "./DroppableSpace";
 
-function DraggableItem({ item, onDeleteItem, onEditItem }) {
-  const [{ isDragging }, drag] = useDrag({
-    type: "ITEM",
-    item: { id: item.id, type: "ITEM" },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  const [editing, setEditing] = useState(false);
-  const [editedName, setEditedName] = useState(item.name);
-  const [editedDesc, setEditedDesc] = useState(item.description || "");
-
-  const handleEditSubmit = (e) => {
-    e.preventDefault();
-    onEditItem(item.id, editedName, editedDesc);
-    setEditing(false);
-  };
-
+const ParentContainer = ({
+  spaces,
+  items,
+  onDrop,
+  onDeleteItem,
+  onDeleteSpace,
+  onEditItem,
+  onEditSpace,
+  handleSpaceClick,
+}) => {
   return (
-    <div
-      ref={drag}
-      style={{
-        margin: "10px 0",
-        padding: "10px",
-        backgroundColor: "#f9f9a9",
-        borderRadius: "4px",
-        opacity: isDragging ? 0.5 : 1,
-        position: "relative"
-      }}
-    >
-      {editing ? (
-        <form onSubmit={handleEditSubmit}>
-          <input
-            type="text"
-            value={editedName}
-            onChange={(e) => setEditedName(e.target.value)}
-            style={{ width: "100%", marginBottom: "5px" }}
-          />
-          <textarea
-            value={editedDesc}
-            onChange={(e) => setEditedDesc(e.target.value)}
-            style={{ width: "100%", marginBottom: "5px" }}
-          />
-          <button type="submit">Save</button>
-          <button type="button" onClick={() => setEditing(false)}>
-            Cancel
-          </button>
-        </form>
-      ) : (
-        <>
-          <div><strong>{item.name}</strong></div>
-          {item.description && <div>{item.description}</div>}
-          <div
-            style={{
-              position: "absolute",
-              top: "5px",
-              right: "5px",
-              display: "flex",
-              gap: "5px"
-            }}
-          >
-            <span
-              style={{ cursor: "pointer" }}
+    <div style={{ flex: 1, border: "1px solid #ccc", padding: "20px", overflowY: "auto" }}>
+      <h2>Spaces</h2>
+      {spaces.map((space) => (
+        <div key={space.id} className="space-card" onClick={() => handleSpaceClick(space.id)}>
+          <h3 style={{ margin: 0 }}>{space.name}</h3>
+          <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
+            <i
+              className="fas fa-edit"
+              style={{ cursor: "pointer", color: "blue" }}
               onClick={(e) => {
                 e.stopPropagation();
-                setEditing(true);
+                onEditSpace(space.id, space.name);
               }}
-            >
-              ✏️
-            </span>
-            <span
-              style={{ cursor: "pointer" }}
+            ></i>
+            <i
+              className="fas fa-trash"
+              style={{ cursor: "pointer", color: "red" }}
               onClick={(e) => {
                 e.stopPropagation();
-                onDeleteItem(item.id);
+                onDeleteSpace(space.id);
               }}
-            >
-              🗑️
-            </span>
+            ></i>
           </div>
-        </>
-      )}
-    </div>
-  );
-}
+          <DroppableSpace space={space} onDrop={onDrop} />
+        </div>
+      ))}
 
-const ItemList = ({ items, onDeleteItem, onEditItem }) => {
-  return (
-    <div
-      style={{
-        flex: 1,
-        border: "1px solid #ccc",
-        padding: "20px",
-        overflowY: "auto"
-      }}
-    >
       <h2>Items</h2>
       {items.map((item) => (
-        <DraggableItem
-          key={item.id}
-          item={item}
-          onDeleteItem={onDeleteItem}
-          onEditItem={onEditItem}
-        />
+        <div key={item.id} className="item-card" style={{ marginTop: "10px" }}>
+          <strong>{item.name}</strong>
+          <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
+            <i
+              className="fas fa-edit"
+              style={{ cursor: "pointer", color: "blue" }}
+              onClick={() => onEditItem(item.id, item.name, item.description)}
+            ></i>
+            <i
+              className="fas fa-trash"
+              style={{ cursor: "pointer", color: "red" }}
+              onClick={() => onDeleteItem(item.id)}
+            ></i>
+          </div>
+        </div>
       ))}
     </div>
   );
 };
 
-export default ItemList;
+export default ParentContainer;
