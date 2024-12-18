@@ -88,44 +88,36 @@ textarea::placeholder {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-/* Left Column: Nested Spaces */
 .nested-spaces-column {
   flex: 1;
   max-width: 40%;
 }
 
-.space-card {
+/* Space and Item Cards */
+.space-card,
+.item-card {
   padding: 10px;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   border: 1px solid #ccc;
   border-radius: 6px;
   background-color: #f9f9f9;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  cursor: pointer;
   position: relative;
+  cursor: pointer;
 }
 
-.space-card:hover {
+.space-card:hover,
+.item-card:hover {
   background-color: #e8f4ff;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Item Cards */
 .item-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  border: 1px solid #ccc;
   border-left: 5px solid #007bff; /* Line color matching space */
-  border-radius: 4px;
   background-color: #f8f9fa;
-  transition: box-shadow 0.3s ease;
-}
-
-.item-card:hover {
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Search Results */
@@ -149,6 +141,7 @@ textarea::placeholder {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 15px;
   width: 300px;
+  position: relative;
 }
 
 .search-result-card h4 {
@@ -162,27 +155,41 @@ textarea::placeholder {
   color: #555;
 }
 
+.result-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.result-description {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 5px 0;
+}
+
 .breadcrumb {
   font-size: 0.8rem;
   color: #777;
   margin-bottom: 8px;
 }
 
+/* Card Actions */
 .card-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
   display: flex;
-  justify-content: flex-end;
   gap: 10px;
-  margin-top: 10px;
 }
 
 .card-actions svg {
   cursor: pointer;
   color: #007bff;
-  transition: color 0.3s ease;
+  transition: color 0.3s ease, transform 0.3s ease;
 }
 
 .card-actions svg:hover {
   color: #0056b3;
+  transform: scale(1.1);
 }
 
 /* Buttons and Actions */
@@ -210,59 +217,4 @@ textarea::placeholder {
   .app-title {
     font-size: 1.5rem;
   }
-}
-.search-results {
-  margin-top: 20px;
-}
-
-.search-results-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-}
-
-.search-result-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background-color: #f9f9f9;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 15px;
-  width: 300px;
-  position: relative;
-}
-
-.result-name {
-  font-weight: bold;
-  color: #333;
-}
-
-.result-description {
-  font-size: 0.9rem;
-  color: #666;
-  margin: 5px 0;
-}
-
-.breadcrumb {
-  font-size: 0.8rem;
-  color: #777;
-  margin-bottom: 8px;
-}
-
-.card-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.card-actions svg {
-  cursor: pointer;
-  color: #007bff;
-  transition: color 0.3s ease;
-}
-
-.card-actions svg:hover {
-  color: #0056b3;
 }

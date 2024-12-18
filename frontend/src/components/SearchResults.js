@@ -1,19 +1,22 @@
 import React from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem }) => {
+  // Helper to generate breadcrumbs
   const generateBreadcrumbs = (spaceId) => {
-    let breadcrumbs = [];
-    let currentId = spaceId;
+    const breadcrumbs = [];
+    let currentSpaceId = spaceId;
 
-    while (currentId) {
-      const space = spaces?.find((s) => s.id === currentId); // Add null check for spaces
+    while (currentSpaceId) {
+      const space = spaces.find((s) => s.id === currentSpaceId);
       if (!space) break;
 
-      breadcrumbs.unshift(space);
-      currentId = space.parent_id;
+      breadcrumbs.unshift(space.name);
+      currentSpaceId = space.parent_id;
     }
 
-    return breadcrumbs;
+    return breadcrumbs.join(" > ");
   };
 
   return (
@@ -22,23 +25,36 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem }) => {
       <div className="search-results-cards">
         {searchResults.map((result) => (
           <div key={result.id} className="search-result-card">
+            {/* Action Icons */}
+            <div className="card-actions">
+              <FontAwesomeIcon
+                icon={faEdit}
+                onClick={() =>
+                  result.space_id
+                    ? onEditItem(result.id)
+                    : console.log("Edit space", result.id)
+                }
+                className="edit-icon"
+              />
+              <FontAwesomeIcon
+                icon={faTrash}
+                onClick={() =>
+                  result.space_id
+                    ? onDeleteItem(result.id)
+                    : console.log("Delete space", result.id)
+                }
+                className="delete-icon"
+              />
+            </div>
+
+            {/* Card Content */}
             <h4>{result.name}</h4>
-            {result.description && <p>{result.description}</p>}
+            {result.description && <p className="result-description">{result.description}</p>}
             {result.space_id && (
-              <p>
-                Location:{" "}
-                {generateBreadcrumbs(result.space_id).map((space, index, arr) => (
-                  <span key={space.id}>
-                    {space.name}
-                    {index < arr.length - 1 && " > "}
-                  </span>
-                ))}
+              <p className="result-location">
+                Location: {generateBreadcrumbs(result.space_id)}
               </p>
             )}
-            <div className="card-actions">
-              <button onClick={() => onEditItem(result.id)}>Edit</button>
-              <button onClick={() => onDeleteItem(result.id)}>Delete</button>
-            </div>
           </div>
         ))}
       </div>
