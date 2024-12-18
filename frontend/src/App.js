@@ -1,153 +1,121 @@
-import React, { useState } from "react";
-import { DndProvider } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
-import ParentContainer from "./components/ParentContainer";
-import ItemList from "./components/ItemList";
-import SearchBar from "./components/SearchBar";
+import React, { useState, useEffect } from "react";
+import NestedSpaces from "./components/NestedSpaces";
 import AddForm from "./components/forms/AddForm";
-import useFetchSpacesAndItems from "./hooks/useFetchSpacesAndItems";
-import {
-  handleAddItem,
-  handleAddSpace,
-  handleDrop,
-  handleDeleteItem,
-  handleDeleteSpace,
-  handleEditItem,
-  handleEditSpace,
-} from "./utils/actions";
+import SearchBar from "./components/SearchBar";
+
+const COLORS = ["#ff0000", "#ff7f00", "#ffff00", "#7fff00", "#00ff00", "#00ffff", "#007fff"]; // ROYGBIV colors
 
 const App = () => {
-  const { spaces, items, fetchSpacesAndItems } = useFetchSpacesAndItems();
-
-  const [newItemName, setNewItemName] = useState("");
-  const [newItemDescription, setNewItemDescription] = useState("");
-  const [newSpaceName, setNewSpaceName] = useState("");
-  const [newSpaceParentId, setNewSpaceParentId] = useState(null);
-  const [viewMode, setViewMode] = useState("list");
+  const [spaces, setSpaces] = useState([]);
+  const [items, setItems] = useState([]);
   const [currentSpaceId, setCurrentSpaceId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
 
-  const lowerTerm = searchTerm.toLowerCase();
-  const filteredSpaces = spaces.filter((s) =>
-    s.name.toLowerCase().includes(lowerTerm)
-  );
-  const filteredItems = items.filter(
-    (i) =>
-      i.name.toLowerCase().includes(lowerTerm) ||
-      (i.description && i.description.toLowerCase().includes(lowerTerm))
-  );
-
-  let displayedSpaces = [];
-  let displayedItems = [];
-
-  if (viewMode === "list") {
-    displayedSpaces = filteredSpaces.filter((s) => s.parent_id === null);
-    displayedItems = filteredItems.filter((item) => item.space_id === null);
-  } else {
-    const currentSpace = spaces.find((s) => s.id === currentSpaceId);
-    if (currentSpace) {
-      displayedSpaces = filteredSpaces.filter(
-        (s) => s.id === currentSpace.id || s.parent_id === currentSpace.id
-      );
-      displayedItems = filteredItems.filter(
-        (item) => item.space_id === currentSpaceId
-      );
+  const fetchSpaces = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/spaces-recursive");
+      if (!response.ok) throw new Error("Failed to fetch spaces.");
+      const data = await response.json();
+      setSpaces(data.spaces);
+    } catch (error) {
+      console.error("Error fetching spaces:", error);
     }
-  }
-
-  const onAddItem = () => {
-    handleAddItem({
-      newItemName,
-      newItemDescription,
-      fetchSpacesAndItems,
-    });
-    setNewItemName("");
-    setNewItemDescription("");
   };
 
-  const onAddSpace = () => {
-    handleAddSpace({
-      newSpaceName,
-      newSpaceParentId,
-      fetchSpacesAndItems,
-    });
-    setNewSpaceName("");
-    setNewSpaceParentId(null);
+  const fetchItems = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/items/");
+      if (!response.ok) throw new Error("Failed to fetch items.");
+      const data = await response.json();
+      setItems(data);
+    } catch (error) {
+      console.error("Error fetching items:", error);
+    }
   };
 
-  const onDrop = (draggedItemId, targetSpaceId, type) => {
-    handleDrop({
-      draggedItemId,
-      targetSpaceId,
-      type,
-      fetchSpacesAndItems,
-    });
-  };
+  useEffect(() => {
+    fetchSpaces();
+    fetchItems();
+  }, []);
 
   const handleSpaceClick = (spaceId) => {
     setCurrentSpaceId(spaceId);
-    setViewMode("detail");
   };
 
-  const handleBack = () => {
-    if (!currentSpaceId) {
-      return;
+  const generateBreadcrumbTrail = (spaceId) => {
+    const trail = [];
+    let currentId = spaceId;
+
+    while (currentId) {
+      const space = spaces.find((s) => s.id === currentId);
+      if (space) {
+        trail.unshift(space);
+        currentId = space.parent_id;
+      } else {
+        break;
+      }
     }
-    const currentSpace = spaces.find((s) => s.id === currentSpaceId);
-    if (currentSpace && currentSpace.parent_id) {
-      setCurrentSpaceId(currentSpace.parent_id);
-    } else {
-      setCurrentSpaceId(null);
-      setViewMode("list");
-    }
+    return trail;
   };
+
+  const breadcrumbTrail = currentSpaceId ? generateBreadcrumbTrail(currentSpaceId) : [];
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div
-        className="app-container"
-        style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "20px" }}
-      >
-        <h1 className="app-title">Spaces and Items</h1>
-        <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+    <div className="app-container">
+      <h1 className="app-title">Spaces and Items</h1>
+      <SearchBar />
+      <AddForm spaces={spaces} fetchSpaces={fetchSpaces} fetchItems={fetchItems} />
 
-        <AddForm
-          newItemName={newItemName}
-          setNewItemName={setNewItemName}
-          newItemDescription={newItemDescription}
-          setNewItemDescription={setNewItemDescription}
-          newSpaceName={newSpaceName}
-          setNewSpaceName={setNewSpaceName}
-          newSpaceParentId={newSpaceParentId}
-          setNewSpaceParentId={setNewSpaceParentId}
-          spaces={spaces}
-          handleAddItem={onAddItem}
-          handleAddSpace={onAddSpace}
-        />
+      <div className="content-container">
+        <div className="nested-spaces-column">
+          <NestedSpaces spaces={spaces} handleSpaceClick={handleSpaceClick} />
+        </div>
 
-        {viewMode === "detail" && (
-          <button onClick={handleBack} style={{ alignSelf: "flex-start" }}>
-            Back
-          </button>
-        )}
+        <div className="items-column">
+          {currentSpaceId ? (
+            <>
+              <div className="breadcrumb">
+                {breadcrumbTrail.map((space, index) => (
+                  <span key={space.id}>
+                    {index < breadcrumbTrail.length - 1 ? (
+                      <a onClick={() => handleSpaceClick(space.id)}>{space.name}</a>
+                    ) : (
+                      <span className="current">{space.name}</span>
+                    )}
+                    {index < breadcrumbTrail.length - 1 && " / "}
+                  </span>
+                ))}
+              </div>
 
-        <div className="content-container" style={{ display: "flex", gap: "20px" }}>
-          <ParentContainer
-            spaces={displayedSpaces}
-            items={displayedItems}
-            onDrop={onDrop}
-            handleSpaceClick={handleSpaceClick}
-          />
+              {/* Display spaces with colored borders */}
+              {spaces
+                .filter((space) => space.parent_id === currentSpaceId)
+                .map((space) => (
+                  <div
+                    key={space.id}
+                    className="space-card border-colored"
+                    style={{
+                      borderBottomColor: COLORS[space.depth % COLORS.length],
+                    }}
+                  >
+                    {space.name}
+                  </div>
+                ))}
 
-          <ItemList
-            spaces={[]}
-            items={[]}
-            onDrop={onDrop}
-            currentSpaceId={currentSpaceId}
-          />
+              {/* Display items with solid background */}
+              {items
+                .filter((item) => item.space_id === currentSpaceId)
+                .map((item) => (
+                  <div key={item.id} className="item-card">
+                    {item.name}
+                  </div>
+                ))}
+            </>
+          ) : (
+            <p>Select a space to view its contents.</p>
+          )}
         </div>
       </div>
-    </DndProvider>
+    </div>
   );
 };
 

@@ -1,5 +1,7 @@
 import React from "react";
 import DroppableSpace from "./DroppableSpace";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 const ParentContainer = ({
   spaces,
@@ -15,25 +17,54 @@ const ParentContainer = ({
     <div style={{ flex: 1, border: "1px solid #ccc", padding: "20px", overflowY: "auto" }}>
       <h2>Spaces</h2>
       {spaces.map((space) => (
-        <div key={space.id} className="space-card" onClick={() => handleSpaceClick(space.id)}>
-          <h3 style={{ margin: 0 }}>{space.name}</h3>
-          <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
-            <i
-              className="fas fa-edit"
+        <div
+          key={space.id}
+          className="space-card"
+          style={{
+            position: "relative",
+            backgroundColor: "#e3f2fd",
+            padding: "15px",
+            marginBottom: "10px",
+            borderRadius: "8px",
+          }}
+          onClick={() => handleSpaceClick(space.id)}
+        >
+          <h3 style={{ margin: 0 }}>{space.name || "Unnamed Space"}</h3>
+          {/* Icons at the top-right corner */}
+          <div
+            style={{
+              position: "absolute",
+              top: "5px",
+              right: "5px",
+              display: "flex",
+              gap: "8px",
+            }}
+          >
+            <FontAwesomeIcon
+              icon={faEdit}
               style={{ cursor: "pointer", color: "blue" }}
               onClick={(e) => {
                 e.stopPropagation();
-                onEditSpace(space.id, space.name);
+                if (space.id) {
+                  onEditSpace(space.id, space.name || "Unnamed Space"); // Pass valid ID and fallback for name
+                } else {
+                  console.error("Error: Space ID is undefined", space);
+                }
               }}
-            ></i>
-            <i
-              className="fas fa-trash"
+            />
+
+            <FontAwesomeIcon
+              icon={faTrash}
               style={{ cursor: "pointer", color: "red" }}
               onClick={(e) => {
                 e.stopPropagation();
-                onDeleteSpace(space.id);
+                if (space.id) {
+                  onDeleteSpace(space.id);
+                } else {
+                  console.error("Error: Space ID is undefined", space);
+                }
               }}
-            ></i>
+            />
           </div>
           <DroppableSpace space={space} onDrop={onDrop} />
         </div>
@@ -41,19 +72,51 @@ const ParentContainer = ({
 
       <h2>Items</h2>
       {items.map((item) => (
-        <div key={item.id} className="item-card" style={{ marginTop: "10px" }}>
-          <strong>{item.name}</strong>
-          <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
-            <i
-              className="fas fa-edit"
+        <div
+          key={item.id}
+          className="item-card"
+          style={{
+            position: "relative",
+            backgroundColor: "#ff9800",
+            padding: "15px",
+            marginBottom: "10px",
+            borderRadius: "8px",
+          }}
+        >
+          <strong>{item.name || "Unnamed Item"}</strong>
+          {/* Icons at the top-right corner */}
+          <div
+            style={{
+              position: "absolute",
+              top: "5px",
+              right: "5px",
+              display: "flex",
+              gap: "8px",
+            }}
+          >
+            <FontAwesomeIcon
+              icon={faEdit}
               style={{ cursor: "pointer", color: "blue" }}
-              onClick={() => onEditItem(item.id, item.name, item.description)}
-            ></i>
-            <i
-              className="fas fa-trash"
+              onClick={() => {
+                if (item.id) {
+                  onEditItem(item.id, item.name || "Unnamed Item", item.description || ""); // Pass proper parameters
+                } else {
+                  console.error("Error: Item ID is undefined", item);
+                }
+              }}
+            />
+
+            <FontAwesomeIcon
+              icon={faTrash}
               style={{ cursor: "pointer", color: "red" }}
-              onClick={() => onDeleteItem(item.id)}
-            ></i>
+              onClick={() => {
+                if (item.id) {
+                  onDeleteItem(item.id);
+                } else {
+                  console.error("Error: Item ID is undefined", item);
+                }
+              }}
+            />
           </div>
         </div>
       ))}

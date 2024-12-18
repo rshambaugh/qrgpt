@@ -1,5 +1,7 @@
 import React from 'react';
 import { useDrop } from 'react-dnd';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTrash } from "@fortawesome/free-solid-svg-icons";
 
 const DroppableSpace = ({ space, items, onDrop, onDelete }) => {
     const [{ isOver }, drop] = useDrop(() => ({
@@ -17,9 +19,12 @@ const DroppableSpace = ({ space, items, onDrop, onDelete }) => {
             style={{ backgroundColor: isOver ? '#d4edda' : '#fff' }}
         >
             <span>{space.name}</span>
-            <button className="delete" onClick={() => onDelete(space.id)}>
-                Delete
-            </button>
+            <FontAwesomeIcon
+                icon={faTrash}
+                className="delete-icon"
+                style={{ cursor: "pointer", color: "red" }}
+                onClick={() => onDelete(space.id)}
+            />
         </div>
     );
 };
