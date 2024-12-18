@@ -2,18 +2,25 @@ import React, { useState, useEffect } from "react";
 import NestedSpaces from "./components/NestedSpaces";
 import AddForm from "./components/forms/AddForm";
 import SearchBar from "./components/SearchBar";
-
-const COLORS = ["#ff0000", "#ff7f00", "#ffff00", "#7fff00", "#00ff00", "#00ffff", "#007fff"]; // ROYGBIV colors
+import SearchResults from "./components/SearchResults";
 
 const App = () => {
-  const [spaces, setSpaces] = useState([]);
-  const [items, setItems] = useState([]);
-  const [currentSpaceId, setCurrentSpaceId] = useState(null);
+  const [spaces, setSpaces] = useState([]); // Spaces data
+  const [items, setItems] = useState([]);   // Items data
+  const [currentSpaceId, setCurrentSpaceId] = useState(null); // Selected space ID
+  const [searchQuery, setSearchQuery] = useState(""); // Search query state
+  const [searchResults, setSearchResults] = useState([]); // Search results
+  const [newItemName, setNewItemName] = useState(""); // New item name
+  const [newItemDescription, setNewItemDescription] = useState(""); // New item description
+  const [newItemSpaceId, setNewItemSpaceId] = useState(null); // Space for new item
+  const [newSpaceName, setNewSpaceName] = useState(""); // New space name
+  const [newSpaceParentId, setNewSpaceParentId] = useState(null); // Parent space ID for new space
 
+  // Fetch all spaces
   const fetchSpaces = async () => {
     try {
       const response = await fetch("http://localhost:8000/spaces-recursive");
-      if (!response.ok) throw new Error("Failed to fetch spaces.");
+      if (!response.ok) throw new Error("Failed to fetch spaces");
       const data = await response.json();
       setSpaces(data.spaces);
     } catch (error) {
@@ -21,6 +28,7 @@ const App = () => {
     }
   };
 
+  // Fetch all items
   const fetchItems = async () => {
     try {
       const response = await fetch("http://localhost:8000/items/");
@@ -32,80 +40,249 @@ const App = () => {
     }
   };
 
+  // Fetch data on component mount
   useEffect(() => {
     fetchSpaces();
     fetchItems();
   }, []);
 
-  const handleSpaceClick = (spaceId) => {
-    setCurrentSpaceId(spaceId);
+  // Edit item handler
+  const onEditItem = async (itemId) => {
+    const newName = prompt("Enter the new name for the item:");
+    if (newName) {
+      try {
+        await fetch(`http://localhost:8000/items/${itemId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newName }),
+        });
+        fetchItems();
+      } catch (error) {
+        console.error("Error editing item:", error);
+      }
+    }
   };
 
-  const generateBreadcrumbTrail = (spaceId) => {
-    const trail = [];
+  // Delete item handler
+  const onDeleteItem = async (itemId) => {
+    if (window.confirm("Are you sure you want to delete this item?")) {
+      try {
+        await fetch(`http://localhost:8000/items/${itemId}`, {
+          method: "DELETE",
+        });
+        fetchItems();
+      } catch (error) {
+        console.error("Error deleting item:", error);
+      }
+    }
+  };
+
+  // Edit space handler
+  const onEditSpace = async (spaceId, currentName) => {
+    const newName = prompt("Enter the new name for the space:", currentName);
+    if (newName) {
+      try {
+        await fetch(`http://localhost:8000/spaces/${spaceId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newName }),
+        });
+        fetchSpaces();
+      } catch (error) {
+        console.error("Error editing space:", error);
+      }
+    }
+  };
+
+  // Delete space handler
+  const onDeleteSpace = async (spaceId) => {
+    if (window.confirm("Are you sure you want to delete this space?")) {
+      try {
+        await fetch(`http://localhost:8000/spaces/${spaceId}`, {
+          method: "DELETE",
+        });
+        fetchSpaces();
+        fetchItems(); // Refresh items in case they belonged to the deleted space
+      } catch (error) {
+        console.error("Error deleting space:", error);
+      }
+    }
+  };
+
+  // Handle search logic
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const filteredSpaces = spaces.filter((space) =>
+      space.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    const filteredItems = items.filter((item) =>
+      item.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    setSearchResults([...filteredSpaces, ...filteredItems]);
+  };
+
+  // Add new item
+  const handleAddItem = async () => {
+    if (!newItemName.trim()) {
+      alert("Item name cannot be empty.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/items/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newItemName,
+          description: newItemDescription,
+          space_id: newItemSpaceId,
+        }),
+      });
+
+      if (response.ok) {
+        setNewItemName("");
+        setNewItemDescription("");
+        setNewItemSpaceId(null);
+        fetchItems();
+      } else {
+        throw new Error("Failed to add item.");
+      }
+    } catch (error) {
+      console.error("Error adding item:", error);
+    }
+  };
+
+  // Add new space
+  const handleAddSpace = async () => {
+    if (!newSpaceName.trim()) {
+      alert("Space name cannot be empty.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/spaces/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newSpaceName,
+          parent_id: newSpaceParentId,
+        }),
+      });
+
+      if (response.ok) {
+        setNewSpaceName("");
+        setNewSpaceParentId(null);
+        fetchSpaces();
+      } else {
+        throw new Error("Failed to add space.");
+      }
+    } catch (error) {
+      console.error("Error adding space:", error);
+    }
+  };
+
+  // Generate breadcrumb trail for a space
+  const generateBreadcrumbs = (spaceId) => {
+    let breadcrumbs = [];
     let currentId = spaceId;
 
     while (currentId) {
       const space = spaces.find((s) => s.id === currentId);
-      if (space) {
-        trail.unshift(space);
-        currentId = space.parent_id;
-      } else {
-        break;
-      }
-    }
-    return trail;
-  };
+      if (!space) break;
 
-  const breadcrumbTrail = currentSpaceId ? generateBreadcrumbTrail(currentSpaceId) : [];
+      breadcrumbs.unshift(space);
+      currentId = space.parent_id;
+    }
+
+    return breadcrumbs;
+  };
 
   return (
     <div className="app-container">
       <h1 className="app-title">Spaces and Items</h1>
-      <SearchBar />
-      <AddForm spaces={spaces} fetchSpaces={fetchSpaces} fetchItems={fetchItems} />
 
+      {/* Search Bar */}
+      <SearchBar
+        searchQuery={searchQuery}
+        onSearch={handleSearch}
+      />
+
+      {/* Search Results */}
+      <SearchResults
+        searchResults={searchResults}
+        spaces={spaces}
+        onEditItem={onEditItem}
+        onDeleteItem={onDeleteItem}
+      />
+
+      {/* Add Form */}
+      <AddForm
+        newItemName={newItemName}
+        setNewItemName={setNewItemName}
+        newItemDescription={newItemDescription}
+        setNewItemDescription={setNewItemDescription}
+        newItemSpaceId={newItemSpaceId}
+        setNewItemSpaceId={setNewItemSpaceId}
+        newSpaceName={newSpaceName}
+        setNewSpaceName={setNewSpaceName}
+        newSpaceParentId={newSpaceParentId}
+        setNewSpaceParentId={setNewSpaceParentId}
+        spaces={spaces}
+        handleAddItem={handleAddItem}
+        handleAddSpace={handleAddSpace}
+      />
+
+      {/* Content Layout */}
       <div className="content-container">
+        {/* Left Column: Spaces */}
         <div className="nested-spaces-column">
-          <NestedSpaces spaces={spaces} handleSpaceClick={handleSpaceClick} />
+          <h2>Spaces</h2>
+          <NestedSpaces
+            spaces={spaces}
+            handleSpaceClick={setCurrentSpaceId}
+            onEditSpace={onEditSpace}
+            onDeleteSpace={onDeleteSpace}
+          />
         </div>
 
+        {/* Right Column: Current Space */}
         <div className="items-column">
           {currentSpaceId ? (
             <>
-              <div className="breadcrumb">
-                {breadcrumbTrail.map((space, index) => (
-                  <span key={space.id}>
-                    {index < breadcrumbTrail.length - 1 ? (
-                      <a onClick={() => handleSpaceClick(space.id)}>{space.name}</a>
-                    ) : (
-                      <span className="current">{space.name}</span>
-                    )}
-                    {index < breadcrumbTrail.length - 1 && " / "}
-                  </span>
-                ))}
-              </div>
-
-              {/* Display spaces with colored borders */}
               {spaces
                 .filter((space) => space.parent_id === currentSpaceId)
                 .map((space) => (
                   <div
                     key={space.id}
-                    className="space-card border-colored"
+                    className="space-card"
                     style={{
-                      borderBottomColor: COLORS[space.depth % COLORS.length],
+                      borderBottom: `3px solid ${space.color || "#ccc"}`,
                     }}
                   >
                     {space.name}
                   </div>
                 ))}
-
-              {/* Display items with solid background */}
               {items
                 .filter((item) => item.space_id === currentSpaceId)
                 .map((item) => (
-                  <div key={item.id} className="item-card">
+                  <div
+                    key={item.id}
+                    className="item-card"
+                    style={{
+                      backgroundColor: "#f8f8f8",
+                      borderBottom: `3px solid ${spaces.find(
+                        (space) => space.id === item.space_id
+                      )?.color || "#ccc"}`,
+                    }}
+                  >
                     {item.name}
                   </div>
                 ))}

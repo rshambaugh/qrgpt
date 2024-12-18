@@ -1,21 +1,26 @@
 import React from "react";
+import { generateIndentedOptions } from "../../services/utils";
 
 const AddForm = ({
   newItemName,
   setNewItemName,
   newItemDescription,
   setNewItemDescription,
+  newItemSpaceId,
+  setNewItemSpaceId,
   newSpaceName,
   setNewSpaceName,
   newSpaceParentId,
   setNewSpaceParentId,
-  spaces = [], // Default to an empty array
+  spaces,
   handleAddItem,
   handleAddSpace,
 }) => {
+  const indentedSpaces = generateIndentedOptions(spaces); // Use the utility function
+
   return (
     <div className="form-container" style={{ display: "flex", gap: "20px" }}>
-      {/* Add a New Item */}
+      {/* Add New Item Form */}
       <div style={{ flex: "1" }}>
         <h3>Add a New Item</h3>
         <input
@@ -31,10 +36,22 @@ const AddForm = ({
           onChange={(e) => setNewItemDescription(e.target.value)}
           style={{ width: "100%", marginBottom: "5px" }}
         />
+        <select
+          value={newItemSpaceId || ""}
+          onChange={(e) => setNewItemSpaceId(e.target.value || null)}
+          style={{ width: "100%", marginBottom: "10px" }}
+        >
+          <option value="">Unassigned</option>
+          {indentedSpaces.map((space) => (
+            <option key={space.id} value={space.id}>
+              {space.name}
+            </option>
+          ))}
+        </select>
         <button onClick={handleAddItem}>Add Item</button>
       </div>
 
-      {/* Add a New Space */}
+      {/* Add New Space Form */}
       <div style={{ flex: "1" }}>
         <h3>Add a New Space</h3>
         <input
@@ -47,18 +64,14 @@ const AddForm = ({
         <select
           value={newSpaceParentId || ""}
           onChange={(e) => setNewSpaceParentId(e.target.value || null)}
-          style={{ width: "100%", marginBottom: "5px" }}
+          style={{ width: "100%", marginBottom: "10px" }}
         >
           <option value="">No Parent</option>
-          {Array.isArray(spaces) && spaces.length > 0 ? (
-            spaces.map((space) => (
-              <option key={space.id} value={space.id}>
-                {space.name}
-              </option>
-            ))
-          ) : (
-            <option disabled>No Spaces Available</option>
-          )}
+          {indentedSpaces.map((space) => (
+            <option key={space.id} value={space.id}>
+              {space.name}
+            </option>
+          ))}
         </select>
         <button onClick={handleAddSpace}>Add Space</button>
       </div>
