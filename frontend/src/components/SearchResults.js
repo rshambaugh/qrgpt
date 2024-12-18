@@ -1,8 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faEdit, faTrash, faSave } from "@fortawesome/free-solid-svg-icons";
 
 const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem }) => {
+  const [editingItemId, setEditingItemId] = useState(null); // Track which item is being edited
+  const [editedName, setEditedName] = useState(""); // Edited name for inline form
+  const [editedDescription, setEditedDescription] = useState(""); // Edited description
+
   // Helper to generate breadcrumbs
   const generateBreadcrumbs = (spaceId) => {
     const breadcrumbs = [];
@@ -19,41 +23,77 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem }) => {
     return breadcrumbs.join(" > ");
   };
 
+  // Handle save logic
+  const handleSave = (id) => {
+    onEditItem(id, { name: editedName, description: editedDescription });
+    setEditingItemId(null); // Exit edit mode
+    setEditedName("");
+    setEditedDescription("");
+  };
+
   return (
     <div className="search-results">
       <h3>Search Results</h3>
       <div className="search-results-cards">
         {searchResults.map((result) => (
-          <div key={result.id} className="search-result-card">
+          <div key={result.key} className="search-result-card">
             {/* Action Icons */}
             <div className="card-actions">
-              <FontAwesomeIcon
-                icon={faEdit}
-                onClick={() =>
-                  result.space_id
-                    ? onEditItem(result.id)
-                    : console.log("Edit space", result.id)
-                }
-                className="edit-icon"
-              />
-              <FontAwesomeIcon
-                icon={faTrash}
-                onClick={() =>
-                  result.space_id
-                    ? onDeleteItem(result.id)
-                    : console.log("Delete space", result.id)
-                }
-                className="delete-icon"
-              />
+              {editingItemId === result.id ? (
+                // Save icon for inline editing
+                <FontAwesomeIcon
+                  icon={faSave}
+                  onClick={() => handleSave(result.id)}
+                  className="save-icon"
+                />
+              ) : (
+                <>
+                  <FontAwesomeIcon
+                    icon={faEdit}
+                    onClick={() => {
+                      setEditingItemId(result.id);
+                      setEditedName(result.name);
+                      setEditedDescription(result.description || "");
+                    }}
+                    className="edit-icon"
+                  />
+                  <FontAwesomeIcon
+                    icon={faTrash}
+                    onClick={() => onDeleteItem(result.id)}
+                    className="delete-icon"
+                  />
+                </>
+              )}
             </div>
 
-            {/* Card Content */}
-            <h4>{result.name}</h4>
-            {result.description && <p className="result-description">{result.description}</p>}
-            {result.space_id && (
-              <p className="result-location">
-                Location: {generateBreadcrumbs(result.space_id)}
-              </p>
+            {/* Inline Edit Form */}
+            {editingItemId === result.id ? (
+              <div className="edit-form">
+                <input
+                  type="text"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  placeholder="Item Name"
+                />
+                <textarea
+                  value={editedDescription}
+                  onChange={(e) => setEditedDescription(e.target.value)}
+                  placeholder="Description"
+                ></textarea>
+              </div>
+            ) : (
+              // Regular display content
+              <>
+                <h4>{result.name}</h4>
+                {result.description && (
+                  <p className="result-description">{result.description}</p>
+                )}
+                {result.type === "item" && result.space_id && (
+                  <p className="result-location">
+                    Location: {generateBreadcrumbs(result.space_id)}
+                  </p>
+                )}
+              </>
             )}
           </div>
         ))}

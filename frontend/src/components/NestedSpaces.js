@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faEdit, faTrash, faSave } from "@fortawesome/free-solid-svg-icons";
 import "./NestedSpaces.css";
 
 const COLORS = ["#ff0000", "#ff7f00", "#ffff00", "#7fff00", "#00ff00", "#00ffff", "#007fff"]; // ROYGBIV colors
@@ -14,6 +14,9 @@ const NestedSpaces = ({
   onDeleteSpace,
 }) => {
   const [expandedSpaces, setExpandedSpaces] = useState({}); // Local state for expanded spaces
+  const [editingSpaceId, setEditingSpaceId] = useState(null); // Track which space is being edited
+  const [editedName, setEditedName] = useState(""); // Edited space name
+
   const spaceRefs = useRef({}); // Ref to track DOM elements of spaces
 
   // Toggle space expansion and notify parent about position
@@ -43,22 +46,56 @@ const NestedSpaces = ({
             borderBottom: `3px solid ${COLORS[depth % COLORS.length]}`,
           }}
         >
-          <div className="space-header" onClick={() => toggleSpace(space.id)}>
-            <span className="space-name">{space.name}</span>
-            <div className="space-actions">
-              <FontAwesomeIcon
-                icon={faEdit}
-                onClick={() => onEditSpace(space.id, space.name)}
-                className="edit-icon"
-              />
-              <FontAwesomeIcon
-                icon={faTrash}
-                onClick={() => onDeleteSpace(space.id)}
-                className="delete-icon"
-              />
-            </div>
+          <div className="space-header">
+            {editingSpaceId === space.id ? (
+              // Inline editing form
+              <div className="edit-form">
+                <input
+                  type="text"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  placeholder="Edit space name"
+                  className="edit-input"
+                />
+                <button
+                  onClick={() => {
+                    onEditSpace(space.id, editedName);
+                    setEditingSpaceId(null);
+                  }}
+                  className="save-button"
+                >
+                  <FontAwesomeIcon icon={faSave} />
+                </button>
+              </div>
+            ) : (
+              // Default view
+              <>
+                <span
+                  className="space-name"
+                  onClick={() => toggleSpace(space.id)}
+                >
+                  {space.name}
+                </span>
+                <div className="space-actions">
+                  <FontAwesomeIcon
+                    icon={faEdit}
+                    onClick={() => {
+                      setEditingSpaceId(space.id);
+                      setEditedName(space.name);
+                    }}
+                    className="edit-icon"
+                  />
+                  <FontAwesomeIcon
+                    icon={faTrash}
+                    onClick={() => onDeleteSpace(space.id)}
+                    className="delete-icon"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
+          {/* Render nested spaces */}
           {expandedSpaces[space.id] && (
             <div className="nested-space-children">
               <NestedSpaces
