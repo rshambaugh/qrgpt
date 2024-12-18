@@ -47,21 +47,47 @@ const App = () => {
   }, []);
 
   // Edit item handler
-  const onEditItem = async (itemId) => {
-    const newName = prompt("Enter the new name for the item:");
-    if (newName) {
-      try {
-        await fetch(`http://localhost:8000/items/${itemId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newName }),
-        });
-        fetchItems();
-      } catch (error) {
-        console.error("Error editing item:", error);
+  // Updated edit handlers
+  // Edit item handler
+const onEditItem = async (itemId, updatedFields) => {
+  try {
+    const response = await fetch(`http://localhost:8000/items/${itemId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedFields),
+    });
+
+    if (response.ok) {
+      fetchItems(); // Fetch updated list of items
+
+      // Refresh search results based on the current query
+      if (searchQuery) {
+        const updatedItems = items.map((item) =>
+          item.id === itemId ? { ...item, ...updatedFields } : item
+        );
+        const filteredItems = updatedItems.filter((item) =>
+          item.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
+        const filteredSpaces = spaces.filter((space) =>
+          space.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
+        setSearchResults([
+          ...filteredSpaces.map((space) => ({ ...space, type: "space", key: `space-${space.id}` })),
+          ...filteredItems.map((item) => ({ ...item, type: "item", key: `item-${item.id}` })),
+        ]);
       }
+    } else {
+      throw new Error("Failed to update item.");
     }
-  };
+  } catch (error) {
+    console.error("Error updating item:", error);
+  }
+};
+
+
+  
 
   // Delete item handler
   const onDeleteItem = async (itemId) => {
@@ -78,19 +104,16 @@ const App = () => {
   };
 
   // Edit space handler
-  const onEditSpace = async (spaceId, currentName) => {
-    const newName = prompt("Enter the new name for the space:", currentName);
-    if (newName) {
-      try {
-        await fetch(`http://localhost:8000/spaces/${spaceId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newName }),
-        });
-        fetchSpaces();
-      } catch (error) {
-        console.error("Error editing space:", error);
-      }
+  const onEditSpace = async (spaceId, newName) => {
+    try {
+      await fetch(`http://localhost:8000/spaces/${spaceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      });
+      fetchSpaces();
+    } catch (error) {
+      console.error("Error editing space:", error);
     }
   };
 

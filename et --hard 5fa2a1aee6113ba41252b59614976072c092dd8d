@@ -1,0 +1,57 @@
+[33m5fa2a1a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31mqrgpt/main[m[33m)[m fixed some styling
+[33mbfce44a[m Looking good. About to focus on drag / drop functions
+[33mb59c442[m 2 columns set with nested spaces and sticky right column info. About to tackle functions
+[33ma21f7ee[m[33m ([m[1;31morigin/main[m[33m)[m making lots of fixes. Loading, minimially
+[33m92c28dd[m adding diff file
+[33m8084e30[m[33m ([m[1;31mqrgpt/storybook[m[33m, [m[1;32mstorybook[m[33m)[m added storybook but it's not working yet
+[33m21ed8e6[m big error and 4.o1 is maxed until the 18th. Switching to 4.o
+[33md3c027f[m lots of updates. Getting better
+[33m5b279cf[m working on the interface. Dragging spaces works. Dragging items doesn't
+[33m8f225d2[m working on navigation
+[33m9c95c3b[m dragging and dropping appears to work but the display is bad. About to make big updates
+[33m1d243be[m Drag and drop not working
+[33m4c8bbab[m updated App.js with space component
+[33m8b11b55[m working on dragging / dropping
+[33m446dc17[m about to refactor display into search-driven layout
+[33m146c6f6[m still working on drag and drop
+[33m4d43d03[m updating drag and drop
+[33m3dc4d5f[m about to reset functionality. Dragging and dropping isn't working.
+[33m173f0ee[m items and spaces aren't all rendering on the app
+[33m739b958[m Dragging and droppign stopped working for items and spaces. Analyzing...
+[33m02c9066[m Dragging and droppign items into spaces is working. Moving items from onen space to another is not wokrking.
+[33m1349c34[m Adjusting drag and drop
+[33medbcf39[m Trying to get drag and drop working.wq
+[33ma5749ef[m working on some updates. Room to grow
+[33me852b94[m new main branch
+[33m34a0ccb[m added a bunch of files. Deleting works. Items and spaces are visible. Dropping doesn't do anything
+[33madf73eb[m updating interface with cards
+[33m2b91104[m fixing component files and frontend uppobportunty eaas and 05 outside of muy discout
+[33mc8eed3b[m Got the basic drag and drop settings configured. About to add functionality
+[33md821a74[m prepping for draganddrop tests
+[33m2c919f7[m shifting to new interface design
+[33m9da6aa7[m Still trying to fix update action
+[33mb062f69[m updated main.py and App.js. Container updates are breaking. Getting a full analysis from GPT
+[33m7a77b1b[m Working frontent. Next steps: test gptapi functions. Test all frontend capabilities
+[33m4926077[m generate_qr is broken! Sharing with GPT
+[33m4ff3272[m About to test urls for api updates from GPT. Does the token work?
+[33mc38179d[m setting up API for GPT to update code. Write Code API is working (just the 1st step). About to add more features
+[33m2db1e69[m working on some errors
+[33mf9b2b5b[m Reworked all logic. Using async now. The app is displaying inventory items and containers and the form and video preview are appearing correctly, stylistically. About to test all form functions
+[33mbefd67a[m adding main2 and App2 (from qrganizer project for GPT comparison)
+[33m0ba31eb[m fixing export line (somewhere)
+[33mdfd68d4[m lots of refactoring
+[33m2b6fd4c[m[33m ([m[1;32mworking-qr-codes[m[33m)[m QR Codes Are Working!
+[33m6bb7217[m working on adding container logic. Currently, the form is broken
+[33mcb8c497[m Form, video placeholder, and inventory setup correctly. About to add video feed. Inventory is hit or miss with appearing or showing No Items Found
+[33m6e02d6c[m Update .gitignore to exclude venv/
+[33m7df7c98[m Update .gitignore to exclude qrorganizer.tar.gz
+[33m0a1a55f[m Update requirements.txt to reflect local environment
+[33m7680100[m Remove qrorganizer.tar.gz from repository
+[33mf6f0383[m Setting up github and Digital Ocean
+[33m1191de1[m initial push to digital ocean
+[33m6a0a8af[m Added category labels to cards and working on responsive design
+[33m38816c4[m Search is working!
+[33mb4f17d6[m QR Code is working on the cards. Updating items stopped working
+[33mc66f0e3[m Add, edit, and delete are all working. About to add QR Code generating
+[33ma80656d[m Initial commit for QRganizer project structure
+[33m0f170e3[m Initial commit with .gitignore
