@@ -9,12 +9,13 @@ const AddForm = ({
   setNewSpaceName,
   newSpaceParentId,
   setNewSpaceParentId,
-  spaces,
+  spaces = [], // Default to an empty array
   handleAddItem,
   handleAddSpace,
 }) => {
   return (
     <div className="form-container" style={{ display: "flex", gap: "20px" }}>
+      {/* Add a New Item */}
       <div style={{ flex: "1" }}>
         <h3>Add a New Item</h3>
         <input
@@ -33,6 +34,7 @@ const AddForm = ({
         <button onClick={handleAddItem}>Add Item</button>
       </div>
 
+      {/* Add a New Space */}
       <div style={{ flex: "1" }}>
         <h3>Add a New Space</h3>
         <input
@@ -48,11 +50,15 @@ const AddForm = ({
           style={{ width: "100%", marginBottom: "5px" }}
         >
           <option value="">No Parent</option>
-          {spaces.map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.name}
-            </option>
-          ))}
+          {Array.isArray(spaces) && spaces.length > 0 ? (
+            spaces.map((space) => (
+              <option key={space.id} value={space.id}>
+                {space.name}
+              </option>
+            ))
+          ) : (
+            <option disabled>No Spaces Available</option>
+          )}
         </select>
         <button onClick={handleAddSpace}>Add Space</button>
       </div>

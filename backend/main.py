@@ -72,6 +72,9 @@ class UpdateParentRequest(BaseModel):
 class UpdateSpaceRequest(BaseModel):
     new_space_id: int
 
+class SpaceUpdateRequest(BaseModel):
+    name: str
+
 class Item(BaseModel):
     id: int
     name: str
@@ -136,7 +139,6 @@ async def create_item(item: ItemCreate, db: AsyncSession = Depends(get_db)):
         logger.error(f"Error creating item: {e}")
         raise HTTPException(status_code=500, detail="Error creating item.")
 
-
 @app.post("/spaces/", response_model=Space)
 async def create_space(space: SpaceCreate, db: AsyncSession = Depends(get_db)):
     try:
@@ -153,6 +155,24 @@ async def create_space(space: SpaceCreate, db: AsyncSession = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error creating space: {e}")
         raise HTTPException(status_code=500, detail="Error creating space")
+
+
+@app.put("/spaces/{space_id}", response_model=Space)
+async def update_space(space_id: int, update: SpaceUpdateRequest, db: AsyncSession = Depends(get_db)):
+    try:
+        stmt = spaces_table.update().where(spaces_table.c.id == space_id).values(
+            name=update.name
+        ).returning(spaces_table)
+        result = await db.execute(stmt)
+        await db.commit()
+        updated_space = result.fetchone()
+        if not updated_space:
+            raise HTTPException(status_code=404, detail="Space not found")
+        return updated_space
+    except SQLAlchemyError as e:
+        logger.error(f"Error updating space: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update space")
+
 
 
 @app.get("/spaces/{space_id}", response_model=Space)
@@ -184,7 +204,7 @@ async def get_space(space_id: int, db: AsyncSession = Depends(get_db)):
         logger.error(f"Database error fetching space: {e}")
         raise HTTPException(status_code=500, detail="Error fetching space.")
 
-@app.get("/spaces-recursive")
+@app.get("/spaces-recursive", response_model=dict)
 async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
     query = text("""
     WITH RECURSIVE space_hierarchy AS (
@@ -192,83 +212,53 @@ async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
         FROM spaces
         WHERE parent_id IS NULL
         UNION ALL
-        SELECT s.id, s.name, s.parent_id, s.depth
+        SELECT s.id, s.name, s.parent_id, sh.depth + 1
         FROM spaces s
         INNER JOIN space_hierarchy sh ON s.parent_id = sh.id
     )
-    SELECT * FROM space_hierarchy ORDER BY depth, id;
+    SELECT id, name, parent_id, depth FROM space_hierarchy ORDER BY depth, id;
     """)
     try:
-        logger.info("Executing recursive spaces query")
+        logger.info("Executing recursive query for spaces")
         result = await db.execute(query)
         rows = result.mappings().all()
-        logger.info(f"Fetched spaces: {rows}")
-        if not rows:
-            return {"spaces": []}
-        return {"spaces": rows}
-    except Exception as e:
-        logger.error(f"Error in recursive query: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch spaces.")
+        
+        # Convert RowMapping to standard dictionaries
+        spaces = [dict(row) for row in rows]
+
+        logger.info(f"Recursive query result: {spaces}")
+        return {"spaces": spaces}
+    except SQLAlchemyError as e:
+        logger.error(f"Error executing recursive query: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch spaces recursively.")
 
 
-@app.put("/spaces/{space_id}/parent", response_model=dict)
-async def update_space_parent(
-    space_id: int,
-    update_request: UpdateParentRequest,
+@app.put("/items/{item_id}", response_model=Item)
+async def update_item(
+    item_id: int, 
+    item_data: ItemCreate, 
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Update an item by its ID.
+    """
     try:
-        # Validate new_parent_id exists
-        if update_request.new_parent_id is not None:
-            validate_parent_query = select(spaces_table.c.id).where(spaces_table.c.id == update_request.new_parent_id)
-            validate_parent_result = await db.execute(validate_parent_query)
-            if not validate_parent_result.fetchone():
-                raise HTTPException(status_code=404, detail="New parent space not found")
-
-        stmt = spaces_table.update().where(spaces_table.c.id == space_id).values(
-            parent_id=update_request.new_parent_id
-        )
+        # Perform the update
+        stmt = items_table.update().where(items_table.c.id == item_id).values(
+            name=item_data.name,
+            description=item_data.description,
+            space_id=item_data.space_id
+        ).returning(items_table)
+        
         result = await db.execute(stmt)
         await db.commit()
-        if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Space not found")
+        
+        updated_item = result.fetchone()
+        if not updated_item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        return updated_item
 
-        # Adjust depth
-        await db.execute(
-            text("""
-                WITH RECURSIVE updated_spaces AS (
-                    SELECT id, parent_id, depth
-                    FROM spaces
-                    WHERE id = :space_id
-                    UNION ALL
-                    SELECT s.id, s.parent_id, us.depth + 1
-                    FROM spaces s
-                    JOIN updated_spaces us ON s.parent_id = us.id
-                )
-                UPDATE spaces
-                SET depth = updated_spaces.depth
-                FROM updated_spaces
-                WHERE spaces.id = updated_spaces.id
-            """),
-            {"space_id": space_id}
-        )
-        await db.commit()
-        return {"message": "Space parent updated successfully"}
     except SQLAlchemyError as e:
-        logger.error(f"Error updating space parent: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update space parent.")
-
-@app.put("/items/{item_id}/space", response_model=dict)
-async def update_item_space(item_id: int, update_request: UpdateSpaceRequest, db: AsyncSession = Depends(get_db)):
-    # Validate the new space ID if it's not null (optional)
-    validate_space_query = select(spaces_table.c.id).where(spaces_table.c.id == update_request.new_space_id)
-    validate_space_result = await db.execute(validate_space_query)
-    if not validate_space_result.fetchone():
-        raise HTTPException(status_code=404, detail="Target space not found")
-
-    stmt = items_table.update().where(items_table.c.id == item_id).values(space_id=update_request.new_space_id)
-    result = await db.execute(stmt)
-    await db.commit()
-    if result.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return {"message": "Item moved to new space"}
+        logger.error(f"Error updating item: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update item")

@@ -1,0 +1,144 @@
+/* Container for the content */
+.content-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Left and right columns evenly spaced */
+    position: relative;
+    gap: 20px;
+  }
+  
+  /* Left column: Nested Spaces */
+  .nested-spaces-column {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    position: relative;
+  }
+  
+  /* Right column: Current Space */
+  .items-column {
+    position: sticky;
+    top: 100px; /* Adjust this offset for smooth alignment */
+    height: fit-content; /* Keeps content height minimal */
+    transition: top 0.3s ease-in-out; /* Smooth alignment transition */
+  }
+  
+  /* Style for the space cards */
+  .space-card {
+    background-color: #f7f7f7;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .space-card:hover {
+    background-color: #e8f0fe;
+  }
+  
+  .nested-space-children {
+    margin-left: 10px; /* Indentation for child spaces */
+  }
+  
+  /* Icons */
+  .space-actions {
+    float: right;
+    display: flex;
+    gap: 8px;
+  }
+  
+  .edit-icon,
+  .delete-icon {
+    cursor: pointer;
+    color: #666;
+    transition: color 0.2s, transform 0.2s;
+  }
+  
+  .edit-icon:hover,
+  .delete-icon:hover {
+    color: #333;
+    transform: scale(1.1);
+  }
+  
+  /* Breadcrumb Trail */
+.breadcrumb {
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    color: #666;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  
+  .breadcrumb span,
+  .breadcrumb a {
+    text-decoration: none;
+    margin-right: 8px;
+    color: #666;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+  
+  .breadcrumb a:hover {
+    color: #007bff;
+  }
+  
+  .breadcrumb span.current {
+    font-weight: bold;
+    color: #333;
+    cursor: default;
+  }
+  
+  /* Adjust left column to fill content */
+  .nested-spaces-column {
+    flex: 1; /* Take up full available width */
+    max-width: 100%; /* Prevent overflow */
+    padding-right: 10px;
+    box-sizing: border-box;
+  }
+  
+  /* Right column content */
+.space-card {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .space-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Match border colors with depth */
+  .space-card.border-colored {
+    border-bottom-width: 4px;
+    border-bottom-style: solid;
+  }
+  
+  /* Items standout appearance */
+  .item-card {
+    background-color: #fdf3c8; /* Soft solid color for items */
+    border: 1px solid #f8d57e;
+    border-radius: 5px;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-weight: 500;
+    color: #8a5900;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Adjust breadcrumb margin for cleaner alignment */
+  .breadcrumb {
+    margin-bottom: 15px;
+  }
+  
