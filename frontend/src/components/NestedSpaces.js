@@ -59,13 +59,14 @@ const NestedSpaces = ({
                 />
                 <button
                   onClick={() => {
-                    onEditSpace(space.id, editedName);
-                    setEditingSpaceId(null);
+                      onEditSpace(space.id, editedName);
+                      setEditingSpaceId(null);
                   }}
                   className="save-button"
-                >
+              >
                   <FontAwesomeIcon icon={faSave} />
-                </button>
+              </button>
+
               </div>
             ) : (
               // Default view
