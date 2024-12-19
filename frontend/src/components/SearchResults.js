@@ -101,5 +101,4 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem }) => {
     </div>
   );
 };
-
 export default SearchResults;

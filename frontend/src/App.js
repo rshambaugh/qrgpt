@@ -5,22 +5,31 @@ import SearchBar from "./components/SearchBar";
 import SearchResults from "./components/SearchResults";
 
 const App = () => {
-  const [spaces, setSpaces] = useState([]); // Spaces data
-  const [items, setItems] = useState([]);   // Items data
-  const [currentSpaceId, setCurrentSpaceId] = useState(null); // Selected space ID
-  const [searchQuery, setSearchQuery] = useState(""); // Search query state
-  const [searchResults, setSearchResults] = useState([]); // Search results
-  const [newItemName, setNewItemName] = useState(""); // New item name
-  const [newItemDescription, setNewItemDescription] = useState(""); // New item description
-  const [newItemSpaceId, setNewItemSpaceId] = useState(null); // Space for new item
-  const [newSpaceName, setNewSpaceName] = useState(""); // New space name
-  const [newSpaceParentId, setNewSpaceParentId] = useState(null); // Parent space ID for new space
+  const [spaces, setSpaces] = useState([]);
+  const [items, setItems] = useState([]);
+  const [currentSpaceId, setCurrentSpaceId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemDescription, setNewItemDescription] = useState("");
+  const [newItemSpaceId, setNewItemSpaceId] = useState(null);
+  const [newSpaceName, setNewSpaceName] = useState("");
+  const [newSpaceParentId, setNewSpaceParentId] = useState(null);
 
-  // Fetch all spaces
+  useEffect(() => {
+    fetchSpaces();
+    fetchItems();
+  }, []);
+
+  useEffect(() => {
+    console.log("App mounted. Spaces:", spaces, "Items:", items);
+  }, [spaces, items]);
+  
+
+  // Fetch spaces
   const fetchSpaces = async () => {
     try {
       const response = await fetch("http://localhost:8000/spaces-recursive");
-      if (!response.ok) throw new Error("Failed to fetch spaces");
       const data = await response.json();
       setSpaces(data.spaces);
     } catch (error) {
@@ -28,11 +37,10 @@ const App = () => {
     }
   };
 
-  // Fetch all items
+  // Fetch items
   const fetchItems = async () => {
     try {
       const response = await fetch("http://localhost:8000/items/");
-      if (!response.ok) throw new Error("Failed to fetch items.");
       const data = await response.json();
       setItems(data);
     } catch (error) {
@@ -40,181 +48,9 @@ const App = () => {
     }
   };
 
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchSpaces();
-    fetchItems();
-  }, []);
-
-  // Edit item handler
-  // Updated edit handlers
-  // Edit item handler
-const onEditItem = async (itemId, updatedFields) => {
-  try {
-    const response = await fetch(`http://localhost:8000/items/${itemId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedFields),
-    });
-
-    if (response.ok) {
-      fetchItems(); // Fetch updated list of items
-
-      // Refresh search results based on the current query
-      if (searchQuery) {
-        const updatedItems = items.map((item) =>
-          item.id === itemId ? { ...item, ...updatedFields } : item
-        );
-        const filteredItems = updatedItems.filter((item) =>
-          item.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-
-        const filteredSpaces = spaces.filter((space) =>
-          space.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-
-        setSearchResults([
-          ...filteredSpaces.map((space) => ({ ...space, type: "space", key: `space-${space.id}` })),
-          ...filteredItems.map((item) => ({ ...item, type: "item", key: `item-${item.id}` })),
-        ]);
-      }
-    } else {
-      throw new Error("Failed to update item.");
-    }
-  } catch (error) {
-    console.error("Error updating item:", error);
-  }
-};
-
-
-  
-
-  // Delete item handler
-  const onDeleteItem = async (itemId) => {
-    if (window.confirm("Are you sure you want to delete this item?")) {
-      try {
-        await fetch(`http://localhost:8000/items/${itemId}`, {
-          method: "DELETE",
-        });
-        fetchItems();
-      } catch (error) {
-        console.error("Error deleting item:", error);
-      }
-    }
-  };
-
-  // Edit space handler
-  const onEditSpace = async (spaceId, newName) => {
-    try {
-      await fetch(`http://localhost:8000/spaces/${spaceId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName }),
-      });
-      fetchSpaces();
-    } catch (error) {
-      console.error("Error editing space:", error);
-    }
-  };
-
-  // Delete space handler
-  const onDeleteSpace = async (spaceId) => {
-    if (window.confirm("Are you sure you want to delete this space?")) {
-      try {
-        await fetch(`http://localhost:8000/spaces/${spaceId}`, {
-          method: "DELETE",
-        });
-        fetchSpaces();
-        fetchItems(); // Refresh items in case they belonged to the deleted space
-      } catch (error) {
-        console.error("Error deleting space:", error);
-      }
-    }
-  };
-
-  // Handle search logic
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    const filteredSpaces = spaces.filter((space) =>
-      space.name.toLowerCase().includes(query.toLowerCase())
-    );
-
-    const filteredItems = items.filter((item) =>
-      item.name.toLowerCase().includes(query.toLowerCase())
-    );
-
-    setSearchResults([...filteredSpaces, ...filteredItems]);
-  };
-
-  // Add new item
-  const handleAddItem = async () => {
-    if (!newItemName.trim()) {
-      alert("Item name cannot be empty.");
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:8000/items/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newItemName,
-          description: newItemDescription,
-          space_id: newItemSpaceId,
-        }),
-      });
-
-      if (response.ok) {
-        setNewItemName("");
-        setNewItemDescription("");
-        setNewItemSpaceId(null);
-        fetchItems();
-      } else {
-        throw new Error("Failed to add item.");
-      }
-    } catch (error) {
-      console.error("Error adding item:", error);
-    }
-  };
-
-  // Add new space
-  const handleAddSpace = async () => {
-    if (!newSpaceName.trim()) {
-      alert("Space name cannot be empty.");
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:8000/spaces/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newSpaceName,
-          parent_id: newSpaceParentId,
-        }),
-      });
-
-      if (response.ok) {
-        setNewSpaceName("");
-        setNewSpaceParentId(null);
-        fetchSpaces();
-      } else {
-        throw new Error("Failed to add space.");
-      }
-    } catch (error) {
-      console.error("Error adding space:", error);
-    }
-  };
-
-  // Generate breadcrumb trail for a space
+  // Generate breadcrumb trail
   const generateBreadcrumbs = (spaceId) => {
-    let breadcrumbs = [];
+    const breadcrumbs = [];
     let currentId = spaceId;
 
     while (currentId) {
@@ -224,8 +60,12 @@ const onEditItem = async (itemId, updatedFields) => {
       breadcrumbs.unshift(space);
       currentId = space.parent_id;
     }
-
     return breadcrumbs;
+  };
+
+  // Handle breadcrumb click
+  const handleBreadcrumbClick = (spaceId) => {
+    setCurrentSpaceId(spaceId);
   };
 
   return (
@@ -233,17 +73,16 @@ const onEditItem = async (itemId, updatedFields) => {
       <h1 className="app-title">Spaces and Items</h1>
 
       {/* Search Bar */}
-      <SearchBar
-        searchQuery={searchQuery}
-        onSearch={handleSearch}
-      />
+      <SearchBar searchQuery={searchQuery} onSearch={setSearchQuery} />
 
       {/* Search Results */}
       <SearchResults
         searchResults={searchResults}
         spaces={spaces}
-        onEditItem={onEditItem}
-        onDeleteItem={onDeleteItem}
+        onEditItem={(id, updates) => {
+          console.log("Edit item:", id, updates);
+        }}
+        onDeleteItem={(id) => console.log("Delete item:", id)}
       />
 
       {/* Add Form */}
@@ -259,53 +98,48 @@ const onEditItem = async (itemId, updatedFields) => {
         newSpaceParentId={newSpaceParentId}
         setNewSpaceParentId={setNewSpaceParentId}
         spaces={spaces}
-        handleAddItem={handleAddItem}
-        handleAddSpace={handleAddSpace}
+        handleAddItem={() => console.log("Add item")}
+        handleAddSpace={() => console.log("Add space")}
       />
 
       {/* Content Layout */}
       <div className="content-container">
-        {/* Left Column: Spaces */}
+        {/* Left Column */}
         <div className="nested-spaces-column">
           <h2>Spaces</h2>
           <NestedSpaces
             spaces={spaces}
-            handleSpaceClick={setCurrentSpaceId}
-            onEditSpace={onEditSpace}
-            onDeleteSpace={onDeleteSpace}
+            handleSpaceClick={(spaceId) => setCurrentSpaceId(spaceId)}
+            onEditSpace={() => {}}
+            onDeleteSpace={() => {}}
           />
         </div>
 
-        {/* Right Column: Current Space */}
+        {/* Right Column */}
         <div className="items-column">
           {currentSpaceId ? (
             <>
-              {spaces
-                .filter((space) => space.parent_id === currentSpaceId)
-                .map((space) => (
-                  <div
-                    key={space.id}
-                    className="space-card"
-                    style={{
-                      borderBottom: `3px solid ${space.color || "#ccc"}`,
-                    }}
-                  >
-                    {space.name}
-                  </div>
+              {/* Breadcrumb Trail */}
+              <div className="breadcrumb">
+                {generateBreadcrumbs(currentSpaceId).map((space, index, array) => (
+                  <span key={space.id}>
+                    <a
+                      href="#"
+                      onClick={() => handleBreadcrumbClick(space.id)}
+                      style={{ textDecoration: "underline", cursor: "pointer" }}
+                    >
+                      {space.name}
+                    </a>
+                    {index < array.length - 1 && " > "}
+                  </span>
                 ))}
+              </div>
+
+              {/* Current Space Content */}
               {items
                 .filter((item) => item.space_id === currentSpaceId)
                 .map((item) => (
-                  <div
-                    key={item.id}
-                    className="item-card"
-                    style={{
-                      backgroundColor: "#f8f8f8",
-                      borderBottom: `3px solid ${spaces.find(
-                        (space) => space.id === item.space_id
-                      )?.color || "#ccc"}`,
-                    }}
-                  >
+                  <div key={item.id} className="item-card">
                     {item.name}
                   </div>
                 ))}
