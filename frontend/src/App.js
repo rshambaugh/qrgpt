@@ -26,16 +26,22 @@ const App = () => {
     console.log("App mounted. Spaces:", spaces, "Items:", items);
   }, [spaces, items]);
 
-  const fetchSpaces = async () => {
+
+  async function fetchSpaces() {
     try {
-      const response = await fetch("http://localhost:8000/spaces-recursive");
+      const response = await fetch("http://localhost:8000/spaces/recursive");
+      if (!response.ok) {
+        console.error("Failed to fetch spaces:", response.statusText);
+        return;
+      }
       const data = await response.json();
-      setSpaces(data.spaces);
+      console.log("Fetched spaces:", data);
+      setSpaces(data); // Use the array directly
     } catch (error) {
       console.error("Error fetching spaces:", error);
     }
-  };
-
+  }
+  
   const fetchItems = async () => {
     try {
       const response = await fetch("http://localhost:8000/items/");

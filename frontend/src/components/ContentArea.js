@@ -7,11 +7,14 @@ const getBorderColor = (index) => {
 };
 
 const ContentArea = ({ currentSpaceId, spaces = [], items = [] }) => {
-  // Find the currently selected space
-  const currentSpace = spaces.find((space) => space.id === currentSpaceId);
+  // Ensure spaces is an array
+  const safeSpaces = Array.isArray(spaces) ? spaces : [];
 
-  // Filter items belonging to the current space
-  const filteredItems = items.filter((item) => item.space_id === currentSpaceId);
+  const currentSpace = safeSpaces.find((space) => space.id === currentSpaceId);
+
+  const filteredItems = Array.isArray(items)
+    ? items.filter((item) => item.space_id === currentSpaceId)
+    : [];
 
   return (
     <div className="items-column">

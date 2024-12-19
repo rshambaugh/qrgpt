@@ -1,23 +1,34 @@
-# backend/models.py
+# backend/app/models.py
+from sqlalchemy import Column, Integer, Text, ForeignKey, DateTime, func, text
+from sqlalchemy.orm import relationship, declarative_base
 
-from typing import List, Optional
-from pydantic import BaseModel
+Base = declarative_base()
 
-class Item(BaseModel):
-    id: int
-    name: str
-    description: Optional[str] = None
-    space_id: Optional[int] = None
+class Space(Base):
+    __tablename__ = "spaces"
 
-class Space(BaseModel):
-    id: int
-    name: str
-    parent_id: Optional[int] = None
-    depth: int
-    children: List['Space'] = []
-    items: List[Item] = []
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(Text, nullable=False)
+    parent_id = Column(Integer, ForeignKey("spaces.id", ondelete="CASCADE"), nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), nullable=False)
+    depth = Column(Integer, nullable=False, server_default=text("0"))
 
-    class Config:
-        orm_mode = True
+    # Self-referential relationship for nested spaces
+    children = relationship("Space", backref="parent", remote_side=[id])
 
-Space.update_forward_refs()
+    # Relationship to items
+    items = relationship("Item", back_populates="space")
+
+class Item(Base):
+    __tablename__ = "items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    space_id = Column(Integer, ForeignKey("spaces.id", ondelete="CASCADE"), nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    # Link back to Space
+    space = relationship("Space", back_populates="items")

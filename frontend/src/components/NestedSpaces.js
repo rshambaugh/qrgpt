@@ -3,37 +3,51 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash, faSave } from "@fortawesome/free-solid-svg-icons";
 import "./NestedSpaces.css";
 
-const COLORS = ["#ff0000", "#ff7f00", "#ffff00", "#7fff00", "#00ff00", "#00ffff", "#007fff"]; // ROYGBIV colors
+const COLORS = ["#ff0000", "#ff7f00", "#ffff00", "#7fff00", "#00ff00", "#00ffff", "#007fff"];
 
 const NestedSpaces = ({
   spaces,
+  setSpaces, // Add this prop
   currentParentId = null,
   depth = 0,
   handleSpaceClick,
   onEditSpace,
   onDeleteSpace,
 }) => {
-  const [expandedSpaces, setExpandedSpaces] = useState({}); // Local state for expanded spaces
-  const [editingSpaceId, setEditingSpaceId] = useState(null); // Track which space is being edited
-  const [editedName, setEditedName] = useState(""); // Edited space name
+  const [expandedSpaces, setExpandedSpaces] = useState([]);
+  const [editingSpaceId, setEditingSpaceId] = useState(null);
+  const [editedName, setEditedName] = useState("");
 
-  const spaceRefs = useRef({}); // Ref to track DOM elements of spaces
+  const spaceRefs = useRef({});
 
-  // Toggle space expansion and notify parent about position
-  const toggleSpace = (spaceId) => {
-    setExpandedSpaces((prev) => ({
-      ...prev,
-      [spaceId]: !prev[spaceId],
-    }));
+  const toggleSpace = async (spaceId) => {
+    if (expandedSpaces.includes(spaceId)) {
+      setExpandedSpaces((prev) => prev.filter((id) => id !== spaceId));
+      return;
+    }
 
-    // Capture space position and send it to parent (App)
-    if (spaceRefs.current[spaceId]) {
-      const rect = spaceRefs.current[spaceId].getBoundingClientRect();
-      handleSpaceClick(spaceId, rect.top + window.scrollY);
+    try {
+      const response = await fetch(`http://localhost:8000/spaces/${spaceId}/children`);
+      if (!response.ok) {
+        console.error(`Failed to fetch children for space ID ${spaceId}: ${response.statusText}`);
+        return;
+      }
+
+      const children = await response.json();
+
+      if (children.length > 0) {
+        setSpaces((prevSpaces) => [...prevSpaces, ...children]); // Use setSpaces from props
+        setExpandedSpaces((prev) => [...prev, spaceId]);
+      } else {
+        console.warn(`No children found for space ID ${spaceId}`);
+      }
+    } catch (error) {
+      console.error(`Error fetching children for space ID ${spaceId}:`, error);
     }
   };
 
-  const childSpaces = spaces.filter((space) => space.parent_id === currentParentId);
+  const safeSpaces = Array.isArray(spaces) ? spaces : [];
+  const childSpaces = safeSpaces.filter((space) => space.parent_id === currentParentId);
 
   return (
     <div className="nested-spaces">
@@ -48,7 +62,6 @@ const NestedSpaces = ({
         >
           <div className="space-header">
             {editingSpaceId === space.id ? (
-              // Inline editing form
               <div className="edit-form">
                 <input
                   type="text"
@@ -59,22 +72,17 @@ const NestedSpaces = ({
                 />
                 <button
                   onClick={() => {
-                      onEditSpace(space.id, editedName);
-                      setEditingSpaceId(null);
+                    onEditSpace(space.id, editedName);
+                    setEditingSpaceId(null);
                   }}
                   className="save-button"
-              >
+                >
                   <FontAwesomeIcon icon={faSave} />
-              </button>
-
+                </button>
               </div>
             ) : (
-              // Default view
               <>
-                <span
-                  className="space-name"
-                  onClick={() => toggleSpace(space.id)}
-                >
+                <span className="space-name" onClick={() => toggleSpace(space.id)}>
                   {space.name}
                 </span>
                 <div className="space-actions">
@@ -96,11 +104,11 @@ const NestedSpaces = ({
             )}
           </div>
 
-          {/* Render nested spaces */}
-          {expandedSpaces[space.id] && (
+          {expandedSpaces.includes(space.id) && (
             <div className="nested-space-children">
               <NestedSpaces
-                spaces={spaces}
+                spaces={safeSpaces}
+                setSpaces={setSpaces}
                 currentParentId={space.id}
                 depth={depth + 1}
                 handleSpaceClick={handleSpaceClick}

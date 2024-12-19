@@ -1,8 +1,9 @@
+# backend/app/routes/items.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from schemas import ItemCreate, Item
-from services.items import get_items, create_item
-from utils.db import get_db
+from ..schemas import ItemCreate, Item
+from ..services.items import get_items, create_item
+from ..utils.db import get_db
 
 router = APIRouter()
 
