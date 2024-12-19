@@ -218,3 +218,26 @@ textarea::placeholder {
     font-size: 1.5rem;
   }
 }
+
+.search-results-cards .space-card {
+  background-color: #e8f5e9; /* Light green */
+  border: 1px solid #a5d6a7; /* Medium green border */
+  color: #2e7d32; /* Dark green text */
+}
+
+.search-results-cards .item-card {
+  background-color: #e3f2fd; /* Light blue */
+  border: 1px solid #90caf9; /* Medium blue border */
+  color: #1565c0; /* Dark blue text */
+}
+
+/* Add hover effects for better feedback */
+.space-card:hover {
+  background-color: #c8e6c9;
+  border-color: #81c784;
+}
+
+.item-card:hover {
+  background-color: #bbdefb;
+  border-color: #64b5f6;
+}
