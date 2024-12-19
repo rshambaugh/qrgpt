@@ -2,28 +2,27 @@ import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash, faSave } from "@fortawesome/free-solid-svg-icons";
 
+// Move the generateBreadcrumbs function outside the component
+const generateBreadcrumbs = (spaces, spaceId) => {
+  const breadcrumbs = [];
+  let currentSpaceId = spaceId;
+
+  while (currentSpaceId) {
+    const space = spaces.find((s) => s.id === currentSpaceId);
+    if (!space) break;
+
+    breadcrumbs.unshift(space.name);
+    currentSpaceId = space.parent_id;
+  }
+
+  return breadcrumbs.join(" > ");
+};
+
 const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEditSpace }) => {
-  const [editingId, setEditingId] = useState(null); // Track which item/space is being edited
-  const [editedName, setEditedName] = useState(""); // Edited name for inline form
-  const [editedDescription, setEditedDescription] = useState(""); // Edited description
+  const [editingId, setEditingId] = useState(null); 
+  const [editedName, setEditedName] = useState(""); 
+  const [editedDescription, setEditedDescription] = useState(""); 
 
-  // Helper to generate breadcrumbs
-  const generateBreadcrumbs = (spaceId) => {
-    const breadcrumbs = [];
-    let currentSpaceId = spaceId;
-
-    while (currentSpaceId) {
-      const space = spaces.find((s) => s.id === currentSpaceId);
-      if (!space) break;
-
-      breadcrumbs.unshift(space.name);
-      currentSpaceId = space.parent_id;
-    }
-
-    return breadcrumbs.join(" > ");
-  };
-
-  // Handle save logic
   const handleSave = (id, type) => {
     if (!editedName.trim()) {
       alert("Name cannot be empty.");
@@ -36,7 +35,7 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEdit
       onEditSpace(id, editedName);
     }
 
-    setEditingId(null); // Exit edit mode
+    setEditingId(null); 
     setEditedName("");
     setEditedDescription("");
   };
@@ -53,10 +52,8 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEdit
                 result.type === "item" ? "item-card" : "space-card"
               }`}
             >
-              {/* Action Icons */}
               <div className="card-actions">
                 {editingId === result.id ? (
-                  // Save icon for inline editing
                   <FontAwesomeIcon
                     icon={faSave}
                     onClick={() => handleSave(result.id, result.type)}
@@ -86,7 +83,6 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEdit
                 )}
               </div>
 
-              {/* Inline Edit Form */}
               {editingId === result.id ? (
                 <div className="edit-form">
                   <input
@@ -104,7 +100,6 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEdit
                   )}
                 </div>
               ) : (
-                // Regular display content
                 <>
                   <h4>{result.name}</h4>
                   {result.type === "item" && result.description && (
@@ -112,7 +107,7 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEdit
                   )}
                   {result.type === "item" && result.space_id && (
                     <p className="result-location">
-                      Location: {generateBreadcrumbs(result.space_id)}
+                      Location: {generateBreadcrumbs(spaces, result.space_id)}
                     </p>
                   )}
                 </>

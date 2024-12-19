@@ -8,7 +8,9 @@ const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onSpaceClic
   const [editedItemName, setEditedItemName] = useState("");
   const [editedItemDesc, setEditedItemDesc] = useState("");
 
-  // Draggable Item Component
+  // Ensure spaces is an array
+  const safeSpaces = Array.isArray(spaces) ? spaces : [];
+
   const DraggableItem = ({ item }) => {
     const [{ isDragging }, drag] = useDrag(() => ({
       type: "ITEM",
@@ -54,7 +56,9 @@ const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onSpaceClic
               <strong>{item.name}</strong>
             </div>
             {item.description && <div>{item.description}</div>}
-            <div style={{ position: "absolute", top: "5px", right: "5px", display: "flex", gap: "5px" }}>
+            <div
+              style={{ position: "absolute", top: "5px", right: "5px", display: "flex", gap: "5px" }}
+            >
               <FontAwesomeIcon
                 icon={faEdit}
                 style={{ cursor: "pointer", color: "blue" }}
@@ -72,7 +76,6 @@ const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onSpaceClic
     );
   };
 
-  // Droppable Space Component
   const DroppableSpace = ({ space }) => {
     const [, drop] = useDrop(() => ({
       accept: ["ITEM", "SPACE"],
@@ -82,7 +85,7 @@ const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onSpaceClic
     return (
       <div
         ref={drop}
-        onClick={() => onSpaceClick(space.id)}
+        onClick={() => onSpaceClick && onSpaceClick(space.id)}
         style={{
           margin: "10px 0",
           padding: "10px",
@@ -99,7 +102,7 @@ const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onSpaceClic
           <FontAwesomeIcon
             icon={faEdit}
             style={{ cursor: "pointer", color: "blue" }}
-            onClick={() => onEditItem(space.id, space.name)}
+            onClick={() => onEditItem && onEditItem(space.id, space.name)}
           />
           <FontAwesomeIcon
             icon={faTrash}
@@ -119,7 +122,7 @@ const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onSpaceClic
 
   const handleItemEditSubmit = (e, itemId) => {
     e.preventDefault();
-    onEditItem(itemId, editedItemName, editedItemDesc);
+    onEditItem && onEditItem(itemId, editedItemName, editedItemDesc);
     setEditingItemId(null);
   };
 
@@ -133,7 +136,9 @@ const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onSpaceClic
       }}
     >
       <h2>Spaces</h2>
-      {spaces && spaces.map((space) => <DroppableSpace key={space.id} space={space} />)}
+      {safeSpaces.map((space) => (
+        <DroppableSpace key={space.id} space={space} />
+      ))}
 
       <h2>Items</h2>
       {items && items.map((item) => <DraggableItem key={item.id} item={item} />)}

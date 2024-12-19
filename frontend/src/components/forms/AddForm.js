@@ -16,7 +16,9 @@ const AddForm = ({
   handleAddItem,
   handleAddSpace,
 }) => {
-  const indentedSpaces = generateIndentedOptions(spaces); // Use the utility function
+  // Ensure spaces is an array
+  const safeSpaces = Array.isArray(spaces) ? spaces : [];
+  const indentedSpaces = generateIndentedOptions(safeSpaces);
 
   return (
     <div className="form-container" style={{ display: "flex", gap: "20px" }}>

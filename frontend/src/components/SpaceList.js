@@ -3,8 +3,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 function SpaceList({ spaces, items, onDrop, onSpaceClick, currentSpaceId }) {
+  // Ensure spaces is an array
+  const safeSpaces = Array.isArray(spaces) ? spaces : [];
+
   const renderSpaces = (parentId) =>
-    spaces
+    safeSpaces
       .filter((space) => space.parent_id === parentId)
       .map((space) => (
         <div
@@ -18,7 +21,7 @@ function SpaceList({ spaces, items, onDrop, onSpaceClick, currentSpaceId }) {
             justifyContent: "space-between",
             alignItems: "center",
           }}
-          onClick={() => onSpaceClick(space.id)}
+          onClick={() => onSpaceClick && onSpaceClick(space.id)}
         >
           <div>
             <strong>{space.name}</strong>
@@ -29,7 +32,7 @@ function SpaceList({ spaces, items, onDrop, onSpaceClick, currentSpaceId }) {
               style={{ cursor: "pointer", color: "blue" }}
               onClick={(e) => {
                 e.stopPropagation();
-                onSpaceClick(space.id);
+                onSpaceClick && onSpaceClick(space.id);
               }}
             />
             <FontAwesomeIcon
@@ -37,7 +40,7 @@ function SpaceList({ spaces, items, onDrop, onSpaceClick, currentSpaceId }) {
               style={{ cursor: "pointer", color: "red" }}
               onClick={(e) => {
                 e.stopPropagation();
-                onDrop(space.id, null, "SPACE");
+                onDrop && onDrop(space.id, null, "SPACE");
               }}
             />
           </div>
@@ -45,8 +48,7 @@ function SpaceList({ spaces, items, onDrop, onSpaceClick, currentSpaceId }) {
       ));
 
   if (currentSpaceId) {
-    // detail mode: show just current space and its children
-    const currentSpace = spaces.find((s) => s.id === currentSpaceId);
+    const currentSpace = safeSpaces.find((s) => s.id === currentSpaceId);
     if (!currentSpace) return <div>Space not found</div>;
 
     return (
@@ -69,12 +71,12 @@ function SpaceList({ spaces, items, onDrop, onSpaceClick, currentSpaceId }) {
             <FontAwesomeIcon
               icon={faEdit}
               style={{ cursor: "pointer", color: "blue" }}
-              onClick={() => onSpaceClick(currentSpace.id)}
+              onClick={() => onSpaceClick && onSpaceClick(currentSpace.id)}
             />
             <FontAwesomeIcon
               icon={faTrash}
               style={{ cursor: "pointer", color: "red" }}
-              onClick={() => onDrop(currentSpace.id, null, "SPACE")}
+              onClick={() => onDrop && onDrop(currentSpace.id, null, "SPACE")}
             />
           </div>
         </div>
@@ -82,7 +84,6 @@ function SpaceList({ spaces, items, onDrop, onSpaceClick, currentSpaceId }) {
       </div>
     );
   } else {
-    // list mode: show top-level spaces
     return <div>{renderSpaces(null)}</div>;
   }
 }
