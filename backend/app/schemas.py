@@ -33,8 +33,10 @@ class Item(ItemBase):
 class SpaceBase(BaseModel):
     name: str
 
-class SpaceCreate(SpaceBase):
+class SpaceCreate(BaseModel):
+    name: str
     parent_id: Optional[int] = None
+    depth: int = 0 
 
 class SpaceUpdate(SpaceBase):
     pass
