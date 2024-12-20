@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-# Base class for shared Pydantic configuration
 class ConfigBase:
     from_attributes = True  # Enable compatibility with SQLAlchemy models
     json_encoders = {
@@ -36,10 +35,13 @@ class SpaceBase(BaseModel):
 class SpaceCreate(BaseModel):
     name: str
     parent_id: Optional[int] = None
-    depth: int = 0 
+    depth: int = 0
 
-class SpaceUpdate(SpaceBase):
-    pass
+class SpaceUpdate(BaseModel):
+    name: Optional[str] = None
+    parent_id: Optional[int] = None
+    # Add depth if you want to allow updating depth:
+    # depth: Optional[int] = None
 
 class Space(SpaceBase):
     id: int
@@ -47,11 +49,10 @@ class Space(SpaceBase):
     depth: int
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
-    children: List["Space"] = []  # Recursive reference
+    children: List["Space"] = []
     items: List[Item] = []
 
     class Config(ConfigBase):
         pass
 
-# Update forward references for recursive models
 Space.update_forward_refs()
