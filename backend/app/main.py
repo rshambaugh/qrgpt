@@ -1,22 +1,20 @@
-# backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .utils.db import engine, get_db
+from .utils.db import engine
 from .models import Base
-from .routes import items, spaces
+from .routes.items import router as items_router
+from .routes.spaces import router as spaces_router
 
 app = FastAPI()
 
-from fastapi.middleware.cors import CORSMiddleware
-
+# Middleware for CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend origin
+    allow_origins=["http://localhost:3000"],  # Allow frontend origin
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
-    allow_headers=["*"],  # Allow all headers
+    allow_headers=["*"],  # Allow all HTTP headers
 )
-
 
 @app.on_event("startup")
 async def startup():
@@ -25,5 +23,8 @@ async def startup():
         await conn.run_sync(Base.metadata.create_all)
 
 # Include the route files that define endpoints for items and spaces
-app.include_router(items.router, prefix="/items", tags=["items"])
-app.include_router(spaces.router, prefix="/spaces", tags=["spaces"])
+app.include_router(items_router, prefix="/items", tags=["items"])
+app.include_router(spaces_router, prefix="/spaces", tags=["spaces"])
+
+for route in app.routes:
+    print(f"Path: {route.path}, Name: {route.name}")
