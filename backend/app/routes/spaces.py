@@ -6,8 +6,11 @@ from collections import defaultdict
 from typing import List
 from ..utils.db import get_db
 from ..models import Space as SpaceModel
-from ..schemas import Space, Item
+from ..schemas import Space, Item, SpaceCreate
 from collections import defaultdict
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql import text
+
 
 router = APIRouter()
 
@@ -102,11 +105,6 @@ async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
 
 
 
-
-
-
-from sqlalchemy.sql import text
-
 @router.get("/{id}/children", response_model=List[Space])
 async def get_children(id: int, db: AsyncSession = Depends(get_db)):
     """
@@ -168,3 +166,47 @@ async def get_children(id: int, db: AsyncSession = Depends(get_db)):
     except Exception as e:
         print(f"Error fetching children for space ID {id}: {e}")
         raise HTTPException(status_code=500, detail="Error fetching children.")
+
+
+
+
+@router.post("/", response_model=Space)
+async def create_space(space: SpaceCreate, db: AsyncSession = Depends(get_db)):
+    """
+    Create a new space.
+    """
+    try:
+        # Validate parent_id (if provided)
+        if space.parent_id:
+            parent_exists = await db.execute(
+                select(SpaceModel.id).where(SpaceModel.id == space.parent_id)
+            )
+            if not parent_exists.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Parent space does not exist.")
+
+        # Create the new space
+        new_space = SpaceModel(
+            name=space.name,
+            parent_id=space.parent_id,
+            depth=space.depth,
+        )
+
+        db.add(new_space)
+        await db.commit()
+        await db.refresh(new_space)
+
+        # Manually serialize the response to ensure proper children handling
+        return Space(
+            id=new_space.id,
+            name=new_space.name,
+            parent_id=new_space.parent_id,
+            depth=new_space.depth,
+            created_at=new_space.created_at,
+            updated_at=new_space.updated_at,
+            children=[],  # Explicitly return an empty list for children
+            items=[],  # Explicitly return an empty list for items
+        )
+    except Exception as e:
+        await db.rollback()
+        print(f"Error creating space: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error.")
