@@ -1,74 +1,170 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import joinedload
 from collections import defaultdict
+from typing import List
 from ..utils.db import get_db
 from ..models import Space as SpaceModel
-from ..schemas import Space, SpaceCreate
-from ..services.spaces import get_spaces, create_space
-from sqlalchemy.orm import joinedload
-
+from ..schemas import Space, Item
+from collections import defaultdict
 
 router = APIRouter()
 
-@router.get("/", response_model=list[Space])
+@router.get("/", response_model=List[Space])
 async def read_spaces(db: AsyncSession = Depends(get_db)):
     """
-    Returns a flat list of all spaces using the service function.
+    Returns a flat list of all spaces.
     """
-    return await get_spaces(db)
+    try:
+        # Fetch all spaces with joined children and items
+        result = await db.execute(
+            select(SpaceModel)
+            .options(joinedload(SpaceModel.children), joinedload(SpaceModel.items))
+        )
 
-@router.post("/", response_model=Space)
-async def add_space(space: SpaceCreate, db: AsyncSession = Depends(get_db)):
-    """
-    Adds a new space to the database using the service function.
-    """
-    return await create_space(db, space)
+        # Use unique() to eliminate duplicates from joined eager loads
+        spaces = result.unique().scalars().all()
 
-@router.get("/recursive", response_model=list)
-async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
-    """
-    Returns all spaces in a recursive/nested structure.
-    """
-    # Fetch all spaces
-    result = await db.execute(select(SpaceModel))
-    all_spaces = result.scalars().all()
-
-    # Create a mapping of parent_id -> children
-    space_map = defaultdict(list)
-    for space in all_spaces:
-        space_map[space.parent_id].append(space)
-
-    # Recursive function to build the nested structure
-    def build_tree(parent_id=None):
-        return [
-            {
-                "id": space.id,
-                "name": space.name,
-                "parent_id": space.parent_id,
-                "depth": space.depth,
-                "created_at": space.created_at,
-                "updated_at": space.updated_at,
-                "children": build_tree(space.id),
-            }
-            for space in space_map[parent_id]
+        # Convert to Pydantic models
+        response = [
+            Space(
+                id=space.id,
+                name=space.name,
+                parent_id=space.parent_id,
+                depth=space.depth,
+                created_at=space.created_at,
+                updated_at=space.updated_at,
+                children=[],  # Avoid recursive children here
+                items=[
+                    Item(
+                        id=item.id,
+                        name=item.name,
+                        description=item.description,
+                        space_id=item.space_id,
+                        created_at=item.created_at,
+                        updated_at=item.updated_at,
+                    )
+                    for item in space.items
+                ],
+            )
+            for space in spaces
         ]
 
-    # Return the top-level spaces as a list
-    return build_tree(None)
+        return response
+    except Exception as e:
+        print(f"Error reading spaces: {e}")
+        raise HTTPException(status_code=500, detail="Error reading spaces.")
 
-from sqlalchemy.orm import joinedload
 
-@router.get("/{space_id}/children", response_model=list[Space])
-async def get_children(space_id: int, db: AsyncSession = Depends(get_db)):
+@router.get("/recursive", response_model=List[Space])
+async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
     """
-    Fetches all child spaces for the given parent space ID.
+    Returns all spaces in a simple flat list, without recursion.
     """
-    # Query for spaces with the given parent_id and eagerly load relationships
-    result = await db.execute(
-        select(SpaceModel).where(SpaceModel.parent_id == space_id).options(joinedload(SpaceModel.children))
-    )
-    children = result.scalars().all()
+    try:
+        # Fetch all spaces and their associated items (no recursion yet)
+        result = await db.execute(
+            select(SpaceModel)
+            .options(joinedload(SpaceModel.items))
+        )
+        spaces = result.unique().scalars().all()
 
-    # Explicitly convert the children objects to dictionaries if needed
-    return children
+        # Build a flat response without recursion
+        response = [
+            Space(
+                id=space.id,
+                name=space.name,
+                parent_id=space.parent_id,
+                depth=space.depth,
+                created_at=space.created_at,
+                updated_at=space.updated_at,
+                children=[],  # No recursive children
+                items=[
+                    Item(
+                        id=item.id,
+                        name=item.name,
+                        description=item.description,
+                        space_id=item.space_id,
+                        created_at=item.created_at,
+                        updated_at=item.updated_at,
+                    )
+                    for item in space.items
+                ],
+            )
+            for space in spaces
+        ]
+
+        return response
+    except Exception as e:
+        print(f"Error fetching recursive spaces: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching spaces.")
+
+
+
+
+
+
+from sqlalchemy.sql import text
+
+@router.get("/{id}/children", response_model=List[Space])
+async def get_children(id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Get children spaces for a given parent space ID using raw SQL with `text`.
+    """
+    try:
+        # Execute raw SQL for child spaces
+        spaces_query = text("""
+        SELECT id, name, parent_id, created_at, updated_at, depth
+        FROM spaces
+        WHERE parent_id = :parent_id
+        """)
+        result = await db.execute(spaces_query, {"parent_id": id})
+        rows = result.fetchall()
+
+        # Map rows into list of dicts for manual processing
+        child_spaces = [
+            {
+                "id": row.id,
+                "name": row.name,
+                "parent_id": row.parent_id,
+                "created_at": row.created_at,
+                "updated_at": row.updated_at,
+                "depth": row.depth,
+                "children": [],
+                "items": [],
+            }
+            for row in rows
+        ]
+
+        # Fetch items for each space
+        for space in child_spaces:
+            items_query = text("""
+            SELECT id, name, description, space_id, created_at, updated_at
+            FROM items
+            WHERE space_id = :space_id
+            """)
+            result = await db.execute(items_query, {"space_id": space["id"]})
+            items = result.fetchall()
+
+            # Add items to the space
+            space["items"] = [
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "description": item.description,
+                    "space_id": item.space_id,
+                    "created_at": item.created_at,
+                    "updated_at": item.updated_at,
+                }
+                for item in items
+            ]
+
+        # Serialize manually into Pydantic models
+        serialized_spaces = [Space(**space) for space in child_spaces]
+        print(f"Serialized spaces: {serialized_spaces}")
+        return serialized_spaces
+
+    except Exception as e:
+        print(f"Error fetching children for space ID {id}: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching children.")
