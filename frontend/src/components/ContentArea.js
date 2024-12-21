@@ -14,6 +14,24 @@ const getBorderColor = (index) => {
   return colors[index % colors.length]; // Cycle through colors
 };
 
+// Function to generate breadcrumbs based on current space
+const generateBreadcrumbs = (spaceId, spaces) => {
+  const breadcrumbs = [];
+  let currentId = spaceId;
+
+  while (currentId) {
+    const currentSpace = spaces.find((space) => space.id === currentId);
+    if (currentSpace) {
+      breadcrumbs.unshift(currentSpace.name);
+      currentId = currentSpace.parent_id;
+    } else {
+      break;
+    }
+  }
+
+  return breadcrumbs.join(' > ');
+};
+
 const ContentArea = ({ currentSpaceId, spaces = [], items = [] }) => {
   console.log("[ContentArea] Props received:", { currentSpaceId, spaces, items });
 
@@ -23,6 +41,7 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [] }) => {
   // Track currentSpace and filteredItems explicitly in state for debugging
   const [currentSpace, setCurrentSpace] = useState(null);
   const [filteredItems, setFilteredItems] = useState([]);
+  const [breadcrumbs, setBreadcrumbs] = useState('');
 
   useEffect(() => {
     console.log("[ContentArea] useEffect triggered with:", {
@@ -35,9 +54,10 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [] }) => {
       console.warn("[ContentArea] currentSpaceId is null. No space selected.");
       setCurrentSpace(null);
       setFilteredItems([]);
+      setBreadcrumbs('');
       return;
     }
-    
+
     const foundSpace = safeSpaces.find((space) => space.id === currentSpaceId);
     setCurrentSpace(foundSpace || null);
     console.log("[ContentArea] Found Space:", foundSpace);
@@ -47,15 +67,21 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [] }) => {
       : [];
     setFilteredItems(filtered);
     console.log("[ContentArea] Filtered Items State Updated:", filtered);
+
+    // Generate breadcrumbs
+    if (foundSpace) {
+      setBreadcrumbs(generateBreadcrumbs(currentSpaceId, safeSpaces));
+    } else {
+      setBreadcrumbs('');
+    }
   }, [currentSpaceId, spaces, items]);
 
   return (
     <div className="items-column">
-      <h2>Content Area Debug</h2>
-      <p>CurrentSpaceId: {currentSpaceId ?? "null"}</p>
+      {breadcrumbs && <p className="breadcrumbs">{breadcrumbs}</p>}
       {currentSpace ? (
         <>
-          <h3>Selected Space: {currentSpace.name}</h3>
+          <h2>{currentSpace.name}</h2>
           <p>Space ID: {currentSpace.id}</p>
           {filteredItems.length > 0 ? (
             <ul className="item-list">
@@ -65,7 +91,7 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [] }) => {
                   className="item-card"
                   style={{ borderBottomColor: getBorderColor(index) }}
                 >
-                  {item.name} - {item.description || "No description"}
+                  <strong>{item.name}</strong> - {item.description || "No description"}
                 </li>
               ))}
             </ul>
