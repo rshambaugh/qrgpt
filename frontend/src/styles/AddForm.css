@@ -1,163 +1,95 @@
 /* General Form Container Styling */
-.app-forms {
-    margin: 30px 0; /* Increased spacing between the forms */
-    padding: 20px;
-    background: #f9fafc;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.add-form-container {
+  margin: 20px 0;
+  padding: 20px;
+  background: #f9fafc;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Section Headers */
+.form-header {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Form Structure */
+.add-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 15px;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+/* Input Fields, Textarea, and Select Dropdowns */
+.add-form input,
+.add-form select,
+.add-form textarea {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+/* Textarea Specific Styling */
+.add-form textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Buttons */
+.add-form button {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+  text-align: center;
+}
+
+.add-form button:hover {
+  background-color: #0056b3;
+}
+
+/* Error Messages */
+.error-message {
+  color: red;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+/* Nested Space Dropdown Indentation */
+.add-form select option {
+  padding-left: calc(var(--depth, 0) * 15px);
+}
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+  .add-form {
+    grid-template-columns: 1fr; /* Single column on mobile */
+    gap: 15px;
   }
-  
-  /* Section Headers */
-  .app-forms h2 {
-    font-size: 1.1rem; /* Slightly smaller headers */
-    font-weight: 600;
-    margin-bottom: 15px;
-    color: #444;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  /* Form Rows */
-  .app-forms form {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Grid for better alignment */
-    gap: 12px 15px; /* Even spacing between inputs */
-    align-items: center;
-    margin-bottom: 25px; /* Increased space between forms */
-  }
-  
-  /* Input Fields and Select Dropdowns */
-  .app-forms input,
-  .app-forms select {
+
+  .add-form input,
+  .add-form select,
+  .add-form button {
     width: 100%;
-    padding: 10px;
-    font-size: 0.95rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
   }
-  
-  /* Buttons */
-  .app-forms button {
-    width: 100%;
-    padding: 10px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    color: #fff;
-    background-color: #007bff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
-    text-align: center;
+
+  .form-header {
+    font-size: 1rem; /* Slightly smaller headers on mobile */
   }
-  
-  .app-forms button:hover {
-    background-color: #0056b3;
-  }
-  
-  /* Labels for Fields */
-  .app-forms label {
-    font-size: 0.9rem;
-    color: #666;
-  }
-  
-  /* Form Spacing for Mobile Devices */
-  @media (max-width: 768px) {
-    .app-forms form {
-      grid-template-columns: 1fr; /* Single column on mobile */
-      gap: 15px;
-    }
-  
-    .app-forms input,
-    .app-forms select,
-    .app-forms button {
-      width: 100%;
-    }
-  
-    .app-forms h2 {
-      font-size: 1rem; /* Slightly smaller headers on mobile */
-    }
-  }
-  .form-select {
-    width: 100%;
-    padding: 10px;
-    font-size: 0.95rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-  }
-  /* Dropdown Select Styles */
-  .add-form-container select {/* General Form Styling */
-    .add-form-container {
-      background: #f9fafc;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 20px 0;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    .add-form-container h2 {
-      font-size: 1.1rem;
-      margin-bottom: 15px;
-      color: #444;
-    }
-    
-    .add-form {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px 15px;
-      align-items: center;
-    }
-    
-    .add-form input,
-    .add-form select,
-    .add-form textarea {
-      width: 100%;
-      padding: 10px;
-      font-size: 0.95rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    
-    .add-form button {
-      padding: 10px;
-      font-size: 0.95rem;
-      font-weight: 500;
-      color: #fff;
-      background-color: #007bff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    
-    .add-form button:hover {
-      background-color: #0056b3;
-    }
-    
-    /* Indented Nested Spaces in Select */
-    .add-form select option {
-      padding-left: calc(var(--depth, 0) * 15px);
-    }
-    
-    width: 100%;
-    padding: 8px;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    appearance: none; /* Remove default browser styles */
-  }
-  
-  /* Indentation for nested select options */
-  .add-form-container select option {
-    padding-left: 15px; /* Default padding */
-  }
-  
-  /* Dynamic indentation based on depth */
-  .add-form-container select option:nth-child(n) {
-    padding-left: calc(var(--depth, 0) * 15px);
-  }
-  
+}

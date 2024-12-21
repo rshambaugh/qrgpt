@@ -5,6 +5,10 @@ import SearchBar from "./components/SearchBar";
 import SearchResults from "./components/SearchResults";
 import ContentArea from "./components/ContentArea";
 import "./styles/Styles.css";
+import "./styles/AddForm.css";
+import "./styles/NestedSpaces.css";
+import "./styles/SearchResults.css";
+
 
 const App = () => {
   const [spaces, setSpaces] = useState([]);
@@ -88,28 +92,53 @@ const App = () => {
     }
   };
 
-  // Edit Space
-  const handleEditSpace = (spaceId, newName) => {
-    console.log("[App.js] handleEditSpace called with:", { spaceId, newName });
-    try {
-      fetch(`http://localhost:8000/spaces/${spaceId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName }),
-      }).then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to edit space");
-        }
-        console.log("[App.js] Space updated successfully");
-        fetchSpaces();
-      });
-    } catch (error) {
-      console.error("[App.js] Error updating space:", error);
+  // Handle Search
+  const handleSearch = (query) => {
+    console.log("[handleSearch] Query:", query);
+    setSearchQuery(query);
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
     }
+
+    const filteredSpaces = spaces.filter((space) =>
+      space.name.toLowerCase().includes(query.toLowerCase())
+    );
+    const filteredItems = items.filter((item) =>
+      item.name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    setSearchResults([
+      ...filteredSpaces.map((space) => ({ ...space, type: "space" })),
+      ...filteredItems.map((item) => ({ ...item, type: "item" })),
+    ]);
+
+    console.log("[handleSearch] Search Results:", filteredSpaces, filteredItems);
   };
 
-  // Handle Space Click
-  const handleSpaceClick = (spaceId) => {
+    // Edit Space
+    const handleEditSpace = (spaceId, newName) => {
+      console.log("[App.js] handleEditSpace called with:", { spaceId, newName });
+      try {
+        fetch(`http://localhost:8000/spaces/${spaceId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newName }),
+        }).then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to edit space");
+          }
+          console.log("[App.js] Space updated successfully");
+          fetchSpaces();
+        });
+      } catch (error) {
+        console.error("[App.js] Error updating space:", error);
+      }
+    };
+
+   // Handle Space Click
+   const handleSpaceClick = (spaceId) => {
     console.log("[App.js] handleSpaceClick called with spaceId:", spaceId);
     setCurrentSpaceId(spaceId);
   };
@@ -117,7 +146,7 @@ const App = () => {
   return (
     <div className="app-container">
       <h1 className="app-title">QRganizer</h1>
-      <SearchBar searchQuery={searchQuery} onSearch={setSearchQuery} />
+      <SearchBar searchQuery={searchQuery} onSearch={handleSearch} />
       <SearchResults searchResults={searchResults} />
       <AddForm
         addSpace={addSpace}
@@ -136,9 +165,13 @@ const App = () => {
         fetchSpaces={fetchSpaces}
         fetchItems={fetchItems}
       />
+
       <div className="content-container">
-        <NestedSpaces spaces={spaces} onEditSpace={handleEditSpace} />
-        <ContentArea currentSpaceId={currentSpaceId} spaces={spaces} items={items} />
+        <NestedSpaces 
+          spaces={spaces} 
+          onEditSpace={handleEditSpace} 
+          handleSpaceClick={handleSpaceClick}
+        />        <ContentArea currentSpaceId={currentSpaceId} spaces={spaces} items={items} />
       </div>
     </div>
   );
