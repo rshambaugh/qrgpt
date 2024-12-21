@@ -1,5 +1,5 @@
 import React from "react";
-import "./SearchResults.css"; // Ensure there's a CSS file for styling
+import "../styles/SearchResults.css"; // Ensure there's a CSS file for styling
 
 const SearchResults = ({ searchResults }) => {
   console.log("[SearchResults] Received Props:", searchResults); // ✅ Log search results

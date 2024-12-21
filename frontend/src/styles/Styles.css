@@ -1,0 +1,153 @@
+/* General App Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+}
+
+.app-title {
+  font-size: 1.8rem;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+/* Search Section */
+.search-bar {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* General Form Container Styling */
+.app-forms {
+  margin: 30px 0;
+  padding: 20px;
+  background: #f9fafc;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.app-forms h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.app-forms form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 15px;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.app-forms input,
+.app-forms select,
+.app-forms textarea {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.app-forms textarea {
+  resize: vertical;
+}
+
+.app-forms button {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.app-forms button:hover {
+  background-color: #0056b3;
+}
+
+.app-forms label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Nested Spaces and Content Area */
+.content-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.nested-spaces-column {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.items-column {
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+  transition: top 0.3s ease-in-out;
+}
+
+/* Breadcrumb Trail */
+.breadcrumb {
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+  color: #666;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.breadcrumb span,
+.breadcrumb a {
+  text-decoration: none;
+  margin-right: 8px;
+  color: #666;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb a:hover {
+  color: #007bff;
+}
+
+.breadcrumb span.current {
+  font-weight: bold;
+  color: #333;
+  cursor: default;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .app-forms form {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .content-container {
+    grid-template-columns: 1fr;
+  }
+}
