@@ -176,3 +176,69 @@
   margin: 0 4px;
   color: #6c757d; /* Muted arrow color */
 }
+.edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.edit-input,
+.edit-select {
+  flex: 1 1 200px;
+  padding: 5px;
+  font-size: 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.edit-buttons {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.save-button,
+.cancel-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.save-button {
+  background-color: #4caf50;
+  color: white;
+}
+
+.cancel-button {
+  background-color: #f44336;
+  color: white;
+}
+
+.item-actions {
+  margin-top: 5px;
+  display: flex;
+  gap: 5px;
+}
+
+.edit-icon-button,
+.delete-icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.edit-icon-button {
+  color: #2196f3;
+}
+
+.delete-icon-button {
+  color: #f44336;
+}

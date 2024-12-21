@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSave, faTimes, faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
+
 
 // Function to get ROYGBIV colors based on item index
 const getBorderColor = (index) => {
@@ -66,6 +69,7 @@ const ContentArea = ({
   spaces = [],
   items = [],
   setCurrentSpaceId,
+  fetchItems,
   setSearchResults,
 }) => {
   console.log("[ContentArea] Props received:", {
@@ -73,6 +77,8 @@ const ContentArea = ({
     spaces,
     items,
     setCurrentSpaceId,
+    fetchItems,
+    setSearchResults,
   });
 
   const [currentSpace, setCurrentSpace] = useState(null);
@@ -81,6 +87,7 @@ const ContentArea = ({
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemName, setEditItemName] = useState("");
   const [editItemDescription, setEditItemDescription] = useState("");
+  const [editItemSpaceId, setEditItemSpaceId] = useState(""); // Added for space selection
 
   const handleBreadcrumbClick = useCallback(
     (spaceId) => {
@@ -122,9 +129,8 @@ const ContentArea = ({
       id: itemId,
       name: editItemName,
       description: editItemDescription,
-      space_id: currentSpaceId,
+      space_id: editItemSpaceId || currentSpaceId,
     });
-  
     try {
       const response = await fetch(`http://localhost:8000/items/${itemId}`, {
         method: "PUT",
@@ -132,16 +138,16 @@ const ContentArea = ({
         body: JSON.stringify({
           name: editItemName,
           description: editItemDescription,
-          space_id: currentSpaceId,
+          space_id: editItemSpaceId || currentSpaceId,
         }),
       });
-  
+
       if (!response.ok) throw new Error("Failed to save item");
-  
+
       const updatedItem = await response.json();
       console.log("[ContentArea] Item updated successfully:", updatedItem);
-  
-      // Update filteredItems in ContentArea
+
+      // Update filteredItems
       setFilteredItems((prevItems) =>
         prevItems.map((item) =>
           item.id === itemId
@@ -154,10 +160,10 @@ const ContentArea = ({
             : item
         )
       );
-      console.log("[ContentArea] filteredItems updated:", updatedItem);
-  
-      // Update search results if setSearchResults exists
-      if (typeof setSearchResults === "function") {
+
+      // Fetch fresh items and update search results
+      if (typeof fetchItems === "function") {
+        await fetchItems();
         setSearchResults((prevResults) =>
           prevResults.map((result) =>
             result.id === itemId
@@ -170,17 +176,30 @@ const ContentArea = ({
               : result
           )
         );
-        console.log("[ContentArea] Search results updated successfully.");
       }
-  
+
       setEditingItemId(null);
+      setEditItemSpaceId("");
     } catch (error) {
       console.error("[ContentArea] Error saving item:", error);
     }
   };
-  
-  
-  
+
+  // Recursive function to render nested spaces with indentation
+const renderNestedSpaces = (spaces, parentId = null, level = 0) => {
+  return spaces
+    .filter((space) => space.parent_id === parentId)
+    .map((space) => (
+      <React.Fragment key={space.id}>
+        <option value={space.id}>
+          {`${"— ".repeat(level)}${space.name}`}
+        </option>
+        {renderNestedSpaces(spaces, space.id, level + 1)}
+      </React.Fragment>
+    ));
+};
+
+
   const handleDeleteItem = async (itemId) => {
     console.log("[ContentArea] Deleting item:", itemId);
     try {
@@ -217,37 +236,46 @@ const ContentArea = ({
                         type="text"
                         value={editItemName}
                         onChange={(e) => setEditItemName(e.target.value)}
-                        style={{ marginRight: "5px" }}
                       />
                       <input
                         type="text"
                         value={editItemDescription}
                         onChange={(e) => setEditItemDescription(e.target.value)}
-                        style={{ marginRight: "5px" }}
                       />
-                      <button onClick={() => saveEditedItem(item.id)}>Save</button>
-                      <button onClick={() => setEditingItemId(null)}>Cancel</button>
+                      <select
+                        value={editItemSpaceId}
+                        onChange={(e) => setEditItemSpaceId(e.target.value)}
+                      >
+                        <option value="">Select Space</option>
+                        {renderNestedSpaces(spaces)}
+                      </select>
+
+                      {/* Action Buttons */}
+                      <div className="item-actions">
+                        <FontAwesomeIcon
+                          icon={faSave}
+                          onClick={() => saveEditedItem(item.id)}
+                          className="save-icon"
+                        />
+                        <FontAwesomeIcon
+                          icon={faTimes}
+                          onClick={() => setEditingItemId(null)}
+                          className="cancel-icon"
+                        />
+                      </div>
+
                     </>
                   ) : (
                     <>
                       <strong>{item.name}</strong> - {item.description || "No description"}
-                      <div style={{ marginTop: "5px" }}>
-                        <button
-                          onClick={() => {
-                            setEditingItemId(item.id);
-                            setEditItemName(item.name || "");
-                            setEditItemDescription(item.description || "");
-                          }}
-                          style={{ marginRight: "5px" }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteItem(item.id)}
-                          style={{ color: "red" }}
-                        >
-                          Delete
-                        </button>
+                      <div>
+                        <button onClick={() => {
+                          setEditingItemId(item.id);
+                          setEditItemName(item.name || "");
+                          setEditItemDescription(item.description || "");
+                          setEditItemSpaceId(item.space_id || "");
+                        }}>Edit</button>
+                        <button onClick={() => handleDeleteItem(item.id)}>Delete</button>
                       </div>
                     </>
                   )}
