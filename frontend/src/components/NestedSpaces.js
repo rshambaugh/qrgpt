@@ -24,10 +24,13 @@ const NestedSpaces = ({
 
   const toggleSpace = async (spaceId) => {
     console.log("[NestedSpaces] toggleSpace called with spaceId:", spaceId);
-    if (expandedSpaces.includes(spaceId)) {
-      setExpandedSpaces((prev) => prev.filter((id) => id !== spaceId));
-      return;
-    }
+    setExpandedSpaces((prev) => {
+      if (prev.includes(spaceId)) {
+        return prev.filter((id) => id !== spaceId); // Collapse the clicked space
+      } else {
+        return [spaceId]; // Collapse all others and expand the clicked one
+      }
+    });
 
     try {
       const response = await fetch(`http://localhost:8000/spaces/${spaceId}/children`);
@@ -46,7 +49,6 @@ const NestedSpaces = ({
           );
           return [...prevSpaces, ...uniqueChildren];
         });
-        setExpandedSpaces((prev) => [...prev, spaceId]);
       } else {
         console.warn(`No children found for space ID ${spaceId}`);
       }
@@ -73,7 +75,7 @@ const NestedSpaces = ({
         <div
           key={space.id}
           ref={(el) => (spaceRefs.current[space.id] = el)}
-          className="space-card"
+          className={`space-card ${expandedSpaces.includes(space.id) ? "expanded" : ""}`}
           style={{
             borderBottom: `3px solid ${COLORS[depth % COLORS.length]}`,
           }}
