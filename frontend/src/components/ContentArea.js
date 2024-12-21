@@ -86,6 +86,8 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [], setCurrentSpaceI
     },
     [setCurrentSpaceId]
   );
+  
+  
 
   useEffect(() => {
     console.log("[ContentArea] useEffect triggered with:", {
@@ -93,7 +95,7 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [], setCurrentSpaceI
       spaces,
       items,
     });
-
+  
     if (currentSpaceId === null) {
       console.warn("[ContentArea] currentSpaceId is null. No space selected.");
       setCurrentSpace(null);
@@ -101,17 +103,17 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [], setCurrentSpaceI
       setBreadcrumbs([]);
       return;
     }
-
+  
     const foundSpace = safeSpaces.find((space) => space.id === currentSpaceId);
     setCurrentSpace(foundSpace || null);
     console.log("[ContentArea] Found Space:", foundSpace);
-
+  
     const filtered = Array.isArray(items)
       ? items.filter((item) => item.space_id === currentSpaceId)
       : [];
     setFilteredItems(filtered);
     console.log("[ContentArea] Filtered Items State Updated:", filtered);
-
+  
     if (foundSpace) {
       const breadcrumbLinks = generateBreadcrumbs(
         currentSpaceId,
@@ -122,7 +124,8 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [], setCurrentSpaceI
     } else {
       setBreadcrumbs([]);
     }
-  }, [currentSpaceId, items, safeSpaces, handleBreadcrumbClick]);
+  }, [currentSpaceId, items, spaces, safeSpaces, handleBreadcrumbClick]);
+  
 
   return (
     <div className="items-column">
