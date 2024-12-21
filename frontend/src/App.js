@@ -118,7 +118,6 @@ const App = () => {
     setCurrentSpaceId(spaceId);
     console.log("[App.js] currentSpaceId updated to:", spaceId);
   };
-  
 
   console.log("[App Render] State Snapshot:", {
     currentSpaceId,
@@ -176,6 +175,7 @@ const App = () => {
           currentSpaceId={currentSpaceId}
           spaces={spaces}
           items={items}
+          setCurrentSpaceId={setCurrentSpaceId} // ✅ Explicitly passing setCurrentSpaceId
         />
       </div>
     </div>

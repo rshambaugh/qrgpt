@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 
 // Function to get ROYGBIV colors based on item index
 const getBorderColor = (index) => {
@@ -14,34 +14,78 @@ const getBorderColor = (index) => {
   return colors[index % colors.length]; // Cycle through colors
 };
 
-// Function to generate breadcrumbs based on current space
-const generateBreadcrumbs = (spaceId, spaces) => {
+// Breadcrumb Component
+const Breadcrumb = ({ id, name, onClick }) => (
+  <>
+    <a
+      href="javascript:void(0)"
+      onClick={() => onClick(id)}
+      style={{
+        color: "blue",
+        textDecoration: "underline",
+        cursor: "pointer",
+        marginRight: "5px",
+      }}
+    >
+      {name}
+    </a>
+    <span style={{ marginRight: "5px" }}>{'>'}</span>
+  </>
+);
+
+// Generate Breadcrumbs
+const generateBreadcrumbs = (spaceId, spaces, onBreadcrumbClick) => {
   const breadcrumbs = [];
   let currentId = spaceId;
 
   while (currentId) {
     const currentSpace = spaces.find((space) => space.id === currentId);
     if (currentSpace) {
-      breadcrumbs.unshift(currentSpace.name);
+      breadcrumbs.unshift({
+        id: currentSpace.id,
+        name: currentSpace.name,
+      });
       currentId = currentSpace.parent_id;
     } else {
       break;
     }
   }
 
-  return breadcrumbs.join(' > ');
+  return breadcrumbs.map((crumb, index) => (
+    <React.Fragment key={crumb.id}>
+      <Breadcrumb id={crumb.id} name={crumb.name} onClick={onBreadcrumbClick} />
+    </React.Fragment>
+  ));
 };
 
-const ContentArea = ({ currentSpaceId, spaces = [], items = [] }) => {
-  console.log("[ContentArea] Props received:", { currentSpaceId, spaces, items });
+// Main ContentArea Component
+const ContentArea = ({ currentSpaceId, spaces = [], items = [], setCurrentSpaceId }) => {
+  console.log("[ContentArea] Props received:", {
+    currentSpaceId,
+    spaces,
+    items,
+    setCurrentSpaceId,
+  });
 
-  // Ensure spaces is an array
-  const safeSpaces = Array.isArray(spaces) ? spaces : [];
+  // Memoize spaces for stability
+  const safeSpaces = useMemo(() => (Array.isArray(spaces) ? spaces : []), [spaces]);
 
-  // Track currentSpace and filteredItems explicitly in state for debugging
   const [currentSpace, setCurrentSpace] = useState(null);
   const [filteredItems, setFilteredItems] = useState([]);
-  const [breadcrumbs, setBreadcrumbs] = useState('');
+  const [breadcrumbs, setBreadcrumbs] = useState([]);
+
+  // Breadcrumb click handler
+  const handleBreadcrumbClick = useCallback(
+    (spaceId) => {
+      console.log("[Breadcrumb Clicked] Navigating to spaceId:", spaceId);
+      if (typeof setCurrentSpaceId === "function") {
+        setCurrentSpaceId(spaceId);
+      } else {
+        console.warn("[Breadcrumb Click Error] setCurrentSpaceId is not defined");
+      }
+    },
+    [setCurrentSpaceId]
+  );
 
   useEffect(() => {
     console.log("[ContentArea] useEffect triggered with:", {
@@ -54,7 +98,7 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [] }) => {
       console.warn("[ContentArea] currentSpaceId is null. No space selected.");
       setCurrentSpace(null);
       setFilteredItems([]);
-      setBreadcrumbs('');
+      setBreadcrumbs([]);
       return;
     }
 
@@ -68,21 +112,26 @@ const ContentArea = ({ currentSpaceId, spaces = [], items = [] }) => {
     setFilteredItems(filtered);
     console.log("[ContentArea] Filtered Items State Updated:", filtered);
 
-    // Generate breadcrumbs
     if (foundSpace) {
-      setBreadcrumbs(generateBreadcrumbs(currentSpaceId, safeSpaces));
+      const breadcrumbLinks = generateBreadcrumbs(
+        currentSpaceId,
+        safeSpaces,
+        handleBreadcrumbClick
+      );
+      setBreadcrumbs(breadcrumbLinks);
     } else {
-      setBreadcrumbs('');
+      setBreadcrumbs([]);
     }
-  }, [currentSpaceId, spaces, items]);
+  }, [currentSpaceId, items, safeSpaces, handleBreadcrumbClick]);
 
   return (
     <div className="items-column">
-      {breadcrumbs && <p className="breadcrumbs">{breadcrumbs}</p>}
+      {breadcrumbs.length > 0 && (
+        <p className="breadcrumbs">{breadcrumbs}</p>
+      )}
       {currentSpace ? (
         <>
           <h2>{currentSpace.name}</h2>
-          <p>Space ID: {currentSpace.id}</p>
           {filteredItems.length > 0 ? (
             <ul className="item-list">
               {filteredItems.map((item, index) => (

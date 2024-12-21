@@ -257,3 +257,13 @@ textarea::placeholder {
   border-radius: 8px;
   padding: 10px;
 }
+
+.breadcrumbs a {
+  color: blue;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.breadcrumbs span {
+  margin: 0 5px;
+}
