@@ -88,17 +88,20 @@ const AddForm = ({
     }
   };
 
-  const renderSpaceOptions = (spaces, depth = 0) => {
-    return spaces.map((space) => (
-      <option
-        key={space.id}
-        value={space.id}
-        style={{ paddingLeft: `${(space.depth || 0) * 15}px` }}
-      >
-        {"-".repeat(space.depth || 0)} {space.name}
-      </option>
-    ));
+  const renderSpaceOptions = (spaces, parentId = null, depth = 0) => {
+    return spaces
+      .filter((space) => space.parent_id === parentId)
+      .sort((a, b) => a.name.localeCompare(b.name)) // Alphabetical sorting at each level
+      .map((space) => (
+        <React.Fragment key={space.id}>
+          <option value={space.id} style={{ paddingLeft: `${depth * 15}px` }}>
+            {"-".repeat(depth)} {space.name}
+          </option>
+          {renderSpaceOptions(spaces, space.id, depth + 1)}
+        </React.Fragment>
+      ));
   };
+  
 
   return (
     <div className="add-form-container">
