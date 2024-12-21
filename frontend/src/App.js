@@ -119,62 +119,43 @@ const App = () => {
     console.log("[App.js] currentSpaceId updated to:", spaceId);
   };
 
-  console.log("[App Render] State Snapshot:", {
-    currentSpaceId,
-    spaces,
-    items,
-    searchQuery,
-    searchResults,
-  });
-
   return (
     <div className="app-container">
       {/* Header Section */}
       <header className="app-header">
         <h1 className="app-title">QRganizer</h1>
         <SearchBar searchQuery={searchQuery} onSearch={handleSearch} />
-        <SearchResults
-          searchResults={searchResults}
-          spaces={spaces}
-          onEditSpace={(id) => console.log("[SearchResults] Edit Space clicked:", id)}
-          onDeleteSpace={(id) => console.log("[SearchResults] Delete Space clicked:", id)}
-          onEditItem={(id) => console.log("[SearchResults] Edit Item clicked:", id)}
-          onDeleteItem={(id) => console.log("[SearchResults] Delete Item clicked:", id)}
-        />
+        <SearchResults searchResults={searchResults} />
       </header>
+
+      {/* Forms Section */}
+      <section className="app-forms">
+        <AddForm
+          addSpace={addSpace}
+          addItem={addItem}
+          spaces={spaces}
+          newItemName={newItemName}
+          setNewItemName={setNewItemName}
+          newItemDescription={newItemDescription}
+          setNewItemDescription={setNewItemDescription}
+          newItemSpaceId={newItemSpaceId}
+          setNewItemSpaceId={setNewItemSpaceId}
+          newSpaceName={newSpaceName}
+          setNewSpaceName={setNewSpaceName}
+          newSpaceParentId={newSpaceParentId}
+          setNewSpaceParentId={setNewSpaceParentId}
+        />
+      </section>
 
       {/* Main Section */}
       <main className="app-main">
-        <div className="sidebar">
-          <NestedSpaces
-            spaces={spaces}
-            setSpaces={setSpaces}
-            currentParentId={null}
-            handleSpaceClick={handleSpaceClick}
-          />
-        </div>
-        <div className="content">
-          <ContentArea
-            currentSpaceId={currentSpaceId}
-            spaces={spaces}
-            items={items}
-            setCurrentSpaceId={setCurrentSpaceId}
-          />
-          <AddForm
-            addSpace={addSpace}
-            addItem={addItem}
-            spaces={spaces}
-            newItemName={newItemName}
-            setNewItemName={setNewItemName}
-            newItemDescription={newItemDescription}
-            setNewItemDescription={setNewItemDescription}
-            newItemSpaceId={newItemSpaceId}
-            setNewItemSpaceId={setNewItemSpaceId}
-            newSpaceName={newSpaceName}
-            setNewSpaceName={setNewSpaceName}
-            newSpaceParentId={newSpaceParentId}
-            setNewSpaceParentId={setNewSpaceParentId}
-          />
+        <div className="app-main-columns">
+          <div className="sidebar">
+            <NestedSpaces spaces={spaces} setSpaces={setSpaces} handleSpaceClick={handleSpaceClick} />
+          </div>
+          <div className="content">
+            <ContentArea currentSpaceId={currentSpaceId} spaces={spaces} items={items} />
+          </div>
         </div>
       </main>
 
