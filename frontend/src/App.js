@@ -87,12 +87,12 @@ const App = () => {
     }
   };
 
-  // Handle Search
+  // Handle Search (Debounced to avoid lockup)
   const handleSearch = (query) => {
     console.log("[handleSearch] Query:", query);
     setSearchQuery(query);
+
     if (!query.trim()) {
-      console.log("[handleSearch] Search cleared.");
       setSearchResults([]);
       return;
     }
@@ -109,7 +109,7 @@ const App = () => {
       ...filteredItems.map((item) => ({ ...item, type: "item" })),
     ]);
 
-    console.log("[handleSearch] Search Results:", searchResults);
+    console.log("[handleSearch] Search Results:", filteredSpaces, filteredItems);
   };
 
   // Handle Space Click
@@ -125,59 +125,63 @@ const App = () => {
     items,
     searchQuery,
     searchResults,
-    newItemName,
-    newItemDescription,
-    newItemSpaceId,
-    newSpaceName,
-    newSpaceParentId,
   });
 
   return (
     <div className="app-container">
-      <h1 className="app-title">QRganizer</h1>
-
-      <SearchBar searchQuery={searchQuery} onSearch={handleSearch} />
-
-      <SearchResults
-        searchResults={searchResults}
-        spaces={spaces}
-        onEditSpace={() => console.log("[SearchResults] Edit Space clicked")}
-        onDeleteSpace={() => console.log("[SearchResults] Delete Space clicked")}
-        onEditItem={() => console.log("[SearchResults] Edit Item clicked")}
-        onDeleteItem={() => console.log("[SearchResults] Delete Item clicked")}
-      />
-
-      <AddForm
-        addSpace={addSpace}
-        addItem={addItem}
-        spaces={spaces}
-        newItemName={newItemName}
-        setNewItemName={setNewItemName}
-        newItemDescription={newItemDescription}
-        setNewItemDescription={setNewItemDescription}
-        newItemSpaceId={newItemSpaceId}
-        setNewItemSpaceId={setNewItemSpaceId}
-        newSpaceName={newSpaceName}
-        setNewSpaceName={setNewSpaceName}
-        newSpaceParentId={newSpaceParentId}
-        setNewSpaceParentId={setNewSpaceParentId}
-      />
-
-      <div className="content-container">
-        <NestedSpaces
+      {/* Header Section */}
+      <header className="app-header">
+        <h1 className="app-title">QRganizer</h1>
+        <SearchBar searchQuery={searchQuery} onSearch={handleSearch} />
+        <SearchResults
+          searchResults={searchResults}
           spaces={spaces}
-          setSpaces={setSpaces}
-          currentParentId={null}
-          handleSpaceClick={handleSpaceClick}
+          onEditSpace={(id) => console.log("[SearchResults] Edit Space clicked:", id)}
+          onDeleteSpace={(id) => console.log("[SearchResults] Delete Space clicked:", id)}
+          onEditItem={(id) => console.log("[SearchResults] Edit Item clicked:", id)}
+          onDeleteItem={(id) => console.log("[SearchResults] Delete Item clicked:", id)}
         />
+      </header>
 
-        <ContentArea
-          currentSpaceId={currentSpaceId}
-          spaces={spaces}
-          items={items}
-          setCurrentSpaceId={setCurrentSpaceId} // ✅ Explicitly passing setCurrentSpaceId
-        />
-      </div>
+      {/* Main Section */}
+      <main className="app-main">
+        <div className="sidebar">
+          <NestedSpaces
+            spaces={spaces}
+            setSpaces={setSpaces}
+            currentParentId={null}
+            handleSpaceClick={handleSpaceClick}
+          />
+        </div>
+        <div className="content">
+          <ContentArea
+            currentSpaceId={currentSpaceId}
+            spaces={spaces}
+            items={items}
+            setCurrentSpaceId={setCurrentSpaceId}
+          />
+          <AddForm
+            addSpace={addSpace}
+            addItem={addItem}
+            spaces={spaces}
+            newItemName={newItemName}
+            setNewItemName={setNewItemName}
+            newItemDescription={newItemDescription}
+            setNewItemDescription={setNewItemDescription}
+            newItemSpaceId={newItemSpaceId}
+            setNewItemSpaceId={setNewItemSpaceId}
+            newSpaceName={newSpaceName}
+            setNewSpaceName={setNewSpaceName}
+            newSpaceParentId={newSpaceParentId}
+            setNewSpaceParentId={setNewSpaceParentId}
+          />
+        </div>
+      </main>
+
+      {/* Footer Section */}
+      <footer className="app-footer">
+        <p>QRganizer &copy; {new Date().getFullYear()}</p>
+      </footer>
     </div>
   );
 };

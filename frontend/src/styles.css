@@ -259,7 +259,79 @@ textarea::placeholder {
 }
 
 .breadcrumbs a {
-  color: blue;
+  color: blue;/* App.css */
+
+  /* General Styles */
+  .app-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  
+  .app-header {
+    text-align: center;
+    padding: 1rem;
+    background: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .app-main {
+    display: flex;
+    flex: 1;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  /* Sidebar (Nested Spaces) */
+  .sidebar {
+    width: 25%;
+    min-width: 200px;
+    overflow-y: auto;
+    border-right: 1px solid #ddd;
+  }
+  
+  /* Content Area */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  /* AddForm Styles */
+  .add-form-container {
+    margin-top: 1rem;
+    border-top: 1px solid #ddd;
+    padding-top: 1rem;
+  }
+  
+  .add-form-container h2 {
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Footer */
+  .app-footer {
+    text-align: center;
+    padding: 0.5rem;
+    background: #f5f5f5;
+    border-top: 1px solid #ddd;
+  }
+  
+  /* Mobile View */
+  @media (max-width: 768px) {
+    .app-main {
+      flex-direction: column;
+    }
+  
+    .sidebar {
+      width: 100%;
+      border-right: none;
+      border-bottom: 1px solid #ddd;
+    }
+  
+    .add-form-container {
+      margin-top: 0.5rem;
+    }
+  }
+  
   text-decoration: underline;
   cursor: pointer;
 }
