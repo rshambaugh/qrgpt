@@ -23,6 +23,7 @@ const NestedSpaces = ({
   const spaceRefs = useRef({});
 
   const toggleSpace = async (spaceId) => {
+    console.log("[NestedSpaces] toggleSpace called with spaceId:", spaceId);
     if (expandedSpaces.includes(spaceId)) {
       setExpandedSpaces((prev) => prev.filter((id) => id !== spaceId));
       return;
@@ -36,6 +37,7 @@ const NestedSpaces = ({
       }
 
       const children = await response.json();
+      console.log("[NestedSpaces] Fetched children:", children);
 
       if (children.length > 0) {
         setSpaces((prevSpaces) => {
@@ -50,6 +52,15 @@ const NestedSpaces = ({
       }
     } catch (error) {
       console.error(`Error fetching children for space ID ${spaceId}:`, error);
+    }
+  };
+
+  const handleClick = (spaceId) => {
+    console.log("[NestedSpaces] Space clicked with ID:", spaceId);
+    if (handleSpaceClick) {
+      handleSpaceClick(spaceId);
+    } else {
+      console.warn("[NestedSpaces] handleSpaceClick is undefined!");
     }
   };
 
@@ -89,7 +100,13 @@ const NestedSpaces = ({
               </div>
             ) : (
               <>
-                <span className="space-name" onClick={() => toggleSpace(space.id)}>
+                <span
+                  className="space-name"
+                  onClick={() => {
+                    toggleSpace(space.id);
+                    handleClick(space.id);
+                  }}
+                >
                   {space.name}
                 </span>
                 <div className="space-actions">
@@ -133,4 +150,3 @@ const NestedSpaces = ({
 };
 
 export default NestedSpaces;
-
