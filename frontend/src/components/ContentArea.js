@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 // Function to get ROYGBIV colors based on item index
 const getBorderColor = (index) => {
@@ -11,7 +11,7 @@ const getBorderColor = (index) => {
     "#4B0082",
     "#9400D3",
   ];
-  return colors[index % colors.length]; // Cycle through colors
+  return colors[index % colors.length];
 };
 
 // Breadcrumb Component
@@ -45,17 +45,14 @@ const generateBreadcrumbs = (spaceId, spaces, onBreadcrumbClick) => {
     const currentSpace = spaces.find((space) => space.id === currentId);
     if (!currentSpace) break;
 
-    // Add breadcrumb
     breadcrumbs.unshift({
       id: currentSpace.id,
       name: currentSpace.name,
     });
 
-    // Move to parent space
     currentId = currentSpace.parent_id;
   }
 
-  // Map breadcrumbs to JSX
   return breadcrumbs.map((crumb) => (
     <React.Fragment key={crumb.id}>
       <Breadcrumb id={crumb.id} name={crumb.name} onClick={onBreadcrumbClick} />
@@ -69,92 +66,140 @@ const ContentArea = ({
   spaces = [],
   items = [],
   setCurrentSpaceId,
-  resetNestedSpaces, // Function to reset NestedSpaces state
+  setSearchResults,
 }) => {
   console.log("[ContentArea] Props received:", {
     currentSpaceId,
     spaces,
     items,
     setCurrentSpaceId,
-    resetNestedSpaces,
   });
 
   const [currentSpace, setCurrentSpace] = useState(null);
   const [filteredItems, setFilteredItems] = useState([]);
   const [breadcrumbs, setBreadcrumbs] = useState([]);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editItemName, setEditItemName] = useState("");
+  const [editItemDescription, setEditItemDescription] = useState("");
 
-  // Breadcrumb click handler
   const handleBreadcrumbClick = useCallback(
     (spaceId) => {
-      console.log("[Breadcrumb Clicked] Navigating to spaceId:", spaceId);
-
       if (typeof setCurrentSpaceId === "function") {
         setCurrentSpaceId(spaceId);
-      } else {
-        console.warn("[Breadcrumb Click Error] setCurrentSpaceId is not defined");
-      }
-
-      // Reset NestedSpaces tree
-      if (typeof resetNestedSpaces === "function") {
-        console.log("[Breadcrumb Clicked] Resetting NestedSpaces.");
-        resetNestedSpaces();
-      } else {
-        console.warn("[Breadcrumb Click Error] resetNestedSpaces is not defined");
       }
     },
-    [setCurrentSpaceId, resetNestedSpaces]
+    [setCurrentSpaceId]
   );
 
-  // Ensure spaces is always an array
-  const safeSpaces = useMemo(() => (Array.isArray(spaces) ? spaces : []), [spaces]);
-
   useEffect(() => {
-    console.log("[ContentArea] useEffect triggered with:", {
-      currentSpaceId,
-      spaces,
-      items,
-    });
-
     if (currentSpaceId === null) {
-      console.warn("[ContentArea] currentSpaceId is null. No space selected.");
       setCurrentSpace(null);
       setFilteredItems([]);
       setBreadcrumbs([]);
       return;
     }
 
-    const foundSpace = safeSpaces.find((space) => space.id === currentSpaceId);
+    const foundSpace = spaces.find((space) => space.id === currentSpaceId);
     setCurrentSpace(foundSpace || null);
-    console.log("[ContentArea] Found Space:", foundSpace);
 
-    const filtered = Array.isArray(items)
-      ? items.filter((item) => item.space_id === currentSpaceId)
-      : [];
+    const filtered = items.filter((item) => item.space_id === currentSpaceId);
     setFilteredItems(filtered);
-    console.log("[ContentArea] Filtered Items State Updated:", filtered);
 
     if (foundSpace) {
       const breadcrumbLinks = generateBreadcrumbs(
         currentSpaceId,
-        safeSpaces,
+        spaces,
         handleBreadcrumbClick
       );
       setBreadcrumbs(breadcrumbLinks);
     } else {
       setBreadcrumbs([]);
     }
-  }, [currentSpaceId, items, safeSpaces, handleBreadcrumbClick]);
+  }, [currentSpaceId, items, spaces, handleBreadcrumbClick]);
+
+  const saveEditedItem = async (itemId) => {
+    console.log("[ContentArea] Attempting to save edited item:", {
+      id: itemId,
+      name: editItemName,
+      description: editItemDescription,
+      space_id: currentSpaceId,
+    });
+  
+    try {
+      const response = await fetch(`http://localhost:8000/items/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editItemName,
+          description: editItemDescription,
+          space_id: currentSpaceId,
+        }),
+      });
+  
+      if (!response.ok) throw new Error("Failed to save item");
+  
+      const updatedItem = await response.json();
+      console.log("[ContentArea] Item updated successfully:", updatedItem);
+  
+      // Update filteredItems in ContentArea
+      setFilteredItems((prevItems) =>
+        prevItems.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                name: updatedItem.name,
+                description: updatedItem.description,
+                space_id: updatedItem.space_id,
+              }
+            : item
+        )
+      );
+      console.log("[ContentArea] filteredItems updated:", updatedItem);
+  
+      // Update search results if setSearchResults exists
+      if (typeof setSearchResults === "function") {
+        setSearchResults((prevResults) =>
+          prevResults.map((result) =>
+            result.id === itemId
+              ? {
+                  ...result,
+                  name: updatedItem.name,
+                  description: updatedItem.description,
+                  space_id: updatedItem.space_id,
+                }
+              : result
+          )
+        );
+        console.log("[ContentArea] Search results updated successfully.");
+      }
+  
+      setEditingItemId(null);
+    } catch (error) {
+      console.error("[ContentArea] Error saving item:", error);
+    }
+  };
+  
+  
+  
+  const handleDeleteItem = async (itemId) => {
+    console.log("[ContentArea] Deleting item:", itemId);
+    try {
+      const response = await fetch(`http://localhost:8000/items/${itemId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Failed to delete item");
+
+      setFilteredItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+      console.log("[ContentArea] Item deleted successfully");
+    } catch (error) {
+      console.error("[ContentArea] Error deleting item:", error);
+    }
+  };
 
   return (
     <div className="items-column">
-      {/* Breadcrumb Navigation */}
-      {breadcrumbs.length > 0 && (
-        <p className="breadcrumbs">
-          {breadcrumbs}
-        </p>
-      )}
-
-      {/* Current Space Details */}
+      {breadcrumbs.length > 0 && <p className="breadcrumbs">{breadcrumbs}</p>}
       {currentSpace ? (
         <>
           <h2>{currentSpace.name}</h2>
@@ -166,7 +211,46 @@ const ContentArea = ({
                   className="item-card"
                   style={{ borderBottomColor: getBorderColor(index) }}
                 >
-                  <strong>{item.name}</strong> - {item.description || "No description"}
+                  {editingItemId === item.id ? (
+                    <>
+                      <input
+                        type="text"
+                        value={editItemName}
+                        onChange={(e) => setEditItemName(e.target.value)}
+                        style={{ marginRight: "5px" }}
+                      />
+                      <input
+                        type="text"
+                        value={editItemDescription}
+                        onChange={(e) => setEditItemDescription(e.target.value)}
+                        style={{ marginRight: "5px" }}
+                      />
+                      <button onClick={() => saveEditedItem(item.id)}>Save</button>
+                      <button onClick={() => setEditingItemId(null)}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <strong>{item.name}</strong> - {item.description || "No description"}
+                      <div style={{ marginTop: "5px" }}>
+                        <button
+                          onClick={() => {
+                            setEditingItemId(item.id);
+                            setEditItemName(item.name || "");
+                            setEditItemDescription(item.description || "");
+                          }}
+                          style={{ marginRight: "5px" }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          style={{ color: "red" }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -175,11 +259,7 @@ const ContentArea = ({
           )}
         </>
       ) : (
-        <p>
-          {currentSpaceId === null
-            ? "Select a space to view its contents."
-            : "Loading space details..."}
-        </p>
+        <p>Loading space details...</p>
       )}
     </div>
   );

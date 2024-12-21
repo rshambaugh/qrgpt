@@ -151,3 +151,28 @@
     grid-template-columns: 1fr;
   }
 }
+/* Breadcrumb Styling */
+.search-result-breadcrumbs,
+.breadcrumbs {
+  font-size: 14px;
+  margin: 5px 0;
+}
+
+.search-result-breadcrumbs a,
+.breadcrumbs a {
+  color: #007bff; /* Bootstrap default blue for links */
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.search-result-breadcrumbs a:hover,
+.breadcrumbs a:hover {
+  text-decoration: underline;
+  color: #0056b3; /* Slightly darker blue on hover */
+}
+
+.search-result-breadcrumbs span,
+.breadcrumbs span {
+  margin: 0 4px;
+  color: #6c757d; /* Muted arrow color */
+}

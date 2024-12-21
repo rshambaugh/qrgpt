@@ -4,11 +4,11 @@ import AddForm from "./components/forms/AddForm";
 import SearchBar from "./components/SearchBar";
 import SearchResults from "./components/SearchResults";
 import ContentArea from "./components/ContentArea";
+
 import "./styles/Styles.css";
 import "./styles/AddForm.css";
 import "./styles/NestedSpaces.css";
 import "./styles/SearchResults.css";
-
 
 const App = () => {
   const [spaces, setSpaces] = useState([]);
@@ -117,28 +117,28 @@ const App = () => {
     console.log("[handleSearch] Search Results:", filteredSpaces, filteredItems);
   };
 
-    // Edit Space
-    const handleEditSpace = (spaceId, newName) => {
-      console.log("[App.js] handleEditSpace called with:", { spaceId, newName });
-      try {
-        fetch(`http://localhost:8000/spaces/${spaceId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newName }),
-        }).then((response) => {
-          if (!response.ok) {
-            throw new Error("Failed to edit space");
-          }
-          console.log("[App.js] Space updated successfully");
-          fetchSpaces();
-        });
-      } catch (error) {
-        console.error("[App.js] Error updating space:", error);
-      }
-    };
+  // Edit Space
+  const handleEditSpace = (spaceId, newName) => {
+    console.log("[App.js] handleEditSpace called with:", { spaceId, newName });
+    try {
+      fetch(`http://localhost:8000/spaces/${spaceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      }).then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to edit space");
+        }
+        console.log("[App.js] Space updated successfully");
+        fetchSpaces();
+      });
+    } catch (error) {
+      console.error("[App.js] Error updating space:", error);
+    }
+  };
 
-   // Handle Space Click
-   const handleSpaceClick = (spaceId) => {
+  // Handle Space Click
+  const handleSpaceClick = (spaceId) => {
     console.log("[App.js] handleSpaceClick called with spaceId:", spaceId);
     setCurrentSpaceId(spaceId);
   };
@@ -147,7 +147,7 @@ const App = () => {
     <div className="app-container">
       <h1 className="app-title">QRganizer</h1>
       <SearchBar searchQuery={searchQuery} onSearch={handleSearch} />
-      <SearchResults searchResults={searchResults} />
+      <SearchResults searchResults={searchResults} spaces={spaces} />
       <AddForm
         addSpace={addSpace}
         addItem={addItem}
@@ -167,11 +167,18 @@ const App = () => {
       />
 
       <div className="content-container">
-        <NestedSpaces 
-          spaces={spaces} 
-          onEditSpace={handleEditSpace} 
+        <NestedSpaces
+          spaces={spaces}
+          onEditSpace={handleEditSpace}
           handleSpaceClick={handleSpaceClick}
-        />        <ContentArea currentSpaceId={currentSpaceId} spaces={spaces} items={items} />
+        />
+        <ContentArea
+          currentSpaceId={currentSpaceId}
+          spaces={spaces}
+          items={items}
+          setCurrentSpaceId={setCurrentSpaceId}
+          setSearchResults={setSearchResults}
+        />
       </div>
     </div>
   );
