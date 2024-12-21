@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import NestedSpaces from "./components/NestedSpaces";
 import AddForm from "./components/forms/AddForm";
 import SearchBar from "./components/SearchBar";
@@ -19,65 +19,80 @@ const App = () => {
 
   // Fetch Spaces
   const fetchSpaces = async () => {
+    console.log("[fetchSpaces] Fetching spaces...");
     try {
       const response = await fetch("http://localhost:8000/spaces/recursive");
       if (!response.ok) throw new Error("Failed to fetch spaces");
       const data = await response.json();
       setSpaces(data);
+      console.log("[fetchSpaces] Spaces fetched successfully:", data);
     } catch (error) {
-      console.error("Error fetching spaces:", error);
+      console.error("[fetchSpaces] Error fetching spaces:", error);
     }
   };
 
   // Fetch Items
   const fetchItems = async () => {
+    console.log("[fetchItems] Fetching items...");
     try {
       const response = await fetch("http://localhost:8000/items/");
       if (!response.ok) throw new Error("Failed to fetch items");
       const data = await response.json();
       setItems(data);
+      console.log("[fetchItems] Items fetched successfully:", data);
     } catch (error) {
-      console.error("Error fetching items:", error);
+      console.error("[fetchItems] Error fetching items:", error);
     }
   };
 
   useEffect(() => {
+    console.log("[useEffect] Initial fetch of spaces and items");
     fetchSpaces();
     fetchItems();
   }, []);
 
   // Add Space
   const addSpace = async (name, parent_id) => {
+    console.log("[addSpace] Adding space:", { name, parent_id });
     try {
       const response = await fetch("http://localhost:8000/spaces/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, parent_id }),
       });
-      if (response.ok) fetchSpaces();
+      if (response.ok) {
+        console.log("[addSpace] Space added successfully.");
+        fetchSpaces();
+      }
     } catch (error) {
-      console.error("Error adding space:", error);
+      console.error("[addSpace] Error adding space:", error);
     }
   };
 
   // Add Item
   const addItem = async (name, description, space_id) => {
+    console.log("[addItem] Adding item:", { name, description, space_id });
     try {
       const response = await fetch("http://localhost:8000/items/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description, space_id }),
       });
-      if (response.ok) fetchItems();
+      if (response.ok) {
+        console.log("[addItem] Item added successfully.");
+        fetchItems();
+      }
     } catch (error) {
-      console.error("Error adding item:", error);
+      console.error("[addItem] Error adding item:", error);
     }
   };
 
   // Handle Search
   const handleSearch = (query) => {
+    console.log("[handleSearch] Query:", query);
     setSearchQuery(query);
     if (!query.trim()) {
+      console.log("[handleSearch] Search cleared.");
       setSearchResults([]);
       return;
     }
@@ -93,11 +108,30 @@ const App = () => {
       ...filteredSpaces.map((space) => ({ ...space, type: "space" })),
       ...filteredItems.map((item) => ({ ...item, type: "item" })),
     ]);
+
+    console.log("[handleSearch] Search Results:", searchResults);
   };
 
+  // Handle Space Click
   const handleSpaceClick = (spaceId) => {
+    console.log("[App.js] handleSpaceClick called with spaceId:", spaceId);
     setCurrentSpaceId(spaceId);
+    console.log("[App.js] currentSpaceId updated to:", spaceId);
   };
+  
+
+  console.log("[App Render] State Snapshot:", {
+    currentSpaceId,
+    spaces,
+    items,
+    searchQuery,
+    searchResults,
+    newItemName,
+    newItemDescription,
+    newItemSpaceId,
+    newSpaceName,
+    newSpaceParentId,
+  });
 
   return (
     <div className="app-container">
@@ -108,10 +142,10 @@ const App = () => {
       <SearchResults
         searchResults={searchResults}
         spaces={spaces}
-        onEditSpace={() => {}}
-        onDeleteSpace={() => {}}
-        onEditItem={() => {}}
-        onDeleteItem={() => {}}
+        onEditSpace={() => console.log("[SearchResults] Edit Space clicked")}
+        onDeleteSpace={() => console.log("[SearchResults] Delete Space clicked")}
+        onEditItem={() => console.log("[SearchResults] Edit Item clicked")}
+        onDeleteItem={() => console.log("[SearchResults] Delete Item clicked")}
       />
 
       <AddForm
