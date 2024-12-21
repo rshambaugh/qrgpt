@@ -31,24 +31,28 @@ const NestedSpaces = ({
         return [spaceId]; // Collapse all others and expand the clicked one
       }
     });
-
+  
     try {
       const response = await fetch(`http://localhost:8000/spaces/${spaceId}/children`);
       if (!response.ok) {
         console.error(`Failed to fetch children for space ID ${spaceId}: ${response.statusText}`);
         return;
       }
-
+  
       const children = await response.json();
       console.log("[NestedSpaces] Fetched children:", children);
-
+  
       if (children.length > 0) {
-        setSpaces((prevSpaces) => {
-          const uniqueChildren = children.filter(
-            (child) => !prevSpaces.some((space) => space.id === child.id)
-          );
-          return [...prevSpaces, ...uniqueChildren];
-        });
+        if (typeof setSpaces === "function") { // Safeguard setSpaces
+          setSpaces((prevSpaces) => {
+            const uniqueChildren = children.filter(
+              (child) => !prevSpaces.some((space) => space.id === child.id)
+            );
+            return [...prevSpaces, ...uniqueChildren];
+          });
+        } else {
+          console.warn("[NestedSpaces] setSpaces is not a valid function!");
+        }
       } else {
         console.warn(`No children found for space ID ${spaceId}`);
       }
@@ -56,6 +60,7 @@ const NestedSpaces = ({
       console.error(`Error fetching children for space ID ${spaceId}:`, error);
     }
   };
+  
 
   const handleClick = (spaceId) => {
     console.log("[NestedSpaces] Space clicked with ID:", spaceId);
