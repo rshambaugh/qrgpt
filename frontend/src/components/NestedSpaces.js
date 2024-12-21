@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash, faSave } from "@fortawesome/free-solid-svg-icons";
 import "../styles/NestedSpaces.css";
@@ -15,6 +15,7 @@ const NestedSpaces = ({
   onDeleteSpace,
   onEditItem,
   onDeleteItem,
+  resetExpandedSpaces, // New prop for resetting expanded spaces
 }) => {
   const [expandedSpaces, setExpandedSpaces] = useState([]);
   const [editingSpaceId, setEditingSpaceId] = useState(null);
@@ -22,37 +23,44 @@ const NestedSpaces = ({
 
   const spaceRefs = useRef({});
 
+  // 🆕 Reset expanded spaces when triggered externally
+  useEffect(() => {
+    if (resetExpandedSpaces) {
+      console.log("[NestedSpaces] Resetting expanded spaces.");
+      setExpandedSpaces([]); // Collapse all expanded spaces when reset is triggered
+    }
+  }, [resetExpandedSpaces]);
+
+  /**
+   * Toggle Space (Expand/Collapse and Fetch Children)
+   */
   const toggleSpace = async (spaceId) => {
     console.log("[NestedSpaces] toggleSpace called with spaceId:", spaceId);
     setExpandedSpaces((prev) => {
       if (prev.includes(spaceId)) {
         return prev.filter((id) => id !== spaceId); // Collapse the clicked space
       } else {
-        return [spaceId]; // Collapse all others and expand the clicked one
+        return [...prev, spaceId]; // Expand the clicked space
       }
     });
-  
+
     try {
       const response = await fetch(`http://localhost:8000/spaces/${spaceId}/children`);
       if (!response.ok) {
         console.error(`Failed to fetch children for space ID ${spaceId}: ${response.statusText}`);
         return;
       }
-  
+
       const children = await response.json();
       console.log("[NestedSpaces] Fetched children:", children);
-  
-      if (children.length > 0) {
-        if (typeof setSpaces === "function") { // Safeguard setSpaces
-          setSpaces((prevSpaces) => {
-            const uniqueChildren = children.filter(
-              (child) => !prevSpaces.some((space) => space.id === child.id)
-            );
-            return [...prevSpaces, ...uniqueChildren];
-          });
-        } else {
-          console.warn("[NestedSpaces] setSpaces is not a valid function!");
-        }
+
+      if (children.length > 0 && typeof setSpaces === "function") {
+        setSpaces((prevSpaces) => {
+          const uniqueChildren = children.filter(
+            (child) => !prevSpaces.some((space) => space.id === child.id)
+          );
+          return [...prevSpaces, ...uniqueChildren];
+        });
       } else {
         console.warn(`No children found for space ID ${spaceId}`);
       }
@@ -60,17 +68,33 @@ const NestedSpaces = ({
       console.error(`Error fetching children for space ID ${spaceId}:`, error);
     }
   };
-  
 
+  /**
+   * Handle Space Click
+   */
   const handleClick = (spaceId) => {
     console.log("[NestedSpaces] Space clicked with ID:", spaceId);
-    if (handleSpaceClick) {
+    if (typeof handleSpaceClick === "function") {
       handleSpaceClick(spaceId);
     } else {
       console.warn("[NestedSpaces] handleSpaceClick is undefined!");
     }
   };
 
+  /**
+   * Handle Save Space Edit
+   */
+  const handleSaveEdit = (spaceId) => {
+    console.log("[NestedSpaces] Saving edit for space ID:", spaceId);
+    if (typeof onEditSpace === "function") {
+      onEditSpace(spaceId, editedName);
+    }
+    setEditingSpaceId(null);
+  };
+
+  /**
+   * Safe Spaces & Child Filtering
+   */
   const safeSpaces = Array.isArray(spaces) ? spaces : [];
   const childSpaces = safeSpaces.filter((space) => space.parent_id === currentParentId);
 
@@ -86,6 +110,7 @@ const NestedSpaces = ({
           }}
         >
           <div className="space-header">
+            {/* Edit Mode */}
             {editingSpaceId === space.id ? (
               <div className="edit-form">
                 <input
@@ -96,10 +121,7 @@ const NestedSpaces = ({
                   className="edit-input"
                 />
                 <button
-                  onClick={() => {
-                    onEditSpace(space.id, editedName);
-                    setEditingSpaceId(null);
-                  }}
+                  onClick={() => handleSaveEdit(space.id)}
                   className="save-button"
                 >
                   <FontAwesomeIcon icon={faSave} />
@@ -107,6 +129,7 @@ const NestedSpaces = ({
               </div>
             ) : (
               <>
+                {/* Space Name and Click Handler */}
                 <span
                   className="space-name"
                   onClick={() => {
@@ -116,6 +139,8 @@ const NestedSpaces = ({
                 >
                   {space.name}
                 </span>
+
+                {/* Action Buttons */}
                 <div className="space-actions">
                   <FontAwesomeIcon
                     icon={faEdit}
@@ -135,6 +160,7 @@ const NestedSpaces = ({
             )}
           </div>
 
+          {/* Render Children if Space is Expanded */}
           {expandedSpaces.includes(space.id) && (
             <div className="nested-space-children">
               <NestedSpaces
@@ -147,6 +173,7 @@ const NestedSpaces = ({
                 onDeleteSpace={onDeleteSpace}
                 onEditItem={onEditItem}
                 onDeleteItem={onDeleteItem}
+                resetExpandedSpaces={resetExpandedSpaces} // Pass down reset flag
               />
             </div>
           )}
