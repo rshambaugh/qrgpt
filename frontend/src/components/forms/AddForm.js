@@ -88,9 +88,21 @@ const AddForm = ({
     }
   };
 
+  const renderSpaceOptions = (spaces, depth = 0) => {
+    return spaces.map((space) => (
+      <option
+        key={space.id}
+        value={space.id}
+        style={{ paddingLeft: `${(space.depth || 0) * 15}px` }}
+      >
+        {"-".repeat(space.depth || 0)} {space.name}
+      </option>
+    ));
+  };
+
   return (
     <div className="add-form-container">
-      <h2>Add New Space</h2>
+      <h2 className="form-header">Add New Space</h2>
       <form onSubmit={handleAddSpace} className="add-form">
         <input
           type="text"
@@ -105,16 +117,12 @@ const AddForm = ({
           }
         >
           <option value="">Select Parent Space (optional)</option>
-          {spaces.map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.name}
-            </option>
-          ))}
+          {renderSpaceOptions(spaces)}
         </select>
         <button type="submit">Add Space</button>
       </form>
 
-      <h2>Add New Item</h2>
+      <h2 className="form-header">Add New Item</h2>
       <form onSubmit={handleAddItem} className="add-form">
         <input
           type="text"
@@ -134,11 +142,7 @@ const AddForm = ({
           }
         >
           <option value="">Select Space</option>
-          {spaces.map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.name}
-            </option>
-          ))}
+          {renderSpaceOptions(spaces)}
         </select>
         <button type="submit">Add Item</button>
       </form>

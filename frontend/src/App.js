@@ -4,6 +4,7 @@ import AddForm from "./components/forms/AddForm";
 import SearchBar from "./components/SearchBar";
 import SearchResults from "./components/SearchResults";
 import ContentArea from "./components/ContentArea";
+import "./styles/Styles.css";
 
 const App = () => {
   const [spaces, setSpaces] = useState([]);
@@ -87,82 +88,58 @@ const App = () => {
     }
   };
 
-  // Handle Search (Debounced to avoid lockup)
-  const handleSearch = (query) => {
-    console.log("[handleSearch] Query:", query);
-    setSearchQuery(query);
-
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
+  // Edit Space
+  const handleEditSpace = (spaceId, newName) => {
+    console.log("[App.js] handleEditSpace called with:", { spaceId, newName });
+    try {
+      fetch(`http://localhost:8000/spaces/${spaceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      }).then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to edit space");
+        }
+        console.log("[App.js] Space updated successfully");
+        fetchSpaces();
+      });
+    } catch (error) {
+      console.error("[App.js] Error updating space:", error);
     }
-
-    const filteredSpaces = spaces.filter((space) =>
-      space.name.toLowerCase().includes(query.toLowerCase())
-    );
-    const filteredItems = items.filter((item) =>
-      item.name.toLowerCase().includes(query.toLowerCase())
-    );
-
-    setSearchResults([
-      ...filteredSpaces.map((space) => ({ ...space, type: "space" })),
-      ...filteredItems.map((item) => ({ ...item, type: "item" })),
-    ]);
-
-    console.log("[handleSearch] Search Results:", filteredSpaces, filteredItems);
   };
 
   // Handle Space Click
   const handleSpaceClick = (spaceId) => {
     console.log("[App.js] handleSpaceClick called with spaceId:", spaceId);
     setCurrentSpaceId(spaceId);
-    console.log("[App.js] currentSpaceId updated to:", spaceId);
   };
 
   return (
     <div className="app-container">
-      {/* Header Section */}
-      <header className="app-header">
-        <h1 className="app-title">QRganizer</h1>
-        <SearchBar searchQuery={searchQuery} onSearch={handleSearch} />
-        <SearchResults searchResults={searchResults} />
-      </header>
-
-      {/* Forms Section */}
-      <section className="app-forms">
-        <AddForm
-          addSpace={addSpace}
-          addItem={addItem}
-          spaces={spaces}
-          newItemName={newItemName}
-          setNewItemName={setNewItemName}
-          newItemDescription={newItemDescription}
-          setNewItemDescription={setNewItemDescription}
-          newItemSpaceId={newItemSpaceId}
-          setNewItemSpaceId={setNewItemSpaceId}
-          newSpaceName={newSpaceName}
-          setNewSpaceName={setNewSpaceName}
-          newSpaceParentId={newSpaceParentId}
-          setNewSpaceParentId={setNewSpaceParentId}
-        />
-      </section>
-
-      {/* Main Section */}
-      <main className="app-main">
-        <div className="app-main-columns">
-          <div className="sidebar">
-            <NestedSpaces spaces={spaces} setSpaces={setSpaces} handleSpaceClick={handleSpaceClick} />
-          </div>
-          <div className="content">
-            <ContentArea currentSpaceId={currentSpaceId} spaces={spaces} items={items} />
-          </div>
-        </div>
-      </main>
-
-      {/* Footer Section */}
-      <footer className="app-footer">
-        <p>QRganizer &copy; {new Date().getFullYear()}</p>
-      </footer>
+      <h1 className="app-title">QRganizer</h1>
+      <SearchBar searchQuery={searchQuery} onSearch={setSearchQuery} />
+      <SearchResults searchResults={searchResults} />
+      <AddForm
+        addSpace={addSpace}
+        addItem={addItem}
+        spaces={spaces}
+        newItemName={newItemName}
+        setNewItemName={setNewItemName}
+        newItemDescription={newItemDescription}
+        setNewItemDescription={setNewItemDescription}
+        newItemSpaceId={newItemSpaceId}
+        setNewItemSpaceId={setNewItemSpaceId}
+        newSpaceName={newSpaceName}
+        setNewSpaceName={setNewSpaceName}
+        newSpaceParentId={newSpaceParentId}
+        setNewSpaceParentId={setNewSpaceParentId}
+        fetchSpaces={fetchSpaces}
+        fetchItems={fetchItems}
+      />
+      <div className="content-container">
+        <NestedSpaces spaces={spaces} onEditSpace={handleEditSpace} />
+        <ContentArea currentSpaceId={currentSpaceId} spaces={spaces} items={items} />
+      </div>
     </div>
   );
 };

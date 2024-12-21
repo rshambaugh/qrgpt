@@ -1,0 +1,49 @@
+/* Space Card Styling */
+.space-card {
+  background-color: #f7f7f7;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-bottom: 5px;
+}
+
+.space-card:hover {
+  background-color: #e8f0fe;
+}
+
+.space-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.space-name {
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.space-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-icon,
+.delete-icon {
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.edit-icon:hover,
+.delete-icon:hover {
+  color: #333;
+  transform: scale(1.1);
+}
+
+/* Indented Children */
+.nested-space-children {
+  margin-left: 15px;
+}

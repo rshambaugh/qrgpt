@@ -1,154 +1,174 @@
-import React, { useState, useRef } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEdit, faTrash, faSave } from "@fortawesome/free-solid-svg-icons";
-import "./NestedSpaces.css";
+import React, { useState } from "react";
+import PropTypes from "prop-types";
+import "../styles/AddForm.css"; // Restored CSS styling
 
-const COLORS = ["#ff0000", "#ff7f00", "#ffff00", "#7fff00", "#00ff00", "#00ffff", "#007fff"];
-
-const NestedSpaces = ({
+const AddForm = ({
   spaces,
-  setSpaces, // Provided as a prop for updating state
-  currentParentId = null,
-  depth = 0,
-  handleSpaceClick,
-  onEditSpace,
-  onDeleteSpace,
-  onEditItem,
-  onDeleteItem,
+  newSpaceName,
+  setNewSpaceName,
+  newSpaceParentId,
+  setNewSpaceParentId,
+  newItemName,
+  setNewItemName,
+  newItemDescription,
+  setNewItemDescription,
+  newItemSpaceId,
+  setNewItemSpaceId,
+  fetchSpaces,
+  fetchItems,
+  onEditSpace, // Added for editing spaces
 }) => {
-  const [expandedSpaces, setExpandedSpaces] = useState([]);
-  const [editingSpaceId, setEditingSpaceId] = useState(null);
-  const [editedName, setEditedName] = useState("");
+  const [errorMessage, setErrorMessage] = useState(null);
 
-  const spaceRefs = useRef({});
+  const handleAddSpace = async (e) => {
+    e.preventDefault();
+    setErrorMessage(null);
 
-  const toggleSpace = async (spaceId) => {
-    console.log("[NestedSpaces] toggleSpace called with spaceId:", spaceId);
-    setExpandedSpaces((prev) => {
-      if (prev.includes(spaceId)) {
-        return prev.filter((id) => id !== spaceId); // Collapse the clicked space
-      } else {
-        return [spaceId]; // Collapse all others and expand the clicked one
-      }
-    });
+    if (!newSpaceName.trim()) {
+      setErrorMessage("Space name cannot be empty.");
+      return;
+    }
 
     try {
-      const response = await fetch(`http://localhost:8000/spaces/${spaceId}/children`);
+      const response = await fetch("http://localhost:8000/spaces/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newSpaceName,
+          parent_id: newSpaceParentId || null,
+        }),
+      });
+
       if (!response.ok) {
-        console.error(`Failed to fetch children for space ID ${spaceId}: ${response.statusText}`);
+        const errorData = await response.json();
+        setErrorMessage(errorData.detail || "Failed to add space.");
         return;
       }
 
-      const children = await response.json();
-      console.log("[NestedSpaces] Fetched children:", children);
-
-      if (children.length > 0) {
-        setSpaces((prevSpaces) => {
-          const uniqueChildren = children.filter(
-            (child) => !prevSpaces.some((space) => space.id === child.id)
-          );
-          return [...prevSpaces, ...uniqueChildren];
-        });
-      } else {
-        console.warn(`No children found for space ID ${spaceId}`);
-      }
+      setNewSpaceName("");
+      setNewSpaceParentId(null);
+      fetchSpaces();
     } catch (error) {
-      console.error(`Error fetching children for space ID ${spaceId}:`, error);
+      console.error("Error adding space:", error);
+      setErrorMessage("An error occurred while adding the space.");
     }
   };
 
-  const handleClick = (spaceId) => {
-    console.log("[NestedSpaces] Space clicked with ID:", spaceId);
-    if (handleSpaceClick) {
-      handleSpaceClick(spaceId);
-    } else {
-      console.warn("[NestedSpaces] handleSpaceClick is undefined!");
+  const handleAddItem = async (e) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (!newItemName.trim()) {
+      setErrorMessage("Item name cannot be empty.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/items/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newItemName,
+          description: newItemDescription,
+          space_id: newItemSpaceId || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setErrorMessage(errorData.detail || "Failed to add item.");
+        return;
+      }
+
+      setNewItemName("");
+      setNewItemDescription("");
+      setNewItemSpaceId(null);
+      fetchItems();
+    } catch (error) {
+      console.error("Error adding item:", error);
+      setErrorMessage("An error occurred while adding the item.");
     }
   };
 
-  const safeSpaces = Array.isArray(spaces) ? spaces : [];
-  const childSpaces = safeSpaces.filter((space) => space.parent_id === currentParentId);
+  const renderSpaceOptions = (spaces, depth = 0) => {
+    return spaces.map((space) => (
+      <option
+        key={space.id}
+        value={space.id}
+        style={{ paddingLeft: `${(space.depth || 0) * 15}px` }}
+      >
+        {"-".repeat(space.depth || 0)} {space.name}
+      </option>
+    ));
+  };
 
   return (
-    <div className="nested-spaces">
-      {childSpaces.map((space) => (
-        <div
-          key={space.id}
-          ref={(el) => (spaceRefs.current[space.id] = el)}
-          className={`space-card ${expandedSpaces.includes(space.id) ? "expanded" : ""}`}
-          style={{
-            borderBottom: `3px solid ${COLORS[depth % COLORS.length]}`,
-          }}
+    <div className="add-form-container">
+      <h2 className="form-header">Add New Space</h2>
+      <form onSubmit={handleAddSpace} className="add-form">
+        <input
+          type="text"
+          placeholder="Space Name"
+          value={newSpaceName}
+          onChange={(e) => setNewSpaceName(e.target.value)}
+        />
+        <select
+          value={newSpaceParentId || ""}
+          onChange={(e) =>
+            setNewSpaceParentId(e.target.value ? Number(e.target.value) : null)
+          }
         >
-          <div className="space-header">
-            {editingSpaceId === space.id ? (
-              <div className="edit-form">
-                <input
-                  type="text"
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  placeholder="Edit space name"
-                  className="edit-input"
-                />
-                <button
-                  onClick={() => {
-                    onEditSpace(space.id, editedName);
-                    setEditingSpaceId(null);
-                  }}
-                  className="save-button"
-                >
-                  <FontAwesomeIcon icon={faSave} />
-                </button>
-              </div>
-            ) : (
-              <>
-                <span
-                  className="space-name"
-                  onClick={() => {
-                    toggleSpace(space.id);
-                    handleClick(space.id);
-                  }}
-                >
-                  {space.name}
-                </span>
-                <div className="space-actions">
-                  <FontAwesomeIcon
-                    icon={faEdit}
-                    onClick={() => {
-                      setEditingSpaceId(space.id);
-                      setEditedName(space.name);
-                    }}
-                    className="edit-icon"
-                  />
-                  <FontAwesomeIcon
-                    icon={faTrash}
-                    onClick={() => onDeleteSpace(space.id)}
-                    className="delete-icon"
-                  />
-                </div>
-              </>
-            )}
-          </div>
+          <option value="">Select Parent Space (optional)</option>
+          {renderSpaceOptions(spaces)}
+        </select>
+        <button type="submit">Add Space</button>
+      </form>
 
-          {expandedSpaces.includes(space.id) && (
-            <div className="nested-space-children">
-              <NestedSpaces
-                spaces={safeSpaces}
-                setSpaces={setSpaces}
-                currentParentId={space.id}
-                depth={depth + 1}
-                handleSpaceClick={handleSpaceClick}
-                onEditSpace={onEditSpace}
-                onDeleteSpace={onDeleteSpace}
-                onEditItem={onEditItem}
-                onDeleteItem={onDeleteItem}
-              />
-            </div>
-          )}
-        </div>
-      ))}
+      <h2 className="form-header">Add New Item</h2>
+      <form onSubmit={handleAddItem} className="add-form">
+        <input
+          type="text"
+          placeholder="Item Name"
+          value={newItemName}
+          onChange={(e) => setNewItemName(e.target.value)}
+        />
+        <textarea
+          placeholder="Item Description"
+          value={newItemDescription}
+          onChange={(e) => setNewItemDescription(e.target.value)}
+        ></textarea>
+        <select
+          value={newItemSpaceId || ""}
+          onChange={(e) =>
+            setNewItemSpaceId(e.target.value ? Number(e.target.value) : null)
+          }
+        >
+          <option value="">Select Space</option>
+          {renderSpaceOptions(spaces)}
+        </select>
+        <button type="submit">Add Item</button>
+      </form>
+
+      {errorMessage && <p className="error-message">{errorMessage}</p>}
     </div>
   );
 };
 
-export default NestedSpaces;
+AddForm.propTypes = {
+  spaces: PropTypes.array.isRequired,
+  newSpaceName: PropTypes.string.isRequired,
+  setNewSpaceName: PropTypes.func.isRequired,
+  newSpaceParentId: PropTypes.oneOfType([PropTypes.number, PropTypes.oneOf([null])]),
+  setNewSpaceParentId: PropTypes.func.isRequired,
+  newItemName: PropTypes.string.isRequired,
+  setNewItemName: PropTypes.func.isRequired,
+  newItemDescription: PropTypes.string.isRequired,
+  setNewItemDescription: PropTypes.func.isRequired,
+  newItemSpaceId: PropTypes.oneOfType([PropTypes.number, PropTypes.oneOf([null])]),
+  setNewItemSpaceId: PropTypes.func.isRequired,
+  fetchSpaces: PropTypes.func.isRequired,
+  fetchItems: PropTypes.func.isRequired,
+  onEditSpace: PropTypes.func.isRequired,
+};
+
+export default AddForm;
