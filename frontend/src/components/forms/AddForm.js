@@ -1,84 +1,167 @@
-import React from "react";
-import { generateIndentedOptions } from "../../services/utils";
+import React, { useState } from "react";
+import PropTypes from "prop-types";
 
 const AddForm = ({
+  spaces,
+  newSpaceName,
+  setNewSpaceName,
+  newSpaceParentId,
+  setNewSpaceParentId,
   newItemName,
   setNewItemName,
   newItemDescription,
   setNewItemDescription,
   newItemSpaceId,
   setNewItemSpaceId,
-  newSpaceName,
-  setNewSpaceName,
-  newSpaceParentId,
-  setNewSpaceParentId,
-  spaces,
-  handleAddItem,
-  handleAddSpace,
+  fetchSpaces,
+  fetchItems,
 }) => {
-  // Ensure spaces is an array
-  const safeSpaces = Array.isArray(spaces) ? spaces : [];
-  const indentedSpaces = generateIndentedOptions(safeSpaces);
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  const handleAddSpace = async (e) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (!newSpaceName.trim()) {
+      setErrorMessage("Space name cannot be empty.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/spaces/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newSpaceName,
+          parent_id: newSpaceParentId || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setErrorMessage(errorData.detail || "Failed to add space.");
+        return;
+      }
+
+      setNewSpaceName("");
+      setNewSpaceParentId(null);
+      fetchSpaces();
+    } catch (error) {
+      console.error("Error adding space:", error);
+      setErrorMessage("An error occurred while adding the space.");
+    }
+  };
+
+  const handleAddItem = async (e) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (!newItemName.trim()) {
+      setErrorMessage("Item name cannot be empty.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/items/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newItemName,
+          description: newItemDescription,
+          space_id: newItemSpaceId || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setErrorMessage(errorData.detail || "Failed to add item.");
+        return;
+      }
+
+      setNewItemName("");
+      setNewItemDescription("");
+      setNewItemSpaceId(null);
+      fetchItems();
+    } catch (error) {
+      console.error("Error adding item:", error);
+      setErrorMessage("An error occurred while adding the item.");
+    }
+  };
 
   return (
-    <div className="form-container" style={{ display: "flex", gap: "20px" }}>
-      {/* Add New Item Form */}
-      <div style={{ flex: "1" }}>
-        <h3>Add a New Item</h3>
-        <input
-          type="text"
-          placeholder="Item Name"
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          style={{ width: "100%", marginBottom: "5px" }}
-        />
-        <textarea
-          placeholder="Item Description"
-          value={newItemDescription}
-          onChange={(e) => setNewItemDescription(e.target.value)}
-          style={{ width: "100%", marginBottom: "5px" }}
-        />
-        <select
-          value={newItemSpaceId || ""}
-          onChange={(e) => setNewItemSpaceId(e.target.value || null)}
-          style={{ width: "100%", marginBottom: "10px" }}
-        >
-          <option value="">Unassigned</option>
-          {indentedSpaces.map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.name}
-            </option>
-          ))}
-        </select>
-        <button onClick={handleAddItem}>Add Item</button>
-      </div>
-
-      {/* Add New Space Form */}
-      <div style={{ flex: "1" }}>
-        <h3>Add a New Space</h3>
+    <div className="add-form-container">
+      <h2>Add New Space</h2>
+      <form onSubmit={handleAddSpace} className="add-form">
         <input
           type="text"
           placeholder="Space Name"
           value={newSpaceName}
           onChange={(e) => setNewSpaceName(e.target.value)}
-          style={{ width: "100%", marginBottom: "5px" }}
         />
         <select
           value={newSpaceParentId || ""}
-          onChange={(e) => setNewSpaceParentId(e.target.value || null)}
-          style={{ width: "100%", marginBottom: "10px" }}
+          onChange={(e) =>
+            setNewSpaceParentId(e.target.value ? Number(e.target.value) : null)
+          }
         >
-          <option value="">No Parent</option>
-          {indentedSpaces.map((space) => (
+          <option value="">Select Parent Space (optional)</option>
+          {spaces.map((space) => (
             <option key={space.id} value={space.id}>
               {space.name}
             </option>
           ))}
         </select>
-        <button onClick={handleAddSpace}>Add Space</button>
-      </div>
+        <button type="submit">Add Space</button>
+      </form>
+
+      <h2>Add New Item</h2>
+      <form onSubmit={handleAddItem} className="add-form">
+        <input
+          type="text"
+          placeholder="Item Name"
+          value={newItemName}
+          onChange={(e) => setNewItemName(e.target.value)}
+        />
+        <textarea
+          placeholder="Item Description"
+          value={newItemDescription}
+          onChange={(e) => setNewItemDescription(e.target.value)}
+        ></textarea>
+        <select
+          value={newItemSpaceId || ""}
+          onChange={(e) =>
+            setNewItemSpaceId(e.target.value ? Number(e.target.value) : null)
+          }
+        >
+          <option value="">Select Space</option>
+          {spaces.map((space) => (
+            <option key={space.id} value={space.id}>
+              {space.name}
+            </option>
+          ))}
+        </select>
+        <button type="submit">Add Item</button>
+      </form>
+
+      {errorMessage && <p className="error-message">{errorMessage}</p>}
     </div>
   );
+};
+
+AddForm.propTypes = {
+  spaces: PropTypes.array.isRequired,
+  newSpaceName: PropTypes.string.isRequired,
+  setNewSpaceName: PropTypes.func.isRequired,
+  newSpaceParentId: PropTypes.oneOfType([PropTypes.number, PropTypes.oneOf([null])]),
+  setNewSpaceParentId: PropTypes.func.isRequired,
+  newItemName: PropTypes.string.isRequired,
+  setNewItemName: PropTypes.func.isRequired,
+  newItemDescription: PropTypes.string.isRequired,
+  setNewItemDescription: PropTypes.func.isRequired,
+  newItemSpaceId: PropTypes.oneOfType([PropTypes.number, PropTypes.oneOf([null])]),
+  setNewItemSpaceId: PropTypes.func.isRequired,
+  fetchSpaces: PropTypes.func.isRequired,
+  fetchItems: PropTypes.func.isRequired,
 };
 
 export default AddForm;

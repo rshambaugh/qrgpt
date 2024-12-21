@@ -2,7 +2,7 @@ import React from "react";
 import { useDrag } from "react-dnd";
 import { FaTrash, FaEdit } from "react-icons/fa";
 
-const Item = ({ item, onItemClick, onDeleteItem }) => {
+const Item = ({ item, onItemClick, onDeleteItem, onEditItem }) => {
   const [{ isDragging }, drag] = useDrag({
     type: "ITEM",
     item: { id: item.id, type: "ITEM" },
@@ -18,7 +18,7 @@ const Item = ({ item, onItemClick, onDeleteItem }) => {
 
   const handleEditClick = (e) => {
     e.stopPropagation();
-    alert("Edit item not implemented yet!");
+    onEditItem(item.id, item.name, item.description || "");
   };
 
   return (

@@ -1,8 +1,8 @@
+// Start SearchResults.js
 import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash, faSave } from "@fortawesome/free-solid-svg-icons";
 
-// Move the generateBreadcrumbs function outside the component
 const generateBreadcrumbs = (spaces, spaceId) => {
   const breadcrumbs = [];
   let currentSpaceId = spaceId;
@@ -19,9 +19,9 @@ const generateBreadcrumbs = (spaces, spaceId) => {
 };
 
 const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEditSpace }) => {
-  const [editingId, setEditingId] = useState(null); 
-  const [editedName, setEditedName] = useState(""); 
-  const [editedDescription, setEditedDescription] = useState(""); 
+  const [editingId, setEditingId] = useState(null);
+  const [editedName, setEditedName] = useState("");
+  const [editedDescription, setEditedDescription] = useState("");
 
   const handleSave = (id, type) => {
     if (!editedName.trim()) {
@@ -32,12 +32,32 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEdit
     if (type === "item") {
       onEditItem(id, { name: editedName, description: editedDescription });
     } else if (type === "space") {
+      // Use the passed-in onEditSpace prop
       onEditSpace(id, editedName);
     }
 
-    setEditingId(null); 
+    setEditingId(null);
     setEditedName("");
     setEditedDescription("");
+  };
+
+  const handleDeleteSpace = async (spaceId) => {
+    try {
+      const response = await fetch(`http://localhost:8000/spaces/${spaceId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (response.ok) {
+        // You may need to refetch spaces or update parent state to remove the deleted space from UI
+        console.log(`Space with ID ${spaceId} deleted successfully.`);
+      } else {
+        const errorData = await response.json();
+        console.error(`Error deleting space: ${errorData.detail}`);
+      }
+    } catch (error) {
+      console.error("Error deleting space:", error);
+    }
   };
 
   return (
@@ -72,11 +92,13 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEdit
                     />
                     <FontAwesomeIcon
                       icon={faTrash}
-                      onClick={() =>
-                        result.type === "item"
-                          ? onDeleteItem(result.id)
-                          : console.log("Delete space functionality here")
-                      }
+                      onClick={async () => {
+                        if (result.type === "item") {
+                          onDeleteItem(result.id);
+                        } else {
+                          await handleDeleteSpace(result.id);
+                        }
+                      }}
                       className="delete-icon"
                     />
                   </>
@@ -123,3 +145,4 @@ const SearchResults = ({ searchResults, spaces, onEditItem, onDeleteItem, onEdit
 };
 
 export default SearchResults;
+// End SearchResults.js

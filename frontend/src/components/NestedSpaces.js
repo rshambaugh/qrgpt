@@ -7,12 +7,14 @@ const COLORS = ["#ff0000", "#ff7f00", "#ffff00", "#7fff00", "#00ff00", "#00ffff"
 
 const NestedSpaces = ({
   spaces,
-  setSpaces, // Add this prop
+  setSpaces, // Provided as a prop for updating state
   currentParentId = null,
   depth = 0,
   handleSpaceClick,
   onEditSpace,
   onDeleteSpace,
+  onEditItem,
+  onDeleteItem,
 }) => {
   const [expandedSpaces, setExpandedSpaces] = useState([]);
   const [editingSpaceId, setEditingSpaceId] = useState(null);
@@ -36,7 +38,12 @@ const NestedSpaces = ({
       const children = await response.json();
 
       if (children.length > 0) {
-        setSpaces((prevSpaces) => [...prevSpaces, ...children]); // Use setSpaces from props
+        setSpaces((prevSpaces) => {
+          const uniqueChildren = children.filter(
+            (child) => !prevSpaces.some((space) => space.id === child.id)
+          );
+          return [...prevSpaces, ...uniqueChildren];
+        });
         setExpandedSpaces((prev) => [...prev, spaceId]);
       } else {
         console.warn(`No children found for space ID ${spaceId}`);
@@ -114,6 +121,8 @@ const NestedSpaces = ({
                 handleSpaceClick={handleSpaceClick}
                 onEditSpace={onEditSpace}
                 onDeleteSpace={onDeleteSpace}
+                onEditItem={onEditItem}
+                onDeleteItem={onDeleteItem}
               />
             </div>
           )}
@@ -124,3 +133,4 @@ const NestedSpaces = ({
 };
 
 export default NestedSpaces;
+
