@@ -241,3 +241,19 @@ textarea::placeholder {
   background-color: #bbdefb;
   border-color: #64b5f6;
 }
+
+/* Unused styles commented out */
+/* .unused-class {
+  background-color: #fff;
+} */
+
+.content-area {
+  position: sticky;
+  top: 20px;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+  background-color: #f9f9f9;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+}

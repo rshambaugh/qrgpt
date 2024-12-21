@@ -3,7 +3,7 @@ import { useDrag, useDrop } from "react-dnd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 
-const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onSpaceClick }) => {
+const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onDeleteSpace, onEditSpace, onSpaceClick }) => {
   const [editingItemId, setEditingItemId] = useState(null);
   const [editedItemName, setEditedItemName] = useState("");
   const [editedItemDesc, setEditedItemDesc] = useState("");
@@ -102,12 +102,12 @@ const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onSpaceClic
           <FontAwesomeIcon
             icon={faEdit}
             style={{ cursor: "pointer", color: "blue" }}
-            onClick={() => onEditItem && onEditItem(space.id, space.name)}
+            onClick={() => onEditSpace && onEditSpace(space.id, space.name)}
           />
           <FontAwesomeIcon
             icon={faTrash}
             style={{ cursor: "pointer", color: "red" }}
-            onClick={() => onDeleteItem(space.id)}
+            onClick={() => onDeleteSpace && onDeleteSpace(space.id)}
           />
         </div>
       </div>
