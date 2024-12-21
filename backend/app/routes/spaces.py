@@ -104,52 +104,42 @@ async def get_children(id: int, db: AsyncSession = Depends(get_db)):
         result = await db.execute(
             select(SpaceModel)
             .where(SpaceModel.parent_id == id)
-            .options(joinedload(SpaceModel.items), joinedload(SpaceModel.children))
+            .options(joinedload(SpaceModel.items))
         )
-        spaces = result.unique().scalars().all()
+        spaces = result.unique().scalars().all()  # Ensure results are deduplicated
 
-        response = []
-        for space in spaces:
-            response.append(
-                Space(
-                    id=space.id,
-                    name=space.name,
-                    parent_id=space.parent_id,
-                    depth=space.depth,
-                    created_at=space.created_at,
-                    updated_at=space.updated_at,
-                    children=[
-                        # Only direct children (no deeper recursion)
-                        Space(
-                            id=child.id,
-                            name=child.name,
-                            parent_id=child.parent_id,
-                            depth=child.depth,
-                            created_at=child.created_at,
-                            updated_at=child.updated_at,
-                            children=[],
-                            items=[]
-                        )
-                        for child in space.children
-                    ],
-                    items=[
-                        Item(
-                            id=item.id,
-                            name=item.name,
-                            description=item.description,
-                            space_id=item.space_id,
-                            created_at=item.created_at,
-                            updated_at=item.updated_at
-                        )
-                        for item in space.items
-                    ]
-                )
+        response = [
+            Space(
+                id=space.id,
+                name=space.name,
+                parent_id=space.parent_id,
+                depth=space.depth,
+                created_at=space.created_at,
+                updated_at=space.updated_at,
+                children=[],  # Avoid deeper recursion
+                items=[
+                    Item(
+                        id=item.id,
+                        name=item.name,
+                        description=item.description,
+                        space_id=item.space_id,
+                        created_at=item.created_at,
+                        updated_at=item.updated_at
+                    )
+                    for item in space.items
+                ]
             )
+            for space in spaces
+        ]
+        
         return response
 
+    except SQLAlchemyError as e:
+        print(f"SQLAlchemy error fetching children for space ID {id}: {e}")
+        raise HTTPException(status_code=500, detail="Database error while fetching children.")
     except Exception as e:
         print(f"Error fetching children for space ID {id}: {e}")
-        raise HTTPException(status_code=500, detail="Error fetching children.")
+        raise HTTPException(status_code=500, detail="Unexpected error while fetching children.")
 
 
 @router.post("/", response_model=Space)
