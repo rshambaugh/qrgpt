@@ -21,16 +21,18 @@ const App = () => {
   const [newItemSpaceId, setNewItemSpaceId] = useState(null);
   const [newSpaceName, setNewSpaceName] = useState("");
   const [newSpaceParentId, setNewSpaceParentId] = useState(null);
-  
 
   // Fetch Spaces
   const fetchSpaces = async () => {
+    console.log("[fetchSpaces] Fetching spaces...");
     try {
       const response = await fetch("http://localhost:8000/spaces/recursive");
       if (!response.ok) throw new Error("Failed to fetch spaces");
       const data = await response.json();
       setSpaces(data);
+      console.log("[fetchSpaces] Spaces fetched successfully:", data);
     } catch (error) {
+      console.error("[fetchSpaces] Error fetching spaces:", error);
     }
   };
 
@@ -42,17 +44,21 @@ const App = () => {
       if (!response.ok) throw new Error("Failed to fetch items");
       const data = await response.json();
       setItems(data);
+      console.log("[fetchItems] Items fetched successfully:", data);
     } catch (error) {
+      console.error("[fetchItems] Error fetching items:", error);
     }
   };
 
   useEffect(() => {
+    console.log("[useEffect] Initial fetch of spaces and items");
     fetchSpaces();
     fetchItems();
   }, []);
 
   // Add Space
   const addSpace = async (name, parent_id) => {
+    console.log("[addSpace] Adding space:", { name, parent_id });
     try {
       const response = await fetch("http://localhost:8000/spaces/", {
         method: "POST",
@@ -60,14 +66,17 @@ const App = () => {
         body: JSON.stringify({ name, parent_id }),
       });
       if (response.ok) {
+        console.log("[addSpace] Space added successfully.");
         fetchSpaces();
       }
     } catch (error) {
+      console.error("[addSpace] Error adding space:", error);
     }
   };
 
   // Add Item
   const addItem = async (name, description, space_id) => {
+    console.log("[addItem] Adding item:", { name, description, space_id });
     try {
       const response = await fetch("http://localhost:8000/items/", {
         method: "POST",
@@ -75,14 +84,17 @@ const App = () => {
         body: JSON.stringify({ name, description, space_id }),
       });
       if (response.ok) {
+        console.log("[addItem] Item added successfully.");
         fetchItems();
       }
     } catch (error) {
+      console.error("[addItem] Error adding item:", error);
     }
   };
 
   // Handle Search
   const handleSearch = (query) => {
+    console.log("[handleSearch] Query:", query);
     setSearchQuery(query);
 
     if (!query.trim()) {
@@ -102,6 +114,7 @@ const App = () => {
       ...filteredItems.map((item) => ({ ...item, type: "item" })),
     ]);
 
+    console.log("[handleSearch] Search Results:", filteredSpaces, filteredItems);
   };
 
   // Edit Space
@@ -155,7 +168,7 @@ const App = () => {
 
       <div className="content-container">
         <NestedSpaces
-          space ={spaces} setSpaces={setSpaces}
+          spaces={spaces}
           onEditSpace={handleEditSpace}
           handleSpaceClick={handleSpaceClick}
         />

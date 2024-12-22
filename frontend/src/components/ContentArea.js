@@ -72,14 +72,6 @@ const ContentArea = ({
   fetchItems,
   setSearchResults,
 }) => {
-  console.log("[ContentArea] Props received:", {
-    currentSpaceId,
-    spaces,
-    items,
-    setCurrentSpaceId,
-    fetchItems,
-    setSearchResults,
-  });
 
   const [currentSpace, setCurrentSpace] = useState(null);
   const [filteredItems, setFilteredItems] = useState([]);
@@ -210,9 +202,7 @@ const renderNestedSpaces = (spaces, parentId = null, level = 0) => {
       if (!response.ok) throw new Error("Failed to delete item");
 
       setFilteredItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
-      console.log("[ContentArea] Item deleted successfully");
     } catch (error) {
-      console.error("[ContentArea] Error deleting item:", error);
     }
   };
 

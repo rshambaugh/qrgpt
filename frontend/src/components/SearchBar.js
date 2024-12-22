@@ -1,11 +1,9 @@
 import React from "react";
 
 const SearchBar = ({ searchQuery, onSearch }) => {
-  console.log("[SearchBar] Rendered with searchQuery:", searchQuery);
 
   const handleChange = (e) => {
     const value = e.target.value;
-    console.log("[SearchBar] Input changed to:", value);
     onSearch(value);
   };
 

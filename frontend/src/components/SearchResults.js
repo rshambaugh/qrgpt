@@ -64,18 +64,14 @@ const generateBreadcrumbs = (spaceId, spaces, onBreadcrumbClick) => {
 
 // Main SearchResults Component
 const SearchResults = ({ searchResults, spaces = [], onBreadcrumbClick }) => {
-  console.log("[SearchResults] Received Props:", { searchResults, spaces });
 
   if (!searchResults || searchResults.length === 0) {
-    console.warn("[SearchResults] No results found or empty array.");
     return <p className="search-no-results">No results found. Please refine your search query.</p>;
   }
 
   return (
     <div className="search-results-container">
       {searchResults.map((result, index) => {
-        console.log(`[SearchResults] Processing result at index ${index}:`, result);
-        console.log("[SearchResults] Validating breadcrumbs for space_id:", result.space_id);
         const spaceExists = result.type === "item" && result.space_id && spaces.some(space => space.id === result.space_id);
 
         return (
