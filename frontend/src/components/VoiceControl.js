@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import '../styles/VoiceControl.css'; // Import the new styles
+
 
 const VoiceControl = ({ fetchSpaces, fetchItems }) => {
   const [mode, setMode] = useState('voice'); // 'voice' or 'text'
@@ -137,9 +139,11 @@ const VoiceControl = ({ fetchSpaces, fetchItems }) => {
   };
 
   return (
-    <div style={{ border: '1px solid #ccc', padding: '10px', margin: '10px 0' }}>
-      <h3>Voice Control</h3>
-      <div>
+    <div className="voice-control-container">
+      <h3 className="voice-control-header">Voice Control</h3>
+
+      {/* Mode Selection */}
+      <div className="voice-control-modes">
         <label>
           <input
             type="radio"
@@ -149,7 +153,7 @@ const VoiceControl = ({ fetchSpaces, fetchItems }) => {
           />
           Voice Mode
         </label>
-        <label style={{ marginLeft: '10px' }}>
+        <label>
           <input
             type="radio"
             value="text"
@@ -160,52 +164,50 @@ const VoiceControl = ({ fetchSpaces, fetchItems }) => {
         </label>
       </div>
 
-      <div style={{ marginTop: '10px' }}>
-        <strong>Find Mode:</strong>
+      {/* Find Mode */}
+      <div className="voice-control-find-mode">
         <button
+          className={objectType === 'item' ? 'active' : ''}
           onClick={() => setObjectType('item')}
-          style={{
-            marginLeft: '10px',
-            backgroundColor: objectType === 'item' ? 'lightblue' : 'white',
-          }}
         >
           Find Item
         </button>
         <button
+          className={objectType === 'space' ? 'active' : ''}
           onClick={() => setObjectType('space')}
-          style={{
-            marginLeft: '10px',
-            backgroundColor: objectType === 'space' ? 'lightblue' : 'white',
-          }}
         >
           Find Space
         </button>
       </div>
 
+      {/* Command Input */}
       {mode === 'voice' ? (
-        <div>
+        <div className="voice-control-button">
           <button onClick={startRecognition} disabled={recognizing}>
             {recognizing ? 'Listening...' : 'Start Voice Command'}
           </button>
           {transcript && <p><strong>Heard:</strong> {transcript}</p>}
-          {voiceError && <p style={{ color: 'red' }}><strong>Error:</strong> {voiceError}</p>}
+          {voiceError && <p className="voice-control-error"><strong>Error:</strong> {voiceError}</p>}
         </div>
       ) : (
         <div>
           <textarea
             rows="2"
-            style={{ width: '100%' }}
+            className="voice-control-textarea"
             value={commandText}
             onChange={handleInputChange}
           />
-          <button onClick={handleTextInterpret} style={{ marginTop: '5px' }}>
-            Interpret Command
-          </button>
+          <div className="voice-control-button">
+            <button onClick={handleTextInterpret}>
+              Interpret Command
+            </button>
+          </div>
         </div>
       )}
 
+      {/* Response Message */}
       {responseMessage && (
-        <div style={{ marginTop: '10px', color: 'blue' }}>
+        <div className="voice-control-response">
           <strong>Response:</strong> {responseMessage}
         </div>
       )}
