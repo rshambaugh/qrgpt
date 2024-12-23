@@ -30,7 +30,6 @@ const ParentContainer = ({
           onClick={() => handleSpaceClick(space.id)}
         >
           <h3 style={{ margin: 0 }}>{space.name || "Unnamed Space"}</h3>
-          {/* Icons at the top-right corner */}
           <div
             style={{
               position: "absolute",
@@ -46,7 +45,7 @@ const ParentContainer = ({
               onClick={(e) => {
                 e.stopPropagation();
                 if (space.id) {
-                  onEditSpace(space.id, space.name || "Unnamed Space"); // Pass valid ID and fallback for name
+                  onEditSpace(space.id, space.name || "Unnamed Space");
                 } else {
                   console.error("Error: Space ID is undefined", space);
                 }
@@ -84,7 +83,6 @@ const ParentContainer = ({
           }}
         >
           <strong>{item.name || "Unnamed Item"}</strong>
-          {/* Icons at the top-right corner */}
           <div
             style={{
               position: "absolute",
@@ -99,7 +97,7 @@ const ParentContainer = ({
               style={{ cursor: "pointer", color: "blue" }}
               onClick={() => {
                 if (item.id) {
-                  onEditItem(item.id, item.name || "Unnamed Item", item.description || ""); // Pass proper parameters
+                  onEditItem(item.id, item.name || "Unnamed Item", item.description || "");
                 } else {
                   console.error("Error: Item ID is undefined", item);
                 }

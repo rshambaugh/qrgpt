@@ -2,8 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
 from ..models import Item as ItemModel
-from ..schemas import ItemCreate
-
+from ..schemas import ItemCreate, ItemUpdate
 
 async def get_items(db: AsyncSession):
     """
@@ -14,7 +13,6 @@ async def get_items(db: AsyncSession):
         return result.scalars().all()
     except Exception as e:
         raise RuntimeError(f"Error fetching items: {str(e)}")
-
 
 async def create_item(db: AsyncSession, item_data: ItemCreate):
     """
@@ -33,8 +31,7 @@ async def create_item(db: AsyncSession, item_data: ItemCreate):
         await db.rollback()
         raise RuntimeError(f"Internal error while adding item: {str(e)}")
 
-
-async def update_item(db: AsyncSession, item_id: int, item_data: ItemCreate):
+async def update_item(db: AsyncSession, item_id: int, item_data: ItemUpdate):
     """
     Update an existing item in the database.
     """
@@ -46,17 +43,18 @@ async def update_item(db: AsyncSession, item_id: int, item_data: ItemCreate):
         if not item:
             return None
 
-        # Update fields
-        item.name = item_data.name
-        item.description = item_data.description
-        item.space_id = item_data.space_id
+        if item_data.name is not None:
+            item.name = item_data.name
+        if item_data.description is not None:
+            item.description = item_data.description
+        if item_data.space_id is not None:
+            item.space_id = item_data.space_id
 
         await db.commit()
         await db.refresh(item)
         return item
     except Exception as e:
         raise RuntimeError(f"Internal error while updating item: {str(e)}")
-
 
 async def delete_item(db: AsyncSession, item_id: int):
     """

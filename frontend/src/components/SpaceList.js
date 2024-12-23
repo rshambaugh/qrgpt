@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 function SpaceList({ spaces, items, onDrop, onSpaceClick, currentSpaceId }) {
-  // Ensure spaces is an array
   const safeSpaces = Array.isArray(spaces) ? spaces : [];
 
   const renderSpaces = (parentId) =>

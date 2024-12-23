@@ -4,8 +4,13 @@ from .utils.db import engine
 from .models import Base
 from .routes.items import router as items_router
 from .routes.spaces import router as spaces_router
+from .routes.voice import router as voice_router
+
 
 app = FastAPI()
+
+app.include_router(voice_router, prefix="/voice", tags=["voice"])
+
 
 # Middleware for CORS
 app.add_middleware(

@@ -16,7 +16,10 @@ class ItemBase(BaseModel):
 class ItemCreate(ItemBase):
     space_id: Optional[int] = None
 
-class ItemUpdate(ItemBase):
+# Use this for updating items
+class ItemUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
     space_id: Optional[int] = None
 
 class Item(ItemBase):
@@ -40,8 +43,6 @@ class SpaceCreate(BaseModel):
 class SpaceUpdate(BaseModel):
     name: Optional[str] = None
     parent_id: Optional[int] = None
-    # Add depth if you want to allow updating depth:
-    # depth: Optional[int] = None
 
 class Space(SpaceBase):
     id: int

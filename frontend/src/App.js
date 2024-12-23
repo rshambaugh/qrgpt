@@ -4,7 +4,7 @@ import AddForm from "./components/forms/AddForm";
 import SearchBar from "./components/SearchBar";
 import SearchResults from "./components/SearchResults";
 import ContentArea from "./components/ContentArea";
-
+import VoiceControl from "./components/VoiceControl";
 import "./styles/Styles.css";
 import "./styles/AddForm.css";
 import "./styles/NestedSpaces.css";
@@ -143,11 +143,22 @@ const App = () => {
     setCurrentSpaceId(spaceId);
   };
 
+  // For search results breadcrumbs
+  const handleBreadcrumbClick = (spaceId) => {
+    console.log("[App.js] handleBreadcrumbClick with spaceId:", spaceId);
+    setCurrentSpaceId(spaceId);
+  };
+
   return (
     <div className="app-container">
       <h1 className="app-title">QRganizer</h1>
       <SearchBar searchQuery={searchQuery} onSearch={handleSearch} />
-      <SearchResults searchResults={searchResults} spaces={spaces} />
+      <SearchResults
+        searchResults={searchResults}
+        spaces={spaces}
+        onBreadcrumbClick={handleBreadcrumbClick}
+      />
+      <VoiceControl />
       <AddForm
         addSpace={addSpace}
         addItem={addItem}
@@ -169,6 +180,7 @@ const App = () => {
       <div className="content-container">
         <NestedSpaces
           spaces={spaces}
+          setSpaces={setSpaces}
           onEditSpace={handleEditSpace}
           handleSpaceClick={handleSpaceClick}
         />
@@ -178,6 +190,7 @@ const App = () => {
           items={items}
           setCurrentSpaceId={setCurrentSpaceId}
           setSearchResults={setSearchResults}
+          fetchItems={fetchItems}
         />
       </div>
     </div>

@@ -23,46 +23,33 @@ const Breadcrumb = ({ id, name, onClick }) => (
   </>
 );
 
-// Generate Breadcrumbs
 const generateBreadcrumbs = (spaceId, spaces, onBreadcrumbClick) => {
-  if (!spaceId) {
-    console.warn("[generateBreadcrumbs] Invalid spaceId provided.");
-    return null;
-  }
-
-  if (!Array.isArray(spaces)) {
-    console.warn("[generateBreadcrumbs] spaces is not an array or is undefined.");
-    return null;
-  }
+  if (!spaceId) return null;
+  if (!Array.isArray(spaces)) return null;
 
   const breadcrumbs = [];
   let currentId = spaceId;
+  const visited = new Set();
 
-  const visitedSpaces = new Set();
-
-  while (currentId && !visitedSpaces.has(currentId)) {
-    visitedSpaces.add(currentId);
-    const currentSpace = spaces.find((space) => space.id === currentId);
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const currentSpace = spaces.find((s) => s.id === currentId);
     if (!currentSpace) break;
 
-    // Add breadcrumb
     breadcrumbs.unshift({
       id: currentSpace.id,
       name: currentSpace.name,
     });
-
-    // Move to parent space
     currentId = currentSpace.parent_id;
   }
 
   return breadcrumbs.map((crumb) => (
     <React.Fragment key={crumb.id}>
-      <Breadcrumb id={crumb.id} name={crumb.name} onClick={() => onBreadcrumbClick(crumb.id)} />
+      <Breadcrumb id={crumb.id} name={crumb.name} onClick={onBreadcrumbClick} />
     </React.Fragment>
   ));
 };
 
-// Main SearchResults Component
 const SearchResults = ({ searchResults, spaces = [], onBreadcrumbClick }) => {
   console.log("[SearchResults] Received Props:", { searchResults, spaces });
 
@@ -76,7 +63,18 @@ const SearchResults = ({ searchResults, spaces = [], onBreadcrumbClick }) => {
       {searchResults.map((result, index) => {
         console.log(`[SearchResults] Processing result at index ${index}:`, result);
         console.log("[SearchResults] Validating breadcrumbs for space_id:", result.space_id);
-        const spaceExists = result.type === "item" && result.space_id && spaces.some(space => space.id === result.space_id);
+        const spaceExists =
+          result.type === "item" &&
+          result.space_id &&
+          spaces.some((space) => space.id === result.space_id);
+
+        // If it's a space itself, we can show a breadcrumb from that space up
+        let breadcrumbs = null;
+        if (result.type === "space") {
+          breadcrumbs = generateBreadcrumbs(result.id, spaces, onBreadcrumbClick);
+        } else if (spaceExists) {
+          breadcrumbs = generateBreadcrumbs(result.space_id, spaces, onBreadcrumbClick);
+        }
 
         return (
           <div key={index} className="search-result-card">
@@ -87,9 +85,9 @@ const SearchResults = ({ searchResults, spaces = [], onBreadcrumbClick }) => {
             {result.description && (
               <p className="search-result-description">{result.description}</p>
             )}
-            {spaceExists ? (
+            {breadcrumbs ? (
               <div className="search-result-breadcrumbs">
-                {generateBreadcrumbs(result.space_id, spaces, onBreadcrumbClick)}
+                {breadcrumbs}
               </div>
             ) : (
               <div className="search-result-breadcrumbs">
@@ -104,4 +102,3 @@ const SearchResults = ({ searchResults, spaces = [], onBreadcrumbClick }) => {
 };
 
 export default SearchResults;
-

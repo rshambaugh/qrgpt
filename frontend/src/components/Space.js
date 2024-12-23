@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { useDrag, useDrop } from "react-dnd";
 
 function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace, children }) {
-  // Drag logic
   const [{ isDragging }, drag] = useDrag({
     type: "SPACE",
     item: { id: space.id, type: "SPACE" },
@@ -11,7 +10,6 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace,
     }),
   });
 
-  // Drop logic
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: ["ITEM", "SPACE"],
     drop: (draggedItem, monitor) => {
@@ -27,7 +25,6 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace,
     }),
   });
 
-  // Inline editing state for spaces
   const [editingSpace, setEditingSpace] = useState(false);
   const [editedSpaceName, setEditedSpaceName] = useState(space.name);
 
@@ -43,12 +40,11 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace,
   const [hoverTimer, setHoverTimer] = useState(null);
   const [draggingOver, setDraggingOver] = useState(false);
 
-  // Hover logic for opening spaces
   useEffect(() => {
     if (draggingOver && !hoverTimer) {
       const timer = setTimeout(() => {
         onSpaceClick(space.id);
-      }, 1000); // 1 second hover to open
+      }, 1000);
       setHoverTimer(timer);
     } else if (!draggingOver && hoverTimer) {
       clearTimeout(hoverTimer);
@@ -60,7 +56,6 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace,
     };
   }, [draggingOver, hoverTimer, onSpaceClick, space.id]);
 
-  // Memoized styles for performance
   const spaceStyle = useMemo(
     () => ({
       border: isOver ? "2px dashed green" : "1px solid gray",
@@ -108,7 +103,6 @@ function Space({ space, items, onDrop, onSpaceClick, onDeleteSpace, onEditSpace,
         </h4>
       )}
 
-      {/* Icons for edit/delete */}
       {!editingSpace && (
         <div style={{ position: "absolute", top: "5px", right: "5px", display: "flex", gap: "5px" }}>
           <i

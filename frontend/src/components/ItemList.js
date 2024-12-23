@@ -8,7 +8,6 @@ const ItemList = ({ items, spaces, onDrop, onDeleteItem, onEditItem, onDeleteSpa
   const [editedItemName, setEditedItemName] = useState("");
   const [editedItemDesc, setEditedItemDesc] = useState("");
 
-  // Ensure spaces is an array
   const safeSpaces = Array.isArray(spaces) ? spaces : [];
 
   const DraggableItem = ({ item }) => {

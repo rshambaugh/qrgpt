@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSave, faTimes, faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
 
-
 // Function to get ROYGBIV colors based on item index
 const getBorderColor = (index) => {
   const colors = [
@@ -63,7 +62,6 @@ const generateBreadcrumbs = (spaceId, spaces, onBreadcrumbClick) => {
   ));
 };
 
-// Main ContentArea Component
 const ContentArea = ({
   currentSpaceId,
   spaces = [],
@@ -87,7 +85,7 @@ const ContentArea = ({
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemName, setEditItemName] = useState("");
   const [editItemDescription, setEditItemDescription] = useState("");
-  const [editItemSpaceId, setEditItemSpaceId] = useState(""); // Added for space selection
+  const [editItemSpaceId, setEditItemSpaceId] = useState("");
 
   const handleBreadcrumbClick = useCallback(
     (spaceId) => {
@@ -147,7 +145,6 @@ const ContentArea = ({
       const updatedItem = await response.json();
       console.log("[ContentArea] Item updated successfully:", updatedItem);
 
-      // Update filteredItems
       setFilteredItems((prevItems) =>
         prevItems.map((item) =>
           item.id === itemId
@@ -161,7 +158,6 @@ const ContentArea = ({
         )
       );
 
-      // Fetch fresh items and update search results
       if (typeof fetchItems === "function") {
         await fetchItems();
         setSearchResults((prevResults) =>
@@ -186,19 +182,18 @@ const ContentArea = ({
   };
 
   // Recursive function to render nested spaces with indentation
-const renderNestedSpaces = (spaces, parentId = null, level = 0) => {
-  return spaces
-    .filter((space) => space.parent_id === parentId)
-    .map((space) => (
-      <React.Fragment key={space.id}>
-        <option value={space.id}>
-          {`${"— ".repeat(level)}${space.name}`}
-        </option>
-        {renderNestedSpaces(spaces, space.id, level + 1)}
-      </React.Fragment>
-    ));
-};
-
+  const renderNestedSpaces = (spaces, parentId = null, level = 0) => {
+    return spaces
+      .filter((space) => space.parent_id === parentId)
+      .map((space) => (
+        <React.Fragment key={space.id}>
+          <option value={space.id}>
+            {`${"— ".repeat(level)}${space.name}`}
+          </option>
+          {renderNestedSpaces(spaces, space.id, level + 1)}
+        </React.Fragment>
+      ));
+  };
 
   const handleDeleteItem = async (itemId) => {
     console.log("[ContentArea] Deleting item:", itemId);
@@ -263,18 +258,21 @@ const renderNestedSpaces = (spaces, parentId = null, level = 0) => {
                           className="cancel-icon"
                         />
                       </div>
-
                     </>
                   ) : (
                     <>
                       <strong>{item.name}</strong> - {item.description || "No description"}
                       <div>
-                        <button onClick={() => {
-                          setEditingItemId(item.id);
-                          setEditItemName(item.name || "");
-                          setEditItemDescription(item.description || "");
-                          setEditItemSpaceId(item.space_id || "");
-                        }}>Edit</button>
+                        <button
+                          onClick={() => {
+                            setEditingItemId(item.id);
+                            setEditItemName(item.name || "");
+                            setEditItemDescription(item.description || "");
+                            setEditItemSpaceId(item.space_id || "");
+                          }}
+                        >
+                          Edit
+                        </button>
                         <button onClick={() => handleDeleteItem(item.id)}>Delete</button>
                       </div>
                     </>

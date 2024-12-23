@@ -48,6 +48,5 @@ class Item(Base):
     # Link back to Space
     space = relationship("Space", back_populates="items")
 
-    # Add unique constraints or validations if necessary to prevent duplicate entries.
     def __repr__(self):
         return f"<Item(id={self.id}, name='{self.name}', description='{self.description}', space_id={self.space_id})>"

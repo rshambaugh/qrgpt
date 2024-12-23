@@ -30,7 +30,7 @@ async def read_spaces(db: AsyncSession = Depends(get_db)):
                 depth=space.depth,
                 created_at=space.created_at,
                 updated_at=space.updated_at,
-                children=[],  # Avoid recursion here
+                children=[],
                 items=[
                     Item(
                         id=item.id,
@@ -59,8 +59,7 @@ async def get_spaces_recursive(db: AsyncSession = Depends(get_db)):
     """
     try:
         result = await db.execute(
-            select(SpaceModel)
-            .options(joinedload(SpaceModel.items))
+            select(SpaceModel).options(joinedload(SpaceModel.items))
         )
         spaces = result.unique().scalars().all()
 
@@ -100,13 +99,12 @@ async def get_children(id: int, db: AsyncSession = Depends(get_db)):
     Get immediate children of a given parent space ID, including items.
     """
     try:
-        # Fetch spaces with parent_id = id
         result = await db.execute(
             select(SpaceModel)
             .where(SpaceModel.parent_id == id)
             .options(joinedload(SpaceModel.items))
         )
-        spaces = result.unique().scalars().all()  # Ensure results are deduplicated
+        spaces = result.unique().scalars().all()
 
         response = [
             Space(
@@ -116,7 +114,7 @@ async def get_children(id: int, db: AsyncSession = Depends(get_db)):
                 depth=space.depth,
                 created_at=space.created_at,
                 updated_at=space.updated_at,
-                children=[],  # Avoid deeper recursion
+                children=[],
                 items=[
                     Item(
                         id=item.id,
@@ -148,7 +146,6 @@ async def create_space(space: SpaceCreate, db: AsyncSession = Depends(get_db)):
     Create a new space.
     """
     try:
-        # Validate parent_id (if provided)
         if space.parent_id is not None:
             parent_exists = await db.execute(
                 select(SpaceModel.id).where(SpaceModel.id == space.parent_id)
@@ -185,7 +182,7 @@ async def create_space(space: SpaceCreate, db: AsyncSession = Depends(get_db)):
 @router.put("/{id}", response_model=Space)
 async def update_space(id: int, space_data: SpaceUpdate, db: AsyncSession = Depends(get_db)):
     """
-    Update an existing space.
+    Update an existing space. Partial updates allowed.
     """
     try:
         query = select(SpaceModel).where(SpaceModel.id == id)
@@ -197,19 +194,20 @@ async def update_space(id: int, space_data: SpaceUpdate, db: AsyncSession = Depe
 
         # If the update includes changing the parent, validate it
         if space_data.parent_id is not None:
+            # Disallow moving space under itself
+            if space_data.parent_id == id:
+                raise HTTPException(status_code=400, detail="Cannot move a space under itself.")
+
             parent_exists = await db.execute(
                 select(SpaceModel.id).where(SpaceModel.id == space_data.parent_id)
             )
             if not parent_exists.scalar_one_or_none():
                 raise HTTPException(status_code=400, detail="New parent space does not exist.")
 
-        existing_space.name = space_data.name or existing_space.name
-        if space_data.parent_id is not None:
             existing_space.parent_id = space_data.parent_id
-        # If SpaceUpdate had depth changes, apply here if needed.
-        # For now, assume only name and parent updates
-        # If you want to allow depth updates:
-        # existing_space.depth = space_data.depth or existing_space.depth
+
+        if space_data.name is not None:
+            existing_space.name = space_data.name
 
         await db.commit()
         await db.refresh(existing_space)
@@ -242,8 +240,6 @@ async def delete_space(id: int, db: AsyncSession = Depends(get_db)):
         if not space:
             raise HTTPException(status_code=404, detail=f"Space with ID {id} not found")
 
-        # If you need to ensure no children or items exist before deleting, check here.
-        # Currently, cascade="all, delete-orphan" should handle removing children/items.
         await db.delete(space)
         await db.commit()
         return {"message": f"Space with ID {id} deleted successfully"}

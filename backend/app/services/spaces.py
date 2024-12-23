@@ -31,12 +31,10 @@ async def get_space_tree(db: AsyncSession):
     )
     all_spaces = result.scalars().all()
 
-    # Map spaces by their parent_id
     space_map = defaultdict(list)
     for space in all_spaces:
         space_map[space.parent_id].append(space)
 
-    # Recursive function to build the tree
     def build_tree(parent_id=None):
         children = space_map.get(parent_id, [])
         return [
@@ -74,7 +72,6 @@ async def get_children(db: AsyncSession, parent_id: int):
     )
     children = result.scalars().all()
 
-    # Convert the result into a structured dictionary
     return [
         {
             "id": space.id,
@@ -83,7 +80,7 @@ async def get_children(db: AsyncSession, parent_id: int):
             "depth": space.depth,
             "created_at": space.created_at,
             "updated_at": space.updated_at,
-            "children": [],  # Children are not fetched recursively here
+            "children": [],
             "items": [
                 {
                     "id": item.id,

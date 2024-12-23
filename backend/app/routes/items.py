@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
-from ..schemas import ItemCreate, Item
+from ..schemas import ItemCreate, ItemUpdate, Item
 from ..models import Item as ItemModel
 from ..utils.db import get_db
 
@@ -31,7 +31,10 @@ async def add_item(item: ItemCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{item_id}", response_model=Item)
-async def update_item(item_id: int, item: ItemCreate, db: AsyncSession = Depends(get_db)):
+async def update_item(item_id: int, item: ItemUpdate, db: AsyncSession = Depends(get_db)):
+    """
+    Update an existing item partially. If some fields are None, do not overwrite them.
+    """
     try:
         query = select(ItemModel).where(ItemModel.id == item_id)
         result = await db.execute(query)
@@ -40,9 +43,12 @@ async def update_item(item_id: int, item: ItemCreate, db: AsyncSession = Depends
         if not existing_item:
             raise HTTPException(status_code=404, detail=f"Item with ID {item_id} not found")
 
-        existing_item.name = item.name
-        existing_item.description = item.description
-        existing_item.space_id = item.space_id
+        if item.name is not None:
+            existing_item.name = item.name
+        if item.description is not None:
+            existing_item.description = item.description
+        if item.space_id is not None:
+            existing_item.space_id = item.space_id
 
         await db.commit()
         await db.refresh(existing_item)
