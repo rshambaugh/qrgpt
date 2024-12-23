@@ -158,7 +158,11 @@ const App = () => {
         spaces={spaces}
         onBreadcrumbClick={handleBreadcrumbClick}
       />
-      <VoiceControl />
+      <VoiceControl
+        fetchSpaces={fetchSpaces}
+        fetchItems={fetchItems}
+      />
+
       <AddForm
         addSpace={addSpace}
         addItem={addItem}

@@ -4,12 +4,12 @@ import json
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from difflib import get_close_matches
+from typing import Tuple, Optional
 from ..models import Item as ItemModel, Space as SpaceModel
 
 # OpenAI API Key
 openai.api_key = os.getenv("OPENAI_API_KEY", "")
-
 
 async def interpret_command(user_text: str, db: AsyncSession) -> dict:
     """
@@ -24,6 +24,8 @@ We have items and spaces. The user says things like:
 "Create a new space named 'Attic'"
 "Delete the item named 'Broken toy'"
 "Add a new item named 'laptop charger' to 'Bedroom Shelf'"
+"Move the garage under basement" (meaning move space under a parent space)
+"Create a new space named 'Storage Room' inside 'Garage'"
 etc.
 
 Reply ONLY with valid JSON in this shape:
@@ -34,7 +36,7 @@ Reply ONLY with valid JSON in this shape:
   "extra_details": "..."
 }}
 Where 'action' is one of:
-["create_item", "move_item", "delete_item", "find_item", "create_space", "move_space", "delete_space", "unknown"]
+["create_item", "move_item", "delete_item", "find_item", "create_space", "move_space", "delete_space", "create_nested_space", "unknown"]
 
 If uncertain, set action to "unknown".
 No extra text outside the JSON.
@@ -58,8 +60,21 @@ No extra text outside the JSON.
         command = json.loads(content)
         return command
     except json.JSONDecodeError:
-        return {"action": "unknown", "item_name": None, "space_name": None, "extra_details": content}
+        return {
+            "action": "unknown",
+            "item_name": None,
+            "space_name": None,
+            "extra_details": content
+        }
 
+def fuzzy_match(target_name: str, all_names: list[str]) -> str | None:
+    """
+    Returns the single closest match if any, else None.
+    """
+    if not target_name:
+        return None
+    matches = get_close_matches(target_name, all_names, n=1, cutoff=0.6)
+    return matches[0] if matches else None
 
 async def parse_and_execute_command(cmd: dict, db: AsyncSession) -> str:
     """
@@ -74,89 +89,201 @@ async def parse_and_execute_command(cmd: dict, db: AsyncSession) -> str:
     print(f"[voice] Parsed command - Action: {action}, Item: {item_name}, Space: {space_name}, Extra: {extra}")
 
     try:
-        # Fetch items and spaces within their own async-safe context
-        result_items = await db.execute(select(ItemModel).options(joinedload(ItemModel.space)))
-        items = result_items.scalars().all()
+        # Fetch items and spaces with joined load (and .unique() to avoid duplicates)
+        result_items = await db.execute(
+            select(ItemModel).options(joinedload(ItemModel.space))
+        )
+        items = result_items.unique().scalars().all()
 
-        result_spaces = await db.execute(select(SpaceModel).options(joinedload(SpaceModel.items)))
-        spaces = result_spaces.scalars().all()
+        result_spaces = await db.execute(
+            select(SpaceModel).options(joinedload(SpaceModel.items))
+        )
+        spaces = result_spaces.unique().scalars().all()
 
-        # Helper functions
-        def match_items(name):
-            return [i for i in items if i.name.lower() == name]
+        item_names = [i.name.lower() for i in items]
+        space_names = [s.name.lower() for s in spaces]
 
-        def match_spaces(name):
-            return [s for s in spaces if s.name.lower() == name]
+        # Helper: fuzzy or exact match for item
+        async def get_item_obj(name: str, db: AsyncSession) -> Tuple[Optional[object], Optional[str]]:
+            """
+            Fetch an item by name using exact or fuzzy matching.
+            Returns the item object and an optional error message.
+            """
+            if not name:
+                return None, "No item name provided."
 
-        # Action Handlers
-        if action == "move_item":
-            if not item_name or not space_name:
-                return "Both item name and space name are required to move an item."
+            try:
+                # Query items with their associated space using joinedload
+                result = await db.execute(
+                    select(ItemModel)
+                    .options(joinedload(ItemModel.space))
+                )
+                # Apply .unique() to eliminate duplicates
+                items = result.unique().scalars().all()
 
-            matched_items = match_items(item_name)
-            if len(matched_items) == 0:
-                return f"No item found named '{item_name}'."
-            elif len(matched_items) > 1:
-                item_list = ", ".join([f"ID:{it.id}({it.name})" for it in matched_items])
-                return f"Multiple items named '{item_name}'. Please specify which one: {item_list}"
-            item_obj = matched_items[0]
+                # Extract item names for fuzzy matching
+                item_names = [i.name.lower() for i in items]
 
-            matched_spaces = match_spaces(space_name)
-            if len(matched_spaces) == 0:
-                return f"No space found named '{space_name}'."
-            elif len(matched_spaces) > 1:
-                space_list = ", ".join([f"ID:{sp.id}({sp.name})" for sp in matched_spaces])
-                return f"Multiple spaces named '{space_name}'. Please specify which one: {space_list}"
-            space_obj = matched_spaces[0]
+                # Exact Match
+                exact_matches = [i for i in items if i.name.lower() == name.lower()]
+                if len(exact_matches) == 1:
+                    return exact_matches[0], None
+                elif len(exact_matches) > 1:
+                    return None, f"Multiple items named '{name}' found. Please specify more clearly."
 
-            item_obj.space_id = space_obj.id
-            await db.commit()
-            return f"Moved '{item_obj.name}' to '{space_obj.name}'."
+                # Fuzzy Match
+                best_guess = fuzzy_match(name, item_names)
+                if best_guess:
+                    matched = [i for i in items if i.name.lower() == best_guess]
+                    if matched:
+                        return matched[0], f"Assumed you meant '{best_guess}' for the item."
 
-        elif action == "find_item":
-            if not item_name:
-                return "No item name provided. Example: 'Where is my hammer?'"
-            matched_items = match_items(item_name)
-            if len(matched_items) == 0:
-                return f"No item found named '{item_name}'."
-            elif len(matched_items) > 1:
-                item_list = ", ".join([f"ID:{it.id}" for it in matched_items])
-                return f"Multiple items named '{item_name}'. Please specify which one: {item_list}"
-            item_obj = matched_items[0]
-            if item_obj.space:
-                return f"'{item_obj.name}' is in space '{item_obj.space.name}'."
-            else:
-                return f"'{item_obj.name}' is not in any space."
+                return None, f"No item found matching '{name}'."
 
-        elif action == "create_item":
+            except Exception as e:
+                print(f"[get_item_obj] Error: {e}")
+                return None, f"An error occurred while fetching the item: {str(e)}"
+
+
+
+        # Helper: fuzzy or exact match for space
+        async def get_space_obj(name: str, db: AsyncSession) -> Tuple[Optional[object], Optional[str]]:
+            """
+            Fetch a space by name using exact or fuzzy matching.
+            Returns the space object and an optional error message.
+            """
+            if not name:
+                return None, "No space name provided."
+
+            try:
+                # Query spaces with their associated items using joinedload
+                result = await db.execute(
+                    select(SpaceModel)
+                    .options(joinedload(SpaceModel.items))
+                )
+                # Apply .unique() to eliminate duplicates
+                spaces = result.unique().scalars().all()
+
+                # Extract space names for fuzzy matching
+                space_names = [s.name.lower() for s in spaces]
+
+                # Exact Match
+                exact_matches = [s for s in spaces if s.name.lower() == name.lower()]
+                if len(exact_matches) == 1:
+                    return exact_matches[0], None
+                elif len(exact_matches) > 1:
+                    return None, f"Multiple spaces named '{name}' found. Please specify more clearly."
+
+                # Fuzzy Match
+                best_guess = fuzzy_match(name, space_names)
+                if best_guess:
+                    matched = [s for s in spaces if s.name.lower() == best_guess]
+                    if matched:
+                        return matched[0], f"Assumed you meant '{best_guess}' for the space."
+
+                return None, f"No space found matching '{name}'."
+
+    except Exception as e:
+        print(f"[get_space_obj] Error: {e}")
+        return None, f"An error occurred while fetching the space: {str(e)}"
+
+
+        if action == "create_item":
             if not item_name:
                 return "No item name specified."
+
             new_item = ItemModel(name=item_name.capitalize())
+            
             if space_name:
-                matched_spaces = match_spaces(space_name)
-                if len(matched_spaces) == 1:
-                    new_item.space_id = matched_spaces[0].id
-                elif len(matched_spaces) > 1:
-                    return f"Multiple spaces named '{space_name}'. Please specify which one."
-                else:
-                    return f"No space found named '{space_name}'."
+                space_obj, space_err = await get_space_obj(space_name, db)  # Properly awaited with db
+                if space_err:
+                    return space_err
+                if space_obj:
+                    new_item.space_id = space_obj.id
+
             db.add(new_item)
-            await db.commit()
-            return f"Item '{new_item.name}' created."
+            try:
+                await db.commit()
+                return f"Item '{new_item.name}' created successfully."
+            except Exception as e:
+                await db.rollback()
+                raise Exception(f"Failed to create item: {str(e)}")
 
-        elif action == "create_space":
+
+        if action == "find_item":
+            if not item_name:
+                return "No item name specified for the search."
+
+            # Await the async get_item_obj call and pass db explicitly
+            item_obj, item_err = await get_item_obj(item_name, db)
+            if item_err:
+                return item_err
+
+            if item_obj and item_obj.space:
+                return f"Item '{item_obj.name}' is located in space '{item_obj.space.name}'."
+            elif item_obj:
+                return f"Item '{item_obj.name}' was found, but its location is unspecified."
+            else:
+                return f"No item named '{item_name}' was found."
+
+
+        if action == "delete_item":
+            if not item_name:
+                return "No item name specified for deletion."
+
+            item_obj, item_err = await get_item_obj(item_name, db)
+            if item_err:
+                return item_err
+
+            try:
+                await db.delete(item_obj)
+                await db.commit()
+                return f"Item '{item_obj.name}' deleted successfully."
+            except Exception as e:
+                await db.rollback()
+                return f"Failed to delete item: {str(e)}"
+
+
+        if action == "delete_space":
             if not space_name:
-                return "No space name specified."
-            new_space = SpaceModel(name=space_name.capitalize())
-            db.add(new_space)
-            await db.commit()
-            return f"Space '{new_space.name}' created."
+                return "No space name specified for deletion."
 
-        elif action == "unknown":
-            return "I'm not sure how to interpret that command. Could you rephrase it?"
+            space_obj, space_err = await get_space_obj(space_name, db)
+            if space_err:
+                return space_err
 
-        else:
-            return f"Unsupported action: {action}"
+            try:
+                await db.delete(space_obj)
+                await db.commit()
+                return f"Space '{space_obj.name}' deleted successfully."
+            except Exception as e:
+                await db.rollback()
+                return f"Failed to delete space: {str(e)}"
+
+
+        if action == "create_nested_space":
+            if not space_name or not extra:
+                return "Both space name and parent space name must be specified."
+
+            # Fetch parent space
+            parent_space, parent_err = await get_space_obj(extra, db)
+            if parent_err:
+                return parent_err
+
+            # Create new nested space
+            new_space = SpaceModel(name=space_name.capitalize(), parent_id=parent_space.id)
+            
+            try:
+                db.add(new_space)
+                await db.commit()
+                return f"Space '{new_space.name}' created under '{parent_space.name}'."
+            except Exception as e:
+                await db.rollback()
+                return f"Failed to create nested space: {str(e)}"
+
+
+        return "Unsupported action."
+
     except Exception as e:
         print(f"[Error] {str(e)}")
         return f"An error occurred: {str(e)}"

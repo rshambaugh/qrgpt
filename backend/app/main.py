@@ -10,7 +10,7 @@ from .routes.voice import router as voice_router
 app = FastAPI()
 
 app.include_router(voice_router, prefix="/voice", tags=["voice"])
-
+    
 
 # Middleware for CORS
 app.add_middleware(
