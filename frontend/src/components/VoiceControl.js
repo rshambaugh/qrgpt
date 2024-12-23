@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 const VoiceControl = ({ fetchSpaces, fetchItems }) => {
-const [mode, setMode] = useState('voice'); // 'voice' or 'text'
-const [commandText, setCommandText] = useState('');
-const [transcript, setTranscript] = useState('');
-const [recognizing, setRecognizing] = useState(false);
-const [responseMessage, setResponseMessage] = useState('');
-const [voiceError, setVoiceError] = useState(null);
+  const [mode, setMode] = useState('voice'); // 'voice' or 'text'
+  const [commandText, setCommandText] = useState('');
+  const [transcript, setTranscript] = useState('');
+  const [recognizing, setRecognizing] = useState(false);
+  const [responseMessage, setResponseMessage] = useState('');
+  const [voiceError, setVoiceError] = useState(null);
+  const [objectType, setObjectType] = useState('item'); // 'item' or 'space'
 
   let recognition;
 
@@ -78,13 +79,13 @@ const [voiceError, setVoiceError] = useState(null);
   // Shared Interpretation Logic
   // ---------------------------
   const interpretCommand = async (userCommand) => {
-    console.log('[VoiceControl] Sending to /interpret:', userCommand);
+    console.log(`[VoiceControl] Sending to /interpret with objectType: ${objectType}`, userCommand);
     try {
       setResponseMessage('Interpreting command...');
-      const res = await fetch('http://localhost:8000/voice/interpret', {
+      const res = await fetch(`http://localhost:8000/voice/interpret?object_type=${objectType}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: userCommand }), // Ensure key matches backend
+        body: JSON.stringify({ text: userCommand }),
       });
 
       if (!res.ok) {
@@ -105,26 +106,29 @@ const [voiceError, setVoiceError] = useState(null);
       switch (parsedResponse.action) {
         case 'move_item':
         case 'move_space':
-        case 'create_item':
+        case 'create_item': 
         case 'create_space':
         case 'delete_item':
         case 'delete_space':
         case 'create_nested_space':
-          alert(finalResult.message || 'Command executed successfully');
+          console.log(finalResult.message || 'Command executed successfully');
+          setResponseMessage(finalResult.message || 'Command executed successfully');
           fetchSpaces();
           fetchItems();
           break;
         case 'find_item':
-          alert(finalResult.message || 'Item found.');
+        case 'find_space':
+          console.log(finalResult.message || `${objectType} found.`);
+          setResponseMessage(finalResult.message || `${objectType} found.`);
           break;
         case 'unknown':
-          alert('Command not understood. Please rephrase.');
+          console.warn('Command not understood. Please rephrase.');
+          setResponseMessage('Command not understood. Please rephrase.');
           break;
         default:
-          alert('Unhandled action. Please check the logs.');
+          console.error('Unhandled action. Please check the logs.');
+          setResponseMessage('Unhandled action. Please check the logs.');
       }
-
-      setResponseMessage(finalResult.message || data.message);
     } catch (error) {
       console.error('[VoiceControl] Error:', error);
       setVoiceError(error.message);
@@ -154,6 +158,28 @@ const [voiceError, setVoiceError] = useState(null);
           />
           Text Mode
         </label>
+      </div>
+
+      <div style={{ marginTop: '10px' }}>
+        <strong>Find Mode:</strong>
+        <button
+          onClick={() => setObjectType('item')}
+          style={{
+            marginLeft: '10px',
+            backgroundColor: objectType === 'item' ? 'lightblue' : 'white',
+          }}
+        >
+          Find Item
+        </button>
+        <button
+          onClick={() => setObjectType('space')}
+          style={{
+            marginLeft: '10px',
+            backgroundColor: objectType === 'space' ? 'lightblue' : 'white',
+          }}
+        >
+          Find Space
+        </button>
       </div>
 
       {mode === 'voice' ? (

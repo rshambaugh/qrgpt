@@ -9,17 +9,26 @@ from .routes.voice import router as voice_router
 
 app = FastAPI()
 
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the QRganizer API"}
+
 app.include_router(voice_router, prefix="/voice", tags=["voice"])
     
 
 # Middleware for CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Allow frontend origin
+    allow_origins=[
+        "http://localhost:3000",
+        "https://cb29-75-190-231-251.ngrok-free.app",
+        "*",  # TEMPORARILY ALLOW ALL ORIGINS
+    ],
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all HTTP headers
 )
+
 
 @app.on_event("startup")
 async def startup():
